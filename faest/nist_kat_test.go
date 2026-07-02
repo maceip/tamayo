@@ -3,19 +3,23 @@ package faest
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/aes"
 	"encoding/hex"
+	"io"
 	"os"
 	"strings"
 	"testing"
 )
 
-// External-oracle test: replay the FAEST NIST known-answer tests from the
-// authoritative reference (ait-crypto/faest-rs, tests/data/PQCsignKAT_faest_*.rsp)
-// and byte-compare keygen, signature, and verification. Each .rsp holds 100
-// deterministic vectors seeded by the NIST AES-256 CTR-DRBG. This is a real
-// external oracle (not self-consistency) and, given the known deg-3 bug, is
-// expected to localize where our FAEST signer diverges from the reference.
+// External-oracle test: replay the FAEST NIST known-answer tests and
+// byte-compare keygen, signature, and verification. Each .rsp holds the full
+// 100 deterministic vectors seeded by the NIST AES-256 CTR-DRBG (entropy
+// input 00..2F), regenerated from the authoritative reference implementation
+// (ait-crypto/faest-rs v0.3.0) by tools/faest_kat_gen; vector 0 of every set
+// was diffed byte-identical against the reference-shipped
+// tests/data/reduced_PQCsignKAT_faest_*.rsp before vendoring. This is a real
+// external oracle, not self-consistency.
 
 // katDRBG is the NIST AES-256 CTR-DRBG (no df) used by the PQC KAT harness.
 type katDRBG struct {
@@ -86,12 +90,22 @@ func parseFaestKAT(t *testing.T, path string) []faestKAT {
 	}
 	defer f.Close()
 
+	var r io.Reader = f
+	if strings.HasSuffix(path, ".gz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatalf("gzip: %v", err)
+		}
+		defer gz.Close()
+		r = gz
+	}
+
 	var out []faestKAT
 	var cur faestKAT
 	have := false
 	hx := func(s string) []byte { b, _ := hex.DecodeString(strings.TrimSpace(s)); return b }
 
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 1<<20), 64<<20)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -125,54 +139,69 @@ func TestFaestNISTKAT(t *testing.T) {
 		p    FaestParams
 		file string
 	}{
-		{FAEST128s, "PQCsignKAT_faest_128s.rsp"},
-		{FAEST128f, "PQCsignKAT_faest_128f.rsp"},
-		{FAEST192s, "PQCsignKAT_faest_192s.rsp"},
-		{FAEST192f, "PQCsignKAT_faest_192f.rsp"},
-		{FAEST256s, "PQCsignKAT_faest_256s.rsp"},
-		{FAEST256f, "PQCsignKAT_faest_256f.rsp"},
+		{FAEST128s, "PQCsignKAT_faest_128s.rsp.gz"},
+		{FAEST128f, "PQCsignKAT_faest_128f.rsp.gz"},
+		{FAEST192s, "PQCsignKAT_faest_192s.rsp.gz"},
+		{FAEST192f, "PQCsignKAT_faest_192f.rsp.gz"},
+		{FAEST256s, "PQCsignKAT_faest_256s.rsp.gz"},
+		{FAEST256f, "PQCsignKAT_faest_256f.rsp.gz"},
 	}
 	const dir = "testdata/"
 
 	for _, c := range cases {
-		o := c.p.OWF
-		kats := parseFaestKAT(t, dir+c.file)
-		if len(kats) == 0 {
-			continue
-		}
-		skOK, pkOK, smOK, verOK := 0, 0, 0, 0
-		for _, k := range kats {
-			d := newKATDRBG(k.seed)
-			// Reference keygen order: owf_key (lambda) with rejection when the
-			// low two bits of byte 0 are both set, then owf_input (InputSize).
-			var owfKey []byte
-			for {
-				owfKey = d.bytes(o.LambdaBytes)
-				if owfKey[0]&0b11 != 0b11 {
-					break
+		c := c
+		t.Run(c.p.Name, func(t *testing.T) {
+			t.Parallel()
+			o := c.p.OWF
+			kats := parseFaestKAT(t, dir+c.file)
+			if len(kats) != 100 {
+				t.Fatalf("expected 100 vectors, got %d", len(kats))
+			}
+			if testing.Short() {
+				kats = kats[:5]
+			}
+			skOK, pkOK, smOK, verOK := 0, 0, 0, 0
+			for i, k := range kats {
+				d := newKATDRBG(k.seed)
+				// Reference keygen order: owf_key (lambda) with rejection when the
+				// low two bits of byte 0 are both set, then owf_input (InputSize).
+				var owfKey []byte
+				for {
+					owfKey = d.bytes(o.LambdaBytes)
+					if owfKey[0]&0b11 != 0b11 {
+						break
+					}
+				}
+				owfInput := d.bytes(o.InputSize)
+				sk := append(append([]byte(nil), owfInput...), owfKey...)
+				if bytes.Equal(sk, k.sk) {
+					skOK++
+				} else {
+					t.Errorf("vector %d: sk mismatch", i)
+				}
+				_, _, pk := c.p.PublicKeyFromSecret(sk)
+				pkBytes := append(append([]byte(nil), pk.OwfInput...), pk.OwfOutput...)
+				if bytes.Equal(pkBytes, k.pk) {
+					pkOK++
+				} else {
+					t.Errorf("vector %d: pk mismatch", i)
+				}
+				rho := d.bytes(o.LambdaBytes)
+				sig := c.p.Sign(k.msg, sk, rho)
+				if bytes.Equal(append(append([]byte(nil), k.msg...), sig...), k.sm) {
+					smOK++
+				} else {
+					t.Errorf("vector %d: sm not byte-exact", i)
+				}
+				if c.p.Verify(k.msg, pk, sig) {
+					verOK++
+				} else {
+					t.Errorf("vector %d: verify failed", i)
 				}
 			}
-			owfInput := d.bytes(o.InputSize)
-			sk := append(append([]byte(nil), owfInput...), owfKey...)
-			if bytes.Equal(sk, k.sk) {
-				skOK++
-			}
-			_, _, pk := c.p.PublicKeyFromSecret(sk)
-			pkBytes := append(append([]byte(nil), pk.OwfInput...), pk.OwfOutput...)
-			if bytes.Equal(pkBytes, k.pk) {
-				pkOK++
-			}
-			rho := d.bytes(o.LambdaBytes)
-			sig := c.p.Sign(k.msg, sk, rho)
-			if bytes.Equal(append(append([]byte(nil), k.msg...), sig...), k.sm) {
-				smOK++
-			}
-			if c.p.Verify(k.msg, pk, sig) {
-				verOK++
-			}
-		}
-		n := len(kats)
-		t.Logf("%-6s n=%d  sk=%d/%d  pk=%d/%d  sm(byte-exact)=%d/%d  verify=%d/%d",
-			c.p.Name, n, skOK, n, pkOK, n, smOK, n, verOK, n)
+			n := len(kats)
+			t.Logf("%-6s n=%d  sk=%d/%d  pk=%d/%d  sm(byte-exact)=%d/%d  verify=%d/%d",
+				c.p.Name, n, skOK, n, pkOK, n, smOK, n, verOK, n)
+		})
 	}
 }

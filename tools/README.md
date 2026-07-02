@@ -18,6 +18,13 @@ package's `testdata/`
 | `full_proof_dump.cpp` | `optimized_bs/faest.inc` vole_prove_1/2/verify | `faest/testdata/full_proof.json` | `TestMayoProveKAT`, `TestMayoVerifyKAT` |
 | `mayo_preimage_dump.c` | mayo-c `mayo_sign_without_hashing` | `mayo/testdata/mayo_preimage.json` | `TestSignWithoutHashingKAT` |
 | `blind_loop_dump.cpp` (+ `mayo_bridge.c`) | `blind_sig_optimized` sign_1..3 + verify (vole engine + mayo-c) | `faest/testdata/blind_loop.json` | `TestBlindLoopKAT` + `cmd/qemudemo` |
+| `faest_kat_gen/` (rust) | faest-rs 0.3.0 + the nist aes-256 ctr-drbg harness | `faest/testdata/PQCsignKAT_faest_*.rsp.gz` (full 100-vector sets) | `TestFaestNISTKAT` |
+
+`faest_kat_gen` replicates the nist `PQCgenKAT_sign` flow (entropy input
+`00..2f`, per-vector reseed, `mlen = 33*(count+1)`) on top of the faest-rs
+reference; vector 0 of every generated set was diffed byte-identical against
+the reference-shipped `reduced_PQCsignKAT_faest_*.rsp` before vendoring
+(`cd faest_kat_gen && cargo run --release`, output lands in `out/`)
 
 ## shims
 

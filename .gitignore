@@ -6,8 +6,17 @@
 
 # TamaGo device demo build outputs (cmd/qemudemo)
 /cmd/qemudemo/qemudemo
+/cmd/qemudemo/qemudemo-dbg
+/cmd/qemudemo/bios.bin
 /cmd/qemudemo/qemu2g.dts
 /cmd/qemudemo/qemu2g.dtb
+/cmd/qemudemo/qemu4g.dts
+/cmd/qemudemo/qemu4g.dtb
+
+# FAEST KAT generator build/outputs (tools/faest_kat_gen)
+/tools/faest_kat_gen/target/
+/tools/faest_kat_gen/out/
+/tools/faest_kat_gen/Cargo.lock
 
 # compiled reference dumpers (tools/ are sources; binaries are built out-of-tree)
 /tools/*.o

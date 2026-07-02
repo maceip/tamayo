@@ -21,8 +21,8 @@ the name is tamago + mayo (tamago means "egg"; mayonnaise is made from eggs)
 | `gf16` | gf(16) arithmetic | exhaustive / property tests |
 | `field` | gf(2^128/192/256) and their degree-3 extensions | `LargeFieldMul` reference vectors |
 | `mayo` | mayo keygen / sign / verify, plus the salt-free preimage sampler (`SignWithoutHashing`) | mayo nist round-2 kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
-| `faest` | vole-in-the-head engine (prg, ggm/bavc vector commitments, small-vole, universal hashing, quicksilver) and both the faest aes signature and the one-more-mayo blind signature | faest reference kats byte-exact; one-more-mayo byte-exact vs the c++/c reference both directions |
-| `cmd/qemudemo` | the one-more-mayo blind loop running bare-metal on qemu sifive_u (riscv64) | on-device byte-exact, see below |
+| `faest` | vole-in-the-head engine (prg, ggm/bavc vector commitments, small-vole, universal hashing, quicksilver) and both the faest aes signature and the one-more-mayo blind signature | full faest nist kat 600/600 byte-exact (100 vectors x 6 sets); one-more-mayo byte-exact vs the c++/c reference both directions |
+| `cmd/qemudemo` | the one-more-mayo blind loop running bare-metal on qemu sifive_u (riscv64) at l1, l3 and l5 | on-device byte-exact, see below |
 
 no cryptographic primitive is hand-written — every construct is a transpilation
 of a named source listed in [`SOURCES.md`](./SOURCES.md), and sha-3/shake is
@@ -48,27 +48,31 @@ verification ledger is [`PLAN.md`](./PLAN.md)
 
 ## on device
 
-`cmd/qemudemo` boots on `qemu-system-riscv64 -machine sifive_u`, runs the l1
-blind loop against an embedded reference vector, and prints on the uart console
+`cmd/qemudemo` boots on `qemu-system-riscv64 -machine sifive_u`, runs the
+blind loop at all three security levels against embedded reference vectors,
+and prints on the uart console
 
 ```
-=== One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1 ===
+=== One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1+L3+L5 ===
+--- L1 (mayo_128_s) ---
 [sign_1] blinding message ... t byte-exact vs reference: true
 [sign_2] MAYO preimage ... bsig byte-exact vs reference: true
 [sign_3] VOLE-in-the-Head proof ... proof byte-exact vs reference (6895 bytes): true
 [verify] on-device blind verify (Go proof) ... verify=true
 [verify] on-device blind verify (reference proof) ... verify=true
 [verify] tampered proof rejected ... rejected=true
-RESULT: PASS — One-More-MAYO blind sign+verify byte-exact on device
+L1 (mayo_128_s): PASS
+--- L3 (mayo_192_s) ---   ... PASS (proof 15862 bytes)
+--- L5 (mayo_256_s) ---   ... PASS (proof 29615 bytes)
+RESULT: PASS — One-More-MAYO blind sign+verify byte-exact on device (L1+L3+L5)
 ```
 
 ```
-cd cmd/qemudemo && make qemu   # needs the tamago-go toolchain, qemu-system-riscv64, dtc
+cd cmd/qemudemo && make qemu   # needs the tamago-go toolchain, qemu-system-riscv64, dtc, python3
 ```
 
 the whole tree also cross-builds under `GOOS=tamago` with `tamago-go` for
-amd64/arm/arm64/riscv64; the on-device run above is l1, l3/l5 are byte-exact on
-host but not yet booted on device
+amd64/arm/arm64/riscv64
 
 ## usage
 
@@ -93,11 +97,12 @@ ok = o.BlindVerify(epk, msg, proof.Bytes, rAdditional)
 go test ./...
 ```
 
-runs the mayo nist kats, the faest reference kats, the mayo preimage kat, and
-the one-more-mayo byte-exact loop (prover, verifier, and full blind path at
-l1/l3/l5) — the full 600-vector faest replay lives in `faest/nist_kat_test.go`
-and this repo vendors a reduced subset, with the complete `.rsp` set droppable
-into `faest/testdata/`
+runs the mayo nist kats, the full 600-vector faest nist kat replay (vendored
+gzipped under `faest/testdata/`, regenerated from the faest-rs reference by
+`tools/faest_kat_gen` and spot-checked byte-identical against the
+reference-shipped vectors), the mayo preimage kat, and the one-more-mayo
+byte-exact loop (prover, verifier, and full blind path at l1/l3/l5) — use
+`go test -short` to run 5 vectors per faest set instead of 100
 
 reference vectors were produced by the c++/c dumpers in `tools/`, compiled
 against the stipulated sources and run to emit inputs and outputs that the go

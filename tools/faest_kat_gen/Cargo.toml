@@ -1,0 +1,18 @@
+[package]
+name = "faest_kat_gen"
+version = "0.1.0"
+edition = "2021"
+
+# regenerates the full 100-vector NIST KAT .rsp files for the six FAEST
+# parameter sets from the stipulated reference implementation (faest-rs),
+# replicating the NIST PQCgenKAT_sign harness (AES-256 CTR-DRBG, entropy
+# input 00..2F, mlen = 33*(count+1))
+
+[dependencies]
+faest = { version = "0.3.0", features = ["randomized-signer"] }
+nist-pqc-seeded-rng = "0.4"
+rand_core = "0.10"
+signature = { version = "3", features = ["rand_core"] }
+
+[profile.release]
+opt-level = 3

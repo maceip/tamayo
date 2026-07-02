@@ -33,9 +33,10 @@ agree with each other; it does not prove they implement the paper.
 |---|---|---|
 | `gf16`, `field` | property + `LargeFieldMul` vectors | pass |
 | `mayo` | official **NIST KAT** | 100/100 (L1/L3/L5) |
-| `faest` engine + AES OWF | **faest-rs reference KATs** | byte-exact (600 vectors run; reduced vendored) |
+| `faest` engine + AES OWF | **full FAEST NIST KAT** (100 vectors × 6 sets, vendored gzipped, regenerated from faest-rs by `tools/faest_kat_gen`) | 600/600 byte-exact (sk/pk/sm/verify) |
 | all packages | real `GOOS=tamago` build, tamago-go1.26.4 | 4 arches OK |
 | `faest` on device | ran on TamaGo (riscv64 sifive_u, QEMU) | `verify=true` |
+| One-More-MAYO on device | TamaGo (riscv64 sifive_u, QEMU), L1+L3+L5 | RESULT: PASS (see crown jewel) |
 
 These are faithful ports of **existing published schemes** (MAYO, FAEST) — not
 the novel contribution.
@@ -165,32 +166,42 @@ engine *and* MAYO-C via `mayo_bridge.c`, runs the real sign_1→2→3→verify):
   the reference proof byte-for-byte for a fixed keypair/message/`r_additional`
   (`TestBlindLoopKAT`, L1/L3/L5), and the Go verifier accepts the reference proof
   (interop) and rejects tampering.
-- [x] **Runs on TamaGo (QEMU sifive_u, riscv64): blind sign → verify, correct
-  result.** `cmd/qemudemo` boots bare-metal on `qemu-system-riscv64 -machine
-  sifive_u`, runs sign_1→sign_2→sign_3→verify against the embedded L1 reference
-  vector, and prints (captured on the UART console):
+- [x] **Runs on TamaGo (QEMU sifive_u, riscv64) at all three security levels:
+  blind sign → verify, correct result.** `cmd/qemudemo` boots bare-metal on
+  `qemu-system-riscv64 -machine sifive_u`, runs sign_1→sign_2→sign_3→verify
+  against the embedded L1/L3/L5 reference vectors, and prints (captured on the
+  UART console, 2026-07-02):
 
   ```
-  === One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1 ===
+  === One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1+L3+L5 ===
+  --- L1 (mayo_128_s) ---
   [sign_1] blinding message ... t byte-exact vs reference: true
   [sign_2] MAYO preimage ... bsig byte-exact vs reference: true
   [sign_3] VOLE-in-the-Head proof ... proof byte-exact vs reference (6895 bytes): true
   [verify] on-device blind verify (Go proof) ... verify=true
   [verify] on-device blind verify (reference proof) ... verify=true
   [verify] tampered proof rejected ... rejected=true
-  RESULT: PASS — One-More-MAYO blind sign+verify byte-exact on device.
+  L1 (mayo_128_s): PASS
+  --- L3 (mayo_192_s) ---            (same six checks, proof 15862 bytes) PASS
+  --- L5 (mayo_256_s) ---            (same six checks, proof 29615 bytes) PASS
+  RESULT: PASS — One-More-MAYO blind sign+verify byte-exact on device (L1+L3+L5).
   ```
 
 **Honest status:** complete. The full One-More-MAYO blind signature is byte-exact
 against the authoritative C++/C reference in both directions at all three
-security levels, and the L1 path runs end-to-end on bare-metal RISC-V under QEMU
-producing the byte-identical proof and accepting. Two notes recorded honestly:
-(1) the on-device demo runs **L1**; L3/L5 are byte-exact on host but not yet run
-on device. (2) The device run needed two real fixes found only by running on
-metal: `mayo/keygen.go` no longer imports `crypto/cipher` (its AES-CTR path
-stalled bare-metal init) — it now drives `crypto/aes` in CTR directly, still
-KAT-green; and the demo raises `RamSize` (the stock sifive_u board caps RAM at
-512 MiB, below the L1 signer's peak) via `-tags linkramsize` + a 2 GiB DTB.
+security levels, and all three levels run end-to-end on bare-metal RISC-V under
+QEMU producing the byte-identical proofs and accepting. Notes recorded honestly:
+(1) `mayo/keygen.go` no longer imports `crypto/cipher` (its AES-CTR path stalled
+bare-metal init) — it now drives `crypto/aes` in CTR directly, still KAT-green.
+(2) The demo raises `RamSize` via `-tags linkramsize` + a matching DTB: the
+stock sifive_u board caps RAM at 512 MiB, the L1 loop peaks above that, and the
+L3 verifier ran out of memory at 3.75 GiB — the demo now uses 15.75 GiB
+(`qemu -m 16G`), which covers all three levels with Go's default GC headroom.
+(3) The tamago-example prebuilt `bios.bin` hardcodes a stale
+`_rt0_riscv64_tamago` address (0x8006b1e0), so any kernel whose entry point
+lands elsewhere (e.g. the multi-level demo, ~3.2 MB) boots into the middle of
+arbitrary code and dies before printing; `cmd/qemudemo/mkbios.py` now generates
+the bios jump stage from the kernel's actual ELF entry on every build.
 
 ## Verification method (the check that was skipped before)
 
