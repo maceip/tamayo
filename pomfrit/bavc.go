@@ -1,6 +1,10 @@
-package faest
+package pomfrit
 
-import "crypto/sha3"
+import (
+	"crypto/sha3"
+
+	"github.com/maceip/tamayo/faest"
+)
 
 // GGM-forest batched all-but-one vector commitment for the optimized_bs MAYO
 // path. Transpiled from pq_blind_signatures vole/faest-cpp-tmp/vector_com.inc
@@ -94,7 +98,7 @@ func (m MayoForest) expandTree(root, iv []byte, treeIdx, depth int) [][][]byte {
 		next := make([][]byte, 0, len(levels[l-1])*2)
 		for _, parent := range levels[l-1] {
 			buf := make([]byte, 2*lam)
-			NewPRG(parent, iv, tweak).Read(buf)
+			faest.NewPRG(parent, iv, tweak).Read(buf)
 			next = append(next, append([]byte(nil), buf[:lam]...), append([]byte(nil), buf[lam:]...))
 		}
 		levels[l] = next
@@ -129,7 +133,7 @@ func (m MayoForest) MayoForestCommit(seed, iv []byte) (voleKeys [][][]byte, hash
 
 	// Roots: PRG(seed, iv, tweak=0) stretched to Tau blocks.
 	rootBuf := make([]byte, m.Tau*lam)
-	NewPRG(seed, iv, 0).Read(rootBuf)
+	faest.NewPRG(seed, iv, 0).Read(rootBuf)
 
 	voleKeys = make([][][]byte, m.Tau)
 	hashedLeaves = make([][]byte, m.Tau)

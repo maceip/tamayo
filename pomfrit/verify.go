@@ -1,4 +1,6 @@
-package faest
+package pomfrit
+
+import "github.com/maceip/tamayo/faest"
 
 // One-More-MAYO VOLE verifier. Transpiled from pq_blind_signatures
 // vole/optimized_bs/faest.inc (vole_verify) plus the reconstruct halves of
@@ -31,7 +33,7 @@ func (m MayoForest) expandSubtree(key, iv []byte, treeIdx, startDepth, levelsDow
 		next := make([][]byte, 0, len(level)*2)
 		for _, parent := range level {
 			buf := make([]byte, 2*lam)
-			NewPRG(parent, iv, tweak).Read(buf)
+			faest.NewPRG(parent, iv, tweak).Read(buf)
 			next = append(next, append([]byte(nil), buf[:lam]...), append([]byte(nil), buf[lam:]...))
 		}
 		level = next

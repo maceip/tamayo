@@ -11,8 +11,10 @@ This product includes software transpiled from and validated against:
     Licensed under Apache-2.0.
     Cross-checked against the pq-mayo Rust implementation.
 
-Known-answer test vectors vendored under */testdata/PQCsignKAT_*.rsp are the
-upstream NIST KAT files from the FAEST (faest-rs) and MAYO (MAYO-C) projects and
-are redistributed under their original licenses (MIT / Apache-2.0).
+Known-answer test vectors vendored under */testdata/PQCsignKAT_*.rsp(.gz) are
+the upstream NIST KAT files from the FAEST (faest-rs) and MAYO (MAYO-C)
+projects (the FAEST sets regenerated with the upstream NIST harness by
+tools/faest_kat_gen) and are redistributed under their original licenses
+(MIT / Apache-2.0).
 
 The MAYO and FAEST names and specifications belong to their respective teams.

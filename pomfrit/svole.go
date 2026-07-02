@@ -1,6 +1,10 @@
-package faest
+package pomfrit
 
-import "math/bits"
+import (
+	"math/bits"
+
+	"github.com/maceip/tamayo/faest"
+)
 
 // Small-VOLE (sender side) for the optimized_bs MAYO path. Transpiled from
 // pq_blind_signatures vole/optimized_bs/small_vole.inc (xor_reduce,
@@ -59,7 +63,7 @@ func (m MayoForest) voleSender(k int, keys [][]byte, iv []byte, tweak uint32, uI
 	exp := make([][]byte, n)
 	for i := 0; i < n; i++ {
 		exp[i] = make([]byte, colBytes)
-		NewPRG(keys[i], iv, tweak).Read(exp[i])
+		faest.NewPRG(keys[i], iv, tweak).Read(exp[i])
 	}
 
 	accum := make([]byte, colBytes)
@@ -111,7 +115,7 @@ func (m MayoForest) voleReceiver(k int, keys [][]byte, iv []byte, tweak uint32, 
 	exp := make([][]byte, n)
 	for i := 1; i < n; i++ {
 		exp[i] = make([]byte, colBytes)
-		NewPRG(keys[i], iv, tweak).Read(exp[i])
+		faest.NewPRG(keys[i], iv, tweak).Read(exp[i])
 	}
 
 	q := make([]byte, k*colBytes)

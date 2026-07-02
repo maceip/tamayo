@@ -1,4 +1,4 @@
-package faest
+package pomfrit
 
 import (
 	"bytes"

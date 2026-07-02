@@ -11,13 +11,13 @@ package's `testdata/`
 
 | dumper | reference source | emits | consumed by |
 |---|---|---|---|
-| `qs2_dump.cpp` | `optimized_bs/quicksilver.hpp` (max_deg=2) | `faest/testdata/quicksilver2.json` | `TestQuickSilver2KAT` |
-| `vole_commit_dump.cpp` | `optimized_bs` vole_commit + vole_check + transpose | `faest/testdata/vole_commit.json` | `TestMayoForestCommitCheck`, `TestMayoVoleCommitSender`, `TestMayoVoleCheckSender` |
-| `bavc_open_dump.cpp` | `optimized_bs` ggm_forest_bavc::open | `faest/testdata/bavc_open.json` | `TestMayoForestOpen` |
-| `mayo_circuit_dump.cpp` | `optimized_bs/owf_proof.inc` enc_constraints | `faest/testdata/mayo_circuit.json` | `TestMayoCircuitKAT` |
-| `full_proof_dump.cpp` | `optimized_bs/faest.inc` vole_prove_1/2/verify | `faest/testdata/full_proof.json` | `TestMayoProveKAT`, `TestMayoVerifyKAT` |
+| `qs2_dump.cpp` | `optimized_bs/quicksilver.hpp` (max_deg=2) | `pomfrit/testdata/quicksilver2.json` | `TestQuickSilver2KAT` |
+| `vole_commit_dump.cpp` | `optimized_bs` vole_commit + vole_check + transpose | `pomfrit/testdata/vole_commit.json` | `TestMayoForestCommitCheck`, `TestMayoVoleCommitSender`, `TestMayoVoleCheckSender` |
+| `bavc_open_dump.cpp` | `optimized_bs` ggm_forest_bavc::open | `pomfrit/testdata/bavc_open.json` | `TestMayoForestOpen` |
+| `mayo_circuit_dump.cpp` | `optimized_bs/owf_proof.inc` enc_constraints | `pomfrit/testdata/mayo_circuit.json` | `TestMayoCircuitKAT` |
+| `full_proof_dump.cpp` | `optimized_bs/faest.inc` vole_prove_1/2/verify | `pomfrit/testdata/full_proof.json` | `TestMayoProveKAT`, `TestMayoVerifyKAT` |
 | `mayo_preimage_dump.c` | mayo-c `mayo_sign_without_hashing` | `mayo/testdata/mayo_preimage.json` | `TestSignWithoutHashingKAT` |
-| `blind_loop_dump.cpp` (+ `mayo_bridge.c`) | `blind_sig_optimized` sign_1..3 + verify (vole engine + mayo-c) | `faest/testdata/blind_loop.json` | `TestBlindLoopKAT` + `cmd/qemudemo` |
+| `blind_loop_dump.cpp` (+ `mayo_bridge.c`) | `blind_sig_optimized` sign_1..3 + verify (vole engine + mayo-c) | `pomfrit/testdata/blind_loop.json` | `TestBlindLoopKAT` + `cmd/qemudemo` |
 | `faest_kat_gen/` (rust) | faest-rs 0.3.0 + the nist aes-256 ctr-drbg harness | `faest/testdata/PQCsignKAT_faest_*.rsp.gz` (full 100-vector sets) | `TestFaestNISTKAT` |
 
 `faest_kat_gen` replicates the nist `PQCgenKAT_sign` flow (entropy input
@@ -50,7 +50,7 @@ g++ -O2 -std=c++23 -march=native \
   ~/pq_blind_signatures/vole/faest-cpp-tmp/avx2/aes_impl.cpp \
   ~/pq_blind_signatures/vole/faest-cpp-tmp/polynomials_constants.cpp \
   fips202.o -o qs2_dump
-./qs2_dump > ../faest/testdata/quicksilver2.json
+./qs2_dump > ../pomfrit/testdata/quicksilver2.json
 ```
 
 the exact per-dumper include and link lines are the ones recorded in the

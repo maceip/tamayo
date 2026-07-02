@@ -203,6 +203,22 @@ lands elsewhere (e.g. the multi-level demo, ~3.2 MB) boots into the middle of
 arbitrary code and dies before printing; `cmd/qemudemo/mkbios.py` now generates
 the bios jump stage from the kernel's actual ELF entry on every build.
 
+## Repo organization note (2026-07-02)
+
+The One-More-MAYO engine was extracted from `faest` into its own package,
+`pomfrit` (the paper's name), so each major subsystem is independently usable:
+`gf16` → `field`/`mayo` → `faest` (FAEST AES signature + VOLEitH primitives) →
+`pomfrit` (blind signature; reuses `faest.NewPRG`/`faest.ZKHasher` only). The
+former `faest/vole_mayo_*.go` files became `pomfrit/{bavc,svole,check,params,
+circuit,sign,verify}.go` (plus `quicksilver2.go`), and their reference vectors
+moved to `pomfrit/testdata/`. Historical verification records below cite the
+pre-move `faest/vole_mayo_*` paths; content is unchanged (`git mv`), and the
+full byte-exact suite plus the on-device demo were re-run green after the move
+(device rerun 2026-07-02, RESULT: PASS L1+L3+L5). One extra device finding from
+the rerun: the third back-to-back L5 verify once tipped past 15.75 GiB before
+GC kicked in, so `cmd/qemudemo` now runs `runtime.GC()` between verifies —
+GC-timing dependent headroom, not a correctness issue.
+
 ## Verification method (the check that was skipped before)
 
 1. On the box, run the reference (`test_voleopti_bs` / the Rust `blind-signatures`)

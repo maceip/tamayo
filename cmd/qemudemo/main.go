@@ -24,7 +24,7 @@ import (
 
 	_ "github.com/usbarmory/tamago/board/qemu/sifive_u"
 
-	"github.com/maceip/tamayo/faest"
+	"github.com/maceip/tamayo/pomfrit"
 	"github.com/maceip/tamayo/mayo"
 )
 
@@ -93,7 +93,7 @@ var l5BSig []byte
 
 type level struct {
 	name  string
-	owf   faest.MayoOWF
+	owf   pomfrit.MayoOWF
 	mp    *mayo.Params
 	epk   []byte
 	csk   []byte
@@ -125,14 +125,19 @@ func runLevel(l *level) bool {
 	okProof := bytes.Equal(sig.Bytes, l.proof)
 	fmt.Printf("proof byte-exact vs reference (%d bytes): %v\n", len(sig.Bytes), okProof)
 
+	// Each verify allocates a full VOLE reconstruction; collect between them
+	// so the three back-to-back verifies don't stack against RamSize.
+	runtime.GC()
 	fmt.Print("[verify] on-device blind verify (Go proof) ... ")
 	okVerifyGo := l.owf.BlindVerify(l.epk, l.msg, sig.Bytes, rAdd)
 	fmt.Printf("verify=%v\n", okVerifyGo)
 
+	runtime.GC()
 	fmt.Print("[verify] on-device blind verify (reference proof) ... ")
 	okVerifyRef := l.owf.BlindVerify(l.epk, l.msg, l.proof, rAdd)
 	fmt.Printf("verify=%v\n", okVerifyRef)
 
+	runtime.GC()
 	bad := append([]byte(nil), sig.Bytes...)
 	bad[0] ^= 1
 	fmt.Print("[verify] tampered proof rejected ... ")
@@ -152,9 +157,9 @@ func main() {
 	fmt.Print("\n=== One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1+L3+L5 ===\n")
 
 	levels := []*level{
-		{"L1 (mayo_128_s)", faest.MayoOWFL1, &mayo.Mayo1, l1EPK, l1CSK, l1Msg, l1RAdd, l1Proof, l1T, l1BSig},
-		{"L3 (mayo_192_s)", faest.MayoOWFL3, &mayo.Mayo3, l3EPK, l3CSK, l3Msg, l3RAdd, l3Proof, l3T, l3BSig},
-		{"L5 (mayo_256_s)", faest.MayoOWFL5, &mayo.Mayo5, l5EPK, l5CSK, l5Msg, l5RAdd, l5Proof, l5T, l5BSig},
+		{"L1 (mayo_128_s)", pomfrit.MayoOWFL1, &mayo.Mayo1, l1EPK, l1CSK, l1Msg, l1RAdd, l1Proof, l1T, l1BSig},
+		{"L3 (mayo_192_s)", pomfrit.MayoOWFL3, &mayo.Mayo3, l3EPK, l3CSK, l3Msg, l3RAdd, l3Proof, l3T, l3BSig},
+		{"L5 (mayo_256_s)", pomfrit.MayoOWFL5, &mayo.Mayo5, l5EPK, l5CSK, l5Msg, l5RAdd, l5Proof, l5T, l5BSig},
 	}
 
 	pass := true

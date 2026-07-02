@@ -21,7 +21,8 @@ the name is tamago + mayo (tamago means "egg"; mayonnaise is made from eggs)
 | `gf16` | gf(16) arithmetic | exhaustive / property tests |
 | `field` | gf(2^128/192/256) and their degree-3 extensions | `LargeFieldMul` reference vectors |
 | `mayo` | mayo keygen / sign / verify, plus the salt-free preimage sampler (`SignWithoutHashing`) | mayo nist round-2 kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
-| `faest` | vole-in-the-head engine (prg, ggm/bavc vector commitments, small-vole, universal hashing, quicksilver) and both the faest aes signature and the one-more-mayo blind signature | full faest nist kat 600/600 byte-exact (100 vectors x 6 sets); one-more-mayo byte-exact vs the c++/c reference both directions |
+| `faest` | the faest aes signature and its vole-in-the-head engine (prg, ggm/bavc vector commitments, small-vole, universal hashing, quicksilver) | full faest nist kat 600/600 byte-exact (100 vectors x 6 sets) |
+| `pomfrit` | the one-more-mayo blind signature and its own vole engine (ggm-forest bavc, small-vole, deg-2 quicksilver, mayo-eval circuit, fiat-shamir), reusing the faest prg and zk hash | byte-exact vs the c++/c reference both directions at l1/l3/l5 |
 | `cmd/qemudemo` | the one-more-mayo blind loop running bare-metal on qemu sifive_u (riscv64) at l1, l3 and l5 | on-device byte-exact, see below |
 
 no cryptographic primitive is hand-written — every construct is a transpilation
@@ -41,7 +42,7 @@ checked byte-for-byte against a dumper compiled from the reference sources:
 - `sign_3` is the vole-in-the-head proof (`vole_prove_1` / `vole_prove_2`)
 - `verify` recomputes `h` and runs `vole_verify`
 
-`faest.MayoOWFL1` / `MayoOWFL3` / `MayoOWFL5` reproduce the reference blinded
+`pomfrit.MayoOWFL1` / `MayoOWFL3` / `MayoOWFL5` reproduce the reference blinded
 message, preimage and full proof byte-for-byte at all three levels, and the
 go verifier accepts the reference proof (interop) and rejects tampering — the
 verification ledger is [`PLAN.md`](./PLAN.md)
@@ -77,14 +78,17 @@ amd64/arm/arm64/riscv64
 ## usage
 
 ```go
-import "github.com/maceip/tamayo/faest"
+import (
+    "github.com/maceip/tamayo/faest"
+    "github.com/maceip/tamayo/pomfrit"
+)
 
 // faest aes signature
 sk, pk, _ := faest.FAEST128s.KeyGen(rand.Reader)
 sig := faest.FAEST128s.Sign(msg, sk, rho)   // rho: 16 bytes of randomness
 ok := faest.FAEST128s.Verify(msg, pk, sig)
 
-// one-more-mayo blind signature (o = faest.MayoOWFL1, mp = &mayo.Mayo1)
+// one-more-mayo blind signature (o = pomfrit.MayoOWFL1, mp = &mayo.Mayo1)
 t, st, h := o.Sign1(msg, rAdditional)        // blinded message
 bsig := mp.SignWithoutHashing(t, csk)        // mayo preimage (signer)
 proof := o.Sign3(epk, h, bsig, st, rAdditional)

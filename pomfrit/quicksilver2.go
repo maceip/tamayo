@@ -1,6 +1,9 @@
-package faest
+package pomfrit
 
-import "github.com/maceip/tamayo/field"
+import (
+	"github.com/maceip/tamayo/faest"
+	"github.com/maceip/tamayo/field"
+)
 
 // Degree-2 QuickSilver for the PoMFRIT One-More-MAYO proof (QS_DEGREE = 2).
 // Transpiled from pq_blind_signatures vole/optimized_bs/quicksilver.hpp:
@@ -41,14 +44,14 @@ type QS2Prover struct {
 	f       field.Big
 	witness []byte
 	macs    [][]uint64
-	h       [qs2MaxDeg]*ZKHasher
+	h       [qs2MaxDeg]*faest.ZKHasher
 }
 
 // NewQS2Prover initializes the prover state from the 3*lambda+64-bit
 // QuickSilver challenge, one ZKHasher per MAC-polynomial coefficient.
 func NewQS2Prover(f field.Big, witness []byte, macs [][]uint64, challenge []byte) *QS2Prover {
 	return &QS2Prover{f: f, witness: witness, macs: macs,
-		h: [qs2MaxDeg]*ZKHasher{NewZKHasher(f, challenge), NewZKHasher(f, challenge)}}
+		h: [qs2MaxDeg]*faest.ZKHasher{faest.NewZKHasher(f, challenge), faest.NewZKHasher(f, challenge)}}
 }
 
 // QSP2Bit mirrors quicksilver_gf2<prover, deg>: deg ascending MAC coefficients
@@ -322,13 +325,13 @@ type QS2Verifier struct {
 	f           field.Big
 	macs        [][]uint64
 	deltaPowers [qs2MaxDeg][]uint64
-	h           *ZKHasher
+	h           *faest.ZKHasher
 }
 
 // NewQS2Verifier initializes the verifier state; deltaPowers = [Delta,
 // Delta^2] as in the reference constructor.
 func NewQS2Verifier(f field.Big, macs [][]uint64, delta []uint64, challenge []byte) *QS2Verifier {
-	v := &QS2Verifier{f: f, macs: macs, h: NewZKHasher(f, challenge)}
+	v := &QS2Verifier{f: f, macs: macs, h: faest.NewZKHasher(f, challenge)}
 	v.deltaPowers[0] = delta
 	v.deltaPowers[1] = f.Mul(delta, delta)
 	return v
