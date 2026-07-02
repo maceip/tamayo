@@ -4,6 +4,14 @@
 /bin/
 /dist/
 
+# TamaGo device demo build outputs (cmd/qemudemo)
+/cmd/qemudemo/qemudemo
+/cmd/qemudemo/qemu2g.dts
+/cmd/qemudemo/qemu2g.dtb
+
+# compiled reference dumpers (tools/ are sources; binaries are built out-of-tree)
+/tools/*.o
+
 # Editor / OS
 .DS_Store
 *.swp
