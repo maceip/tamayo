@@ -158,22 +158,39 @@ engine *and* MAYO-C via `mayo_bridge.c`, runs the real sign_1→2→3→verify):
 `BlindVerify` accepts both the Go and reference proofs and rejects tampering.
 `GOOS=tamago` build (tamago-go1.26.4) green on amd64/arm/arm64/riscv64.
 
-### Crown jewel: One-More-MAYO blind signature — DONE (byte-exact, both directions)
+### Crown jewel: One-More-MAYO blind signature — DONE (byte-exact, both directions, on device)
 
 - [x] Faithful transpile of the full path (no invented FS, no derived constants, no fallbacks).
 - [x] **Verified byte-exact against the reference** — the Go blind path reproduces
   the reference proof byte-for-byte for a fixed keypair/message/`r_additional`
   (`TestBlindLoopKAT`, L1/L3/L5), and the Go verifier accepts the reference proof
   (interop) and rejects tampering.
-- [ ] Runs on TamaGo (QEMU sifive_u): blind sign → verify, correct result.
-      (Builds for all 4 tamago arches; the QEMU sign→verify run is the remaining item.)
+- [x] **Runs on TamaGo (QEMU sifive_u, riscv64): blind sign → verify, correct
+  result.** `cmd/qemudemo` boots bare-metal on `qemu-system-riscv64 -machine
+  sifive_u`, runs sign_1→sign_2→sign_3→verify against the embedded L1 reference
+  vector, and prints (captured on the UART console):
 
-**Honest status:** the cryptographic path is complete and byte-exact against the
-authoritative C++/C reference in both directions, at all three security levels.
-The one unchecked box is an actual on-device QEMU run (as opposed to the
-`GOOS=tamago` cross-build, which passes). Earlier in the project I reported this
-working off prover↔verifier self-consistency; that has now been replaced by
-byte-exact verification against the reference at every layer.
+  ```
+  === One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1 ===
+  [sign_1] blinding message ... t byte-exact vs reference: true
+  [sign_2] MAYO preimage ... bsig byte-exact vs reference: true
+  [sign_3] VOLE-in-the-Head proof ... proof byte-exact vs reference (6895 bytes): true
+  [verify] on-device blind verify (Go proof) ... verify=true
+  [verify] on-device blind verify (reference proof) ... verify=true
+  [verify] tampered proof rejected ... rejected=true
+  RESULT: PASS — One-More-MAYO blind sign+verify byte-exact on device.
+  ```
+
+**Honest status:** complete. The full One-More-MAYO blind signature is byte-exact
+against the authoritative C++/C reference in both directions at all three
+security levels, and the L1 path runs end-to-end on bare-metal RISC-V under QEMU
+producing the byte-identical proof and accepting. Two notes recorded honestly:
+(1) the on-device demo runs **L1**; L3/L5 are byte-exact on host but not yet run
+on device. (2) The device run needed two real fixes found only by running on
+metal: `mayo/keygen.go` no longer imports `crypto/cipher` (its AES-CTR path
+stalled bare-metal init) — it now drives `crypto/aes` in CTR directly, still
+KAT-green; and the demo raises `RamSize` (the stock sifive_u board caps RAM at
+512 MiB, below the L1 signer's peak) via `-tags linkramsize` + a 2 GiB DTB.
 
 ## Verification method (the check that was skipped before)
 

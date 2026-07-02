@@ -2,15 +2,15 @@ package mayo
 
 import (
 	"crypto/aes"
-	"crypto/cipher"
 	"crypto/sha3"
 )
 
 // Key generation. Transpiled from pq-mayo src/keygen.rs (expand_p1_p2,
-// mayo_keypair_compact). The reference's AES-128-Ctr32BE keystream is produced
-// here with stdlib crypto/cipher CTR over a zero IV: both increment a
-// big-endian counter from zero and are byte-identical for the (< 2^32) block
-// counts MAYO uses.
+// mayo_keypair_compact). The reference's AES-128-Ctr keystream over a zero IV is
+// produced here with stdlib crypto/aes ECB over a big-endian block counter from
+// zero — byte-identical to crypto/cipher.NewCTR for the (< 2^32) block counts
+// MAYO uses, but without importing crypto/cipher, whose AES-CTR fast path pulls
+// a FIPS self-test that stalls bare-metal TamaGo at init.
 
 // expandP1P2 expands P1 and P2 from the 16-byte public-key seed using
 // AES-128-CTR, returning P1_LIMBS+P2_LIMBS bitsliced u64 limbs.
@@ -19,19 +19,35 @@ func expandP1P2(p *Params, seedPK []byte) []uint64 {
 	numVecs := totalLimbs / p.MVecLimbs
 	packedSize := p.M / 2
 
-	block, err := aes.NewCipher(seedPK[:16])
-	if err != nil {
-		panic(err)
-	}
-	iv := make([]byte, 16)
-	stream := cipher.NewCTR(block, iv)
-
 	buf := make([]byte, numVecs*packedSize)
-	stream.XORKeyStream(buf, buf) // buf is zero, so this yields the keystream
+	aesCTRZeroIV(seedPK[:16], buf)
 
 	result := make([]uint64, totalLimbs)
 	unpackMVecs(buf, result, numVecs, p.M)
 	return result
+}
+
+// aesCTRZeroIV fills dst with the AES-128-CTR keystream under key, IV = 0, i.e.
+// dst[16i:16i+16] = AES_key(be128(i)), matching crypto/cipher.NewCTR(block, 0)
+// applied to a zero buffer. The counter is the full 128-bit IV incremented big
+// endian, as in the reference.
+func aesCTRZeroIV(key, dst []byte) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	var ctr [16]byte
+	var ks [16]byte
+	for off := 0; off < len(dst); off += 16 {
+		block.Encrypt(ks[:], ctr[:])
+		copy(dst[off:], ks[:])
+		for i := 15; i >= 0; i-- {
+			ctr[i]++
+			if ctr[i] != 0 {
+				break
+			}
+		}
+	}
 }
 
 // keypairCompact derives a compact keypair from a secret seed. seedSK must be
