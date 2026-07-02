@@ -1,0 +1,15 @@
+# Go build artifacts
+*.test
+*.out
+/bin/
+/dist/
+
+# Editor / OS
+.DS_Store
+*.swp
+
+# Never commit local reference trees or secrets
+/.shape/
+/.refs/
+*.env
+.env

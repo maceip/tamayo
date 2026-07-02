@@ -1,0 +1,18 @@
+Tamayo
+Copyright 2026 the Tamayo authors
+
+This product includes software transpiled from and validated against:
+
+  FAEST - https://faest.info , https://github.com/ait-crypto/faest-rs
+    Copyright (c) 2023 FAEST Team
+    Licensed under MIT OR Apache-2.0.
+
+  MAYO - https://github.com/PQCMayo/MAYO-C
+    Licensed under Apache-2.0.
+    Cross-checked against the pq-mayo Rust implementation.
+
+Known-answer test vectors vendored under */testdata/PQCsignKAT_*.rsp are the
+upstream NIST KAT files from the FAEST (faest-rs) and MAYO (MAYO-C) projects and
+are redistributed under their original licenses (MIT / Apache-2.0).
+
+The MAYO and FAEST names and specifications belong to their respective teams.
