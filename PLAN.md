@@ -50,8 +50,8 @@ stipulated source and verified byte-exact before it enters this repo.
 |---|---|---|---|
 | deg-2 QuickSilver (`zk_prove_deg2.go`) | built by analogy to the deg-3 hasher; comment falsely says "transpiled" | `optimized_bs/quicksilver.hpp` (`quicksilver_state`, `max_deg=2`, `prove`/`verify`/`add_constraint`) | **DONE** — `faest/quicksilver2.go`; byte-exact vs reference: **yes** (see below) |
 | MAYO-OWF sign/verify, `WGrind`, deg-2 star offsets (`mayo_sign.go`) | derived the offsets and `WGrind = λ−Σkᵢ` myself | `optimized_bs/faest.inc` `vole_prove_1` / `vole_prove_2` / `vole_verify` | **DONE** — `faest/vole_mayo_sign.go` + `vole_mayo_verify.go`; byte-exact vs reference: **yes** (see below) |
-| blind Fiat-Shamir `Sign1/2/3` (`mayo_blind.go`) | composed the transcript; no source citation; e.g. SHAKE128 vs SHAKE256 at L1 | `faest.inc` + `blind_sig_optimized/{sign,verify}.rs` | TODO |
-| MAYO preimage vinegar (`mayo/vole.go` `SamplePreimage`) | invented `SHAKE256(sk‖t‖ctr)` | MAYO-C `mayo_sign_without_hashing` / `sample_preimage` | TODO |
+| blind Fiat-Shamir `Sign1/2/3` (`mayo_blind.go`) | composed the transcript; no source citation; e.g. SHAKE128 vs SHAKE256 at L1 | `faest.inc` + `blind_sig_optimized/{sign,verify}.rs` | **DONE** — `faest/vole_mayo_sign.go` (`Sign1`/`Sign3`/`BlindVerify`); byte-exact vs reference: **yes** (see below) |
+| MAYO preimage vinegar (`mayo/vole.go` `SamplePreimage`) | invented `SHAKE256(sk‖t‖ctr)` | MAYO-C `mayo_sign_without_hashing` / `sample_preimage` | **DONE** — `mayo/preimage.go` (`SignWithoutHashing`); byte-exact vs MAYO-C: **yes** (see below) |
 | MAYO-eval circuit (`mayo_circuit.go`) | genuinely transpiled from `owf_proof.inc`, but rides on the above | re-verify vs `owf_proof.inc` + `quicksilver.hpp` | **DONE** — `faest/vole_mayo_circuit.go`; byte-exact vs reference: **yes** (see below) |
 
 #### deg-2 QuickSilver — verification record (2026-07-01)
@@ -128,15 +128,52 @@ blind Fiat-Shamir `Sign1/2/3` wrapper (row 3, `blind_sig_optimized`) and the MAY
 preimage vinegar (row 4) sit on top and are still TODO, so the crown jewel below
 is not yet complete.
 
-### Crown jewel: One-More-MAYO blind signature — NOT DONE
+#### MAYO preimage + blind Fiat-Shamir Sign1/2/3 — verification record (2026-07-02)
 
-- [ ] Faithful transpile of the full path (no invented FS, no derived constants, no fallbacks).
-- [ ] **Verified byte-exact against the reference** — reference proof verifies in Go, Go proof verifies in the reference (or byte-identical proof for a fixed seed).
+The blind signature (`blind_sig_optimized` sign_1/2/3/verify) decomposes as:
+sign_1 = `vole_prove_1` then t = h + r with h = SHAKE256(m ‖ proof1);
+sign_2 = MAYO preimage of t; sign_3 = `vole_prove_2`; verify recomputes h and
+runs `vole_verify`. The `vole_prove_1/2`+`vole_verify` layer was already
+byte-exact (rows 2/5); this record covers the two remaining pieces plus the glue.
+
+- **MAYO preimage (`mayo/preimage.go` `SignWithoutHashing`)** — transpiled from
+  `mayo-c-sys/mayo_without_hashing.c` (`mayo_sign_signature_without_hashing`):
+  the MAYO signer with the message→digest→salt→t chain removed, vinegar
+  V = SHAKE256(t ‖ seed_sk ‖ ctr) (no salt), output encode(s) of
+  sig_bytes−salt_bytes. Reuses tamayo's KAT-verified `expandSK` / `computeMAndVpv`
+  / `computeRHS` / `computeA` / `sampleSolution`. `TestSignWithoutHashingKAT`
+  reproduces the MAYO-C preimage byte-exact for MAYO_1/3/5
+  (`tools/mayo_preimage_dump.c`, links MAYO-C only). My old invented
+  `SHAKE256(sk‖t‖ctr)` is gone.
+- **Blind Sign1/Sign3/BlindVerify (`faest/vole_mayo_sign.go`)** — transpiled from
+  `blind_sig_optimized/{sign,verify}.rs`: `proof1_size = VOLE_COMMIT_SIZE`,
+  h = SHAKE256(m ‖ proof1) at every level (the reference uses mayo-c-sys
+  `shake256`, i.e. SHAKE256 even at L1 — my old SHAKE128-at-L1 was wrong),
+  t = h ⊕ r, packed_pk = epk ‖ h, packed_sk = packed_pk ‖ r ‖ bsig.
+
+Authoritative check (`tools/blind_loop_dump.cpp`, links the optimized_bs vole
+engine *and* MAYO-C via `mayo_bridge.c`, runs the real sign_1→2→3→verify):
+`TestBlindLoopKAT` reproduces the blinded message t, the preimage bsig, and the
+**entire proof byte-for-byte** for L1/L3/L5 (6895/15862/29615 bytes), and
+`BlindVerify` accepts both the Go and reference proofs and rejects tampering.
+`GOOS=tamago` build (tamago-go1.26.4) green on amd64/arm/arm64/riscv64.
+
+### Crown jewel: One-More-MAYO blind signature — DONE (byte-exact, both directions)
+
+- [x] Faithful transpile of the full path (no invented FS, no derived constants, no fallbacks).
+- [x] **Verified byte-exact against the reference** — the Go blind path reproduces
+  the reference proof byte-for-byte for a fixed keypair/message/`r_additional`
+  (`TestBlindLoopKAT`, L1/L3/L5), and the Go verifier accepts the reference proof
+  (interop) and rejects tampering.
 - [ ] Runs on TamaGo (QEMU sifive_u): blind sign → verify, correct result.
+      (Builds for all 4 tamago arches; the QEMU sign→verify run is the remaining item.)
 
-**Honest status:** none of the three boxes above are checked. Earlier I reported
-this working — that was prover↔verifier self-consistency only, which is not
-verification. This file is the single source of truth for what is actually proven.
+**Honest status:** the cryptographic path is complete and byte-exact against the
+authoritative C++/C reference in both directions, at all three security levels.
+The one unchecked box is an actual on-device QEMU run (as opposed to the
+`GOOS=tamago` cross-build, which passes). Earlier in the project I reported this
+working off prover↔verifier self-consistency; that has now been replaced by
+byte-exact verification against the reference at every layer.
 
 ## Verification method (the check that was skipped before)
 

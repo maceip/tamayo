@@ -2,6 +2,18 @@ package faest
 
 import "crypto/sha3"
 
+// shake256Sum returns SHAKE256(concat(parts)) squeezed to outLen bytes (the
+// mayo-c-sys shake256 used by the blind sign_1/verify hashing of m || proof1).
+func shake256Sum(outLen int, parts ...[]byte) []byte {
+	x := sha3.NewSHAKE256()
+	for _, p := range parts {
+		x.Write(p)
+	}
+	out := make([]byte, outLen)
+	x.Read(out)
+	return out
+}
+
 // One-More-MAYO VOLE prover transcript. Transpiled from pq_blind_signatures
 // vole/optimized_bs/faest.inc (vole_prove_1 + vole_prove_2) for the v1 MAYO
 // parameter sets, which use the ggm_forest BAVC with no grinding
@@ -91,37 +103,52 @@ type MayoProof struct {
 	IVPre      []byte
 }
 
-// Prove runs vole_prove_1 + vole_prove_2 and returns the full proof. sk is the
-// packed secret key (public || witness), pk the packed public key (expanded_pk
-// || h), rAdditional the 32-byte blind-signature blinding value. Deterministic
-// (seed derived from SHAKE(0x03)) exactly as the reference test harness.
-func (o MayoOWF) Prove(sk, pk, rAdditional []byte) MayoProof {
-	f := o.F.field()
-	lam := o.lam()
+// MayoProveState is the vole_prove_1 output carried into vole_prove_2 (the
+// VOLEMAYOProofState of the reference): the VOLE correlation, BAVC artifacts,
+// the derived r (= u[:R_BYTES]), the commitment (proof1) and chal1.
+type MayoProveState struct {
+	VC    MayoVoleCommitResult
+	IVPre []byte
+	Chal1 []byte
+	R     []byte
+}
 
-	// vole_prove_1: (seed, iv_pre) = H(0x03); iv = H(iv_pre || 0x04).
+// Prove1 runs vole_prove_1: derive the VOLE seed/iv deterministically from
+// SHAKE(0x03)/H4, commit the ggm_forest VOLE, and derive r and chal1.
+func (o MayoOWF) Prove1(rAdditional []byte) MayoProveState {
+	lam := o.lam()
 	seedIVPre := o.shakeS(lam+16, 0x03)
 	seed := seedIVPre[:lam]
 	ivPre := seedIVPre[lam : lam+16]
 	iv := o.shakeS(16, 0x04, ivPre)
 
 	vc := o.F.MayoVoleCommit(seed, iv)
+	r := append([]byte(nil), vc.U[:o.rBytes()]...)
 
 	rAddHash := o.shakeS(32, -1, rAdditional)
 	chal1 := o.shakeS(o.voleCheckChallengeBytes(), 0x09, rAddHash, vc.Check, vc.Commitment, iv)
 
-	// vole_prove_2: correction d (r part zero, s part u^s) and chal2.
+	return MayoProveState{VC: vc, IVPre: ivPre, Chal1: chal1, R: r}
+}
+
+// Prove2 runs vole_prove_2 from a prove-1 state, the packed pk (expanded_pk ||
+// h) and packed sk (packed_pk || r || witness_s), returning the full proof.
+func (o MayoOWF) Prove2(st MayoProveState, packedPk, packedSk, rAdditional []byte) MayoProof {
+	f := o.F.field()
+	lam := o.lam()
+	vc := st.VC
+
 	rB := o.rBytes()
 	wB := o.witnessBytes()
-	sPart := sk[o.publicSize()+rB : o.publicSize()+wB]
+	sPart := packedSk[o.publicSize()+rB : o.publicSize()+wB]
 	d := make([]byte, wB)
 	for i := rB; i < wB; i++ {
 		d[i] = vc.U[i] ^ sPart[i-rB]
 	}
 
-	uTilde, colHashes := o.F.VoleCheckSenderBlocks(vc.U, vc.V, chal1)
+	uTilde, colHashes := o.F.VoleCheckSenderBlocks(vc.U, vc.V, st.Chal1)
 
-	chal2Parts := [][]byte{rAdditional, chal1, uTilde}
+	chal2Parts := [][]byte{rAdditional, st.Chal1, uTilde}
 	chal2Parts = append(chal2Parts, colHashes...)
 	chal2Parts = append(chal2Parts, d)
 	chal2 := o.shakeS(o.qsChallengeBytes(), 0x0a, chal2Parts...)
@@ -136,14 +163,13 @@ func (o MayoOWF) Prove(sk, pk, rAdditional []byte) MayoProof {
 		macs[i] = f.FromBytes(macsBytes[i])
 	}
 
-	expandedPk := pk[:o.expandedPkBytes()]
-	h := pk[o.expandedPkBytes() : o.expandedPkBytes()+o.hBytes()]
+	expandedPk := packedPk[:o.expandedPkBytes()]
+	h := packedPk[o.expandedPkBytes() : o.expandedPkBytes()+o.hBytes()]
 
 	qs := NewQS2Prover(f, qsWit, macs, chal2)
 	o.P.MayoConstraintProve(qs, expandedPk, h, chal2)
 	qsProof, qsCheck := qs.Prove(o.F.WitnessBits)
 
-	// delta = H(chal2 || qs_check || qs_proof || 0x0B); open BAVC at delta.
 	delta := o.shakeS(lam, 0x0b, chal2, qsCheck, qsProof)
 	deltaBytes := expandBitsToBytes(delta, lam*8)
 	opening := o.F.MayoForestOpen(vc.Forest, vc.HashedLeaves, deltaBytes)
@@ -155,8 +181,53 @@ func (o MayoOWF) Prove(sk, pk, rAdditional []byte) MayoProof {
 	proof = append(proof, qsProof...)
 	proof = append(proof, opening...)
 	proof = append(proof, delta...)
-	proof = append(proof, ivPre...)
+	proof = append(proof, st.IVPre...)
 
 	return MayoProof{Bytes: proof, Commitment: vc.Commitment, UTilde: uTilde, D: d,
-		QSProof: qsProof, Opening: opening, Delta: delta, IVPre: ivPre}
+		QSProof: qsProof, Opening: opening, Delta: delta, IVPre: st.IVPre}
+}
+
+// Prove runs vole_prove_1 + vole_prove_2 in one shot (used by the VOLE-only
+// KAT). sk is the packed secret key (public || witness), pk the packed public
+// key (expanded_pk || h).
+func (o MayoOWF) Prove(sk, pk, rAdditional []byte) MayoProof {
+	st := o.Prove1(rAdditional)
+	return o.Prove2(st, pk, sk, rAdditional)
+}
+
+// proof1Size is the prefix of the proof available after prove_1 (the VOLE
+// commitment), hashed into the blinded message. Reference proof1_size =
+// VOLE_COMMIT_SIZE.
+func (o MayoOWF) proof1Size() int { return o.voleCommitSize() }
+
+// Sign1 is the blind-signature sign_1: run prove_1, form the blinded message
+// t = h + r with h = SHAKE256(m || proof1), and return t, the carried state,
+// and h. h uses SHAKE256 at every level (reference mayo-c-sys shake256).
+func (o MayoOWF) Sign1(m, rAdditional []byte) (t []byte, st MayoProveState, h []byte) {
+	st = o.Prove1(rAdditional)
+	proof1 := st.VC.Commitment[:o.proof1Size()]
+	h = shake256Sum(o.hBytes(), m, proof1)
+	t = make([]byte, o.hBytes())
+	for i := range t {
+		t[i] = h[i] ^ st.R[i]
+	}
+	return t, st, h
+}
+
+// Sign3 is the blind-signature sign_3: assemble packed_pk = epk || h and
+// packed_sk = packed_pk || r || bsig, then run prove_2. bsig is the MAYO
+// preimage of t from sign_2 (mayo.SignWithoutHashing).
+func (o MayoOWF) Sign3(epk, h, bsig []byte, st MayoProveState, rAdditional []byte) MayoProof {
+	packedPk := append(append([]byte(nil), epk...), h...)
+	packedSk := append(append(append([]byte(nil), packedPk...), st.R...), bsig...)
+	return o.Prove2(st, packedPk, packedSk, rAdditional)
+}
+
+// BlindVerify is the blind-signature verify: recompute h = SHAKE256(m ||
+// proof1) from the proof and check the VOLE proof against epk || h.
+func (o MayoOWF) BlindVerify(epk, m, proof, rAdditional []byte) bool {
+	proof1 := proof[:o.proof1Size()]
+	h := shake256Sum(o.hBytes(), m, proof1)
+	packedPk := append(append([]byte(nil), epk...), h...)
+	return o.Verify(packedPk, rAdditional, proof)
 }
