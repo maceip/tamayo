@@ -48,11 +48,37 @@ stipulated source and verified byte-exact before it enters this repo.
 
 | Item | What I did wrong | Correct source | Status |
 |---|---|---|---|
-| deg-2 QuickSilver (`zk_prove_deg2.go`) | built by analogy to the deg-3 hasher; comment falsely says "transpiled" | `optimized_bs/quicksilver.hpp` (`quicksilver_state`, `max_deg=2`, `prove`/`verify`/`add_constraint`) | TODO |
+| deg-2 QuickSilver (`zk_prove_deg2.go`) | built by analogy to the deg-3 hasher; comment falsely says "transpiled" | `optimized_bs/quicksilver.hpp` (`quicksilver_state`, `max_deg=2`, `prove`/`verify`/`add_constraint`) | **DONE** — `faest/quicksilver2.go`; byte-exact vs reference: **yes** (see below) |
 | MAYO-OWF sign/verify, `WGrind`, deg-2 star offsets (`mayo_sign.go`) | derived the offsets and `WGrind = λ−Σkᵢ` myself | `optimized_bs/faest.inc` `vole_prove_1` / `vole_prove_2` / `vole_verify` | TODO |
 | blind Fiat-Shamir `Sign1/2/3` (`mayo_blind.go`) | composed the transcript; no source citation; e.g. SHAKE128 vs SHAKE256 at L1 | `faest.inc` + `blind_sig_optimized/{sign,verify}.rs` | TODO |
 | MAYO preimage vinegar (`mayo/vole.go` `SamplePreimage`) | invented `SHAKE256(sk‖t‖ctr)` | MAYO-C `mayo_sign_without_hashing` / `sample_preimage` | TODO |
 | MAYO-eval circuit (`mayo_circuit.go`) | genuinely transpiled from `owf_proof.inc`, but rides on the above | re-verify vs `owf_proof.inc` + `quicksilver.hpp` | TODO (re-verify) |
+
+#### deg-2 QuickSilver — verification record (2026-07-01)
+
+- Transpiled `faest/quicksilver2.go` from `optimized_bs/quicksilver.hpp`
+  (sha256 `9a9f1907…`, byte-identical to the copy staged in `faest-cpp-tmp/`
+  on the reference box): `quicksilver_state<S, {prover,verifier}, max_deg=2>`,
+  `add_constraint`, `prove`, `verify`, `combine_mac_masks`, `get_witness_bit`,
+  `combine_8_bits`/`combine_4_bits`, and the gf2/gfsecpar add/mul/lift rules.
+- Reference vectors: `tools/qs2_dump.cpp` compiled on the box against the
+  reference headers, driving the C++ `quicksilver_state` directly on fixed
+  splitmix64 inputs. 15 cases (L1/L3/L5 x {GF(2^8) mul, GF(16) mul, deg-1 XOR,
+  inverse `x*y+1`, public-scalar mul}) vendored in
+  `faest/testdata/quicksilver2.json` with all inputs and outputs.
+- `TestQuickSilver2KAT`: Go prover reproduces the reference `proof` and
+  `check` bytes exactly; Go verifier consumes the **reference** proof bytes
+  and reproduces the reference `check` exactly (interop direction). 15/15.
+- `GOOS=tamago` build (tamago-go1.26.4): amd64/arm/arm64/riscv64 all OK.
+- Honest coverage note: the prover gf2xgf2 bit-product path (`QSP2Bit.MulBit`)
+  is transpiled but not exercised by the vectors — the equivalent C++
+  expression is an ambiguous overload in the reference and is not used by
+  `owf_proof.inc` (the MAYO circuit works via `load_witness_4_bits_and_combine`
+  and gfsecpar ops). It will be covered or deleted when the MAYO circuit is
+  re-verified.
+- The old hand-rolled `zk_prove_deg2.go` (tamago working tree) is superseded;
+  it lacked the MAC-mask handling (`combine_mac_masks`, witness mask bits) and
+  the proof/check layout entirely.
 
 ### Crown jewel: One-More-MAYO blind signature — NOT DONE
 
