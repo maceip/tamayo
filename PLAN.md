@@ -49,10 +49,10 @@ stipulated source and verified byte-exact before it enters this repo.
 | Item | What I did wrong | Correct source | Status |
 |---|---|---|---|
 | deg-2 QuickSilver (`zk_prove_deg2.go`) | built by analogy to the deg-3 hasher; comment falsely says "transpiled" | `optimized_bs/quicksilver.hpp` (`quicksilver_state`, `max_deg=2`, `prove`/`verify`/`add_constraint`) | **DONE** — `faest/quicksilver2.go`; byte-exact vs reference: **yes** (see below) |
-| MAYO-OWF sign/verify, `WGrind`, deg-2 star offsets (`mayo_sign.go`) | derived the offsets and `WGrind = λ−Σkᵢ` myself | `optimized_bs/faest.inc` `vole_prove_1` / `vole_prove_2` / `vole_verify` | TODO |
+| MAYO-OWF sign/verify, `WGrind`, deg-2 star offsets (`mayo_sign.go`) | derived the offsets and `WGrind = λ−Σkᵢ` myself | `optimized_bs/faest.inc` `vole_prove_1` / `vole_prove_2` / `vole_verify` | **DONE** — `faest/vole_mayo_sign.go` + `vole_mayo_verify.go`; byte-exact vs reference: **yes** (see below) |
 | blind Fiat-Shamir `Sign1/2/3` (`mayo_blind.go`) | composed the transcript; no source citation; e.g. SHAKE128 vs SHAKE256 at L1 | `faest.inc` + `blind_sig_optimized/{sign,verify}.rs` | TODO |
 | MAYO preimage vinegar (`mayo/vole.go` `SamplePreimage`) | invented `SHAKE256(sk‖t‖ctr)` | MAYO-C `mayo_sign_without_hashing` / `sample_preimage` | TODO |
-| MAYO-eval circuit (`mayo_circuit.go`) | genuinely transpiled from `owf_proof.inc`, but rides on the above | re-verify vs `owf_proof.inc` + `quicksilver.hpp` | TODO (re-verify) |
+| MAYO-eval circuit (`mayo_circuit.go`) | genuinely transpiled from `owf_proof.inc`, but rides on the above | re-verify vs `owf_proof.inc` + `quicksilver.hpp` | **DONE** — `faest/vole_mayo_circuit.go`; byte-exact vs reference: **yes** (see below) |
 
 #### deg-2 QuickSilver — verification record (2026-07-01)
 
@@ -79,6 +79,54 @@ stipulated source and verified byte-exact before it enters this repo.
 - The old hand-rolled `zk_prove_deg2.go` (tamago working tree) is superseded;
   it lacked the MAC-mask handling (`combine_mac_masks`, witness mask bits) and
   the proof/check layout entirely.
+
+#### MAYO-OWF VOLE prove/verify + MAYO circuit — verification record (2026-07-02)
+
+Finding that reframed the task: the reference MAYO path rides on the **`optimized_bs`
+C++ VOLE-in-the-Head engine**, which is a *different* engine from the faest-rs one
+already in this repo (that one is verified against faest-rs KATs but uses a
+one-tree BAVC and TAU=11 at L1; the MAYO reference uses `ggm_forest` and TAU=9).
+So this was not a small transcript port — the whole `optimized_bs` engine had to be
+transpiled and each layer checked byte-exact. Two of the three named "sins" also
+turned out to be findings, not constants: the **deg-2 star offsets** are computed
+inside `qs.prove` (`combine_mac_masks`, already verified in the QuickSilver row),
+and **WGrind** does not exist on this path — v1 MAYO has `use_grinding == false`
+(ggm_forest always opens, `zero_bits_in_delta == 0`, `grinding_counter_size == 0`),
+so my old `WGrind = λ−Σkᵢ` and grind loop were simply wrong.
+
+Engine transpiled bottom-up, each layer byte-exact against a box dumper compiled
+against the stipulated `optimized_bs` sources (SHAKE via `common/fips202.c`,
+`transpose_secpar` via a naive bit-transpose shim — both certified faithful by the
+green byte-exact checks):
+
+- `faest/vole_mayo_bavc.go` — `ggm_forest` BAVC commit + open (AES-CTR tree PRG,
+  per-(level,tree) tweaks, SHAKE leaf hash, `hash_hashed_leaves`). `check` and
+  `opening` byte-exact (`TestMayoForestCommitCheck`, `TestMayoForestOpen`).
+- `faest/vole_mayo_svole.go` — `small_vole` (Gray-code `xor_reduce`,
+  `vole_permute_key_index`) + `vole_commit`/`vole_reconstruct`; sender `u`, full
+  `v`, and corrections byte-exact (`TestMayoVoleCommitSender`).
+- `faest/vole_mayo_check.go` — `vole_check` (`gfsecpar`+`gf64` universal hash,
+  2x2 map, column mask) + `transpose_secpar`; proof, absorbed transcript, and
+  macs byte-exact (`TestMayoVoleCheckSender`).
+- `faest/vole_mayo_circuit.go` — MAYO-eval `enc_constraints` on the deg-2
+  QuickSilver; qs proof/check byte-exact for L1/L3/L5 (`TestMayoCircuitKAT`).
+  A real bug was caught here by byte-exactness: at λ=192 the reference strides
+  its embedding randomness by `sizeof(poly<192>)` = 32 bytes (two 128-bit lanes,
+  top 64 bits unused), not 24.
+- `faest/vole_mayo_sign.go` / `vole_mayo_verify.go` — the `faest.inc`
+  `vole_prove_1`/`vole_prove_2`/`vole_verify` transcript (H₃/H₄, chal1=H₂¹,
+  chal2=H₂², delta=H₂³, `r_additional` blinding, no grinding).
+
+Verified both directions with `tools/full_proof_dump.cpp` (runs the reference
+`vole_prove_1→2→verify` end-to-end): `TestMayoProveKAT` reproduces the **entire
+proof byte-for-byte** for L1/L3/L5 (6895/15862/29615 bytes); `TestMayoVerifyKAT`
+has the Go verifier accept the **reference** proof (interop) and reject a tampered
+one. `GOOS=tamago` build (tamago-go1.26.4) green on amd64/arm/arm64/riscv64.
+
+Honest scope note: this is the One-More-MAYO **VOLE proof** (rows 2 + 5). The
+blind Fiat-Shamir `Sign1/2/3` wrapper (row 3, `blind_sig_optimized`) and the MAYO
+preimage vinegar (row 4) sit on top and are still TODO, so the crown jewel below
+is not yet complete.
 
 ### Crown jewel: One-More-MAYO blind signature — NOT DONE
 

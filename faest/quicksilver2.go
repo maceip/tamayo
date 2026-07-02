@@ -231,6 +231,15 @@ func (p *QS2Prover) ConstEl(c []uint64) QSP2El {
 	return QSP2El{f: p.f, mac: [][]uint64{c}}
 }
 
+// ZeroEl returns the zero element of degree d.
+func (p *QS2Prover) ZeroEl(d int) QSP2El {
+	mac := make([][]uint64, d+1)
+	for i := range mac {
+		mac[i] = p.f.Zero()
+	}
+	return QSP2El{f: p.f, mac: mac}
+}
+
 // GetWitnessBit mirrors get_witness_bit: degree-1 gf2 with the bit's MAC as
 // the constant coefficient.
 func (p *QS2Prover) GetWitnessBit(index int) QSP2Bit {
@@ -378,6 +387,11 @@ func (a QSV2El) MulScalar(c []uint64) QSV2El {
 // ConstEl returns the degree-0 public constant c.
 func (v *QS2Verifier) ConstEl(c []uint64) QSV2El {
 	return QSV2El{st: v, deg: 0, mac: c}
+}
+
+// ZeroEl returns the zero element of degree d.
+func (v *QS2Verifier) ZeroEl(d int) QSV2El {
+	return QSV2El{st: v, deg: d, mac: v.f.Zero()}
 }
 
 // GetWitnessBit mirrors get_witness_bit (verifier): degree 1, the key.
