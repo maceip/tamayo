@@ -77,20 +77,24 @@ amd64/arm/arm64/riscv64
 
 ## usage
 
+each signature package ships a runnable `Example` in its `example_test.go`
+(run by `go test`, rendered on pkg.go.dev) — the short version:
+
 ```go
-import (
-    "github.com/maceip/tamayo/faest"
-    "github.com/maceip/tamayo/pomfrit"
-)
+// mayo (mp := &mayo.Mayo1)
+cpk, csk, _ := mp.CompactKeyGen(seed)       // deterministic in the seed
+sig, _ := mp.Sign(msg, csk, randomizer)     // randomizer supplies the salt
+ok := mp.Verify(msg, sig, cpk)
 
 // faest aes signature
 sk, pk, _ := faest.FAEST128s.KeyGen(rand.Reader)
-sig := faest.FAEST128s.Sign(msg, sk, rho)   // rho: 16 bytes of randomness
+sig := faest.FAEST128s.Sign(msg, sk, rho)   // rho: per-signature randomness
 ok := faest.FAEST128s.Verify(msg, pk, sig)
 
-// one-more-mayo blind signature (o = pomfrit.MayoOWFL1, mp = &mayo.Mayo1)
-t, st, h := o.Sign1(msg, rAdditional)        // blinded message
-bsig := mp.SignWithoutHashing(t, csk)        // mayo preimage (signer)
+// one-more-mayo blind signature (o := pomfrit.MayoOWFL1)
+epk, _ := mp.ExpandPK(cpk)                  // verifier-side expanded key
+t, st, h := o.Sign1(msg, rAdditional)       // user: blind the message
+bsig := mp.SignWithoutHashing(t, csk)       // signer: mayo preimage
 proof := o.Sign3(epk, h, bsig, st, rAdditional)
 ok = o.BlindVerify(epk, msg, proof.Bytes, rAdditional)
 ```
@@ -98,7 +102,8 @@ ok = o.BlindVerify(epk, msg, proof.Bytes, rAdditional)
 ## test
 
 ```
-go test ./...
+go test ./...          # full byte-exact surface (600 faest + 300 mayo nist vectors, all reference replays)
+go test -short ./...   # same tests, trimmed kat counts — what ci runs per push
 ```
 
 runs the mayo nist kats, the full 600-vector faest nist kat replay (vendored
@@ -111,6 +116,19 @@ byte-exact loop (prover, verifier, and full blind path at l1/l3/l5) — use
 reference vectors were produced by the c++/c dumpers in `tools/`, compiled
 against the stipulated sources and run to emit inputs and outputs that the go
 tests replay byte-for-byte
+
+ci runs build + vet + the `-short` suite on linux (amd64 + arm64) and macos,
+cross-builds every package for all four `GOOS=tamago` architectures, and
+replays the full kat suite on a weekly schedule
+
+## benchmark
+
+```
+go test -bench . -run xxx ./mayo/ ./faest/ ./pomfrit/
+```
+
+covers keygen / sign / verify per parameter set (mayo, faest) and the full
+blind sign + verify loop per level (pomfrit)
 
 ## provenance and license
 

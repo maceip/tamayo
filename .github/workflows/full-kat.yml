@@ -1,0 +1,22 @@
+name: Full KAT replay
+
+# The complete byte-exact surface: all 600 FAEST NIST vectors, all 300 MAYO
+# NIST vectors, and every One-More-MAYO reference replay. Runs weekly and on
+# demand (it is a superset of the per-push -short run).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+
+jobs:
+  full-kat:
+    name: full byte-exact suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Full test suite
+        run: go test -timeout 45m ./...

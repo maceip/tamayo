@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: build, vet, test (short KATs)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      # -short trims the FAEST NIST KAT to 5 vectors per set and the MAYO KAT
+      # to 3 signatures per set; every byte-exact reference replay still runs.
+      - name: Test
+        run: go test -short ./...
+
+  tamago:
+    name: GOOS=tamago cross-build (amd64/arm/arm64/riscv64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tamago-go
+        run: |
+          VER=tamago-go1.26.4
+          curl -sfL "https://github.com/usbarmory/tamago-go/releases/download/${VER}/${VER}.linux-amd64.tar.gz" | sudo tar -xzf - -C /
+          echo "TAMAGO=/usr/local/tamago-go/bin/go" >> "$GITHUB_ENV"
+      - name: Cross-build all packages
+        run: |
+          for arch in amd64 arm arm64 riscv64; do
+            echo "--- GOARCH=$arch"
+            GOOS=tamago GOARCH=$arch GOOSPKG=github.com/usbarmory/tamago \
+              "$TAMAGO" build ./gf16/ ./field/ ./mayo/ ./faest/ ./pomfrit/
+          done
+      - name: Build the on-device demo (sifive_u)
+        working-directory: cmd/qemudemo
+        run: |
+          GOOS=tamago GOARCH=riscv64 GOOSPKG=github.com/usbarmory/tamago \
+            "$TAMAGO" build -tags sifive_u,gvisor,semihosting,linkramsize -trimpath \
+            -ldflags "-s -w -T 0x80010000 -R 0x1000" -o qemudemo .
+          python3 mkbios.py qemudemo bios.bin

@@ -62,9 +62,20 @@ func TestBlindLoopKAT(t *testing.T) {
 		o := mayoOWFFor(t, v.Secpar)
 		mp := mayoParamsForSecpar(v.Secpar)
 		csk := mustHex(t, v.CSK)
-		epk := mustHex(t, v.EPK)
 		m := mustHex(t, v.M)
 		rAdd := mustHex(t, v.RAdditional)
+
+		// The verifier-side expanded public key is derived on the Go side from
+		// the compact key and must reproduce the reference epk
+		// (mayo-c mayo_expand_pk output) byte-for-byte.
+		epk, err := mp.ExpandPK(mustHex(t, v.CPK))
+		if err != nil {
+			t.Fatalf("%s: ExpandPK: %v", v.Name, err)
+		}
+		if !bytes.Equal(epk, mustHex(t, v.EPK)) {
+			t.Errorf("%s: ExpandPK != reference epk", v.Name)
+			continue
+		}
 
 		// sign_1: blinded message t and carried state.
 		gotT, st, h := o.Sign1(m, rAdd)
