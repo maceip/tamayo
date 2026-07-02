@@ -10,8 +10,10 @@ The name is TamaGo + MAYO (TamaGo means "egg"; mayonnaise is made from eggs).
 > **Experimental. Not audited. Not production-ready.** This is a from-scratch
 > transpilation of published references. It has had **no** independent security
 > or side-channel review. "Verified" below means *matches the reference
-> known-answer tests byte-for-byte* — nothing more. It has **not** been built or
-> run under `GOOS=tamago` on hardware yet. Do not use it to protect anything.
+> known-answer tests byte-for-byte* — nothing more. It **builds** under
+> `GOOS=tamago` with the official `tamago-go` toolchain on all four targets
+> (amd64/arm/arm64/riscv64), but has **not** been **run** on hardware or an
+> emulator. Do not use it to protect anything.
 
 ## What's here
 
