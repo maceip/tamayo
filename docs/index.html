@@ -22,13 +22,29 @@
     --ink-soft:#4a5a44;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
   body {
-    background: radial-gradient(1200px 800px at 50% 20%, #1b1e2e 0%, #0d0f18 70%);
+    background: radial-gradient(1200px 800px at 50% 20%, #1b1e2e 0%, #0d0f18 70%) fixed #0d0f18;
     color: #cfd3e8;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  /* parallax: the page scrolls, the stage stays pinned; js slides the
+     egg up from the fold, then turns further scroll into story progress */
+  .stage {
+    position: sticky; top: 0; height: 100vh;
     display: flex; flex-direction: column; align-items: center;
-    min-height: 100%;
+    overflow: hidden;
+  }
+  .scroll-hint {
+    position: fixed; bottom: 16px; left: 50%;
+    font-size: 12px; letter-spacing: 3px; color: #cfd3e8;
+    background: rgba(13, 15, 24, .78); border-radius: 14px;
+    padding: 7px 16px;
+    pointer-events: none; transition: opacity .35s;
+    animation: hintbob 1.6s ease-in-out infinite;
+  }
+  @keyframes hintbob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, 9px); }
   }
   header { text-align: center; margin: 28px 12px 6px; }
   header h1 { font-size: 20px; letter-spacing: 3px; color: #eceef8; font-weight: 600; }
@@ -36,7 +52,7 @@
   header a  { color: #a7b6ff; text-decoration: none; }
 
   /* ---------------- the device ---------------- */
-  .rig { perspective: 900px; margin: 18px 0 8px; }
+  .rig { perspective: 900px; margin: 18px 0 8px; will-change: transform; }
   .egg-shell {
     position: relative;
     width: 380px; height: 470px;
@@ -113,12 +129,15 @@
   .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
   .btn-labels span:nth-child(2) { margin-top: 14px; }
 
-  footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; }
+  footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; transition: opacity .35s; }
   footer a { color: #a7b6ff; text-decoration: none; }
   footer .math-hint { color: #565b78; }
 </style>
 </head>
 <body>
+
+<div id="scrollspace">
+<div class="stage">
 
 <header>
   <h1>TAMAYO</h1>
@@ -143,9 +162,14 @@
 </div>
 
 <footer>
-  the labels under the buttons follow the screen you're on — they always do what they say<br>
+  scroll drives the whole story — or use the buttons; their labels follow the screen you're on<br>
   <span class="math-hint">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
 </footer>
+
+</div><!-- .stage -->
+</div><!-- #scrollspace -->
+
+<div class="scroll-hint">▼ scroll</div>
 
 <script>
 "use strict";
@@ -247,7 +271,7 @@ function startEggIdle() {
   stopEgg();
   mode = "idle";
   eggTimer = d3.timer(() => drawEgg(1, 1));
-  caption(["a wild egg appears", "press  HATCH"]);
+  caption(["a wild egg appears", "scroll — or press HATCH"]);
   nerd(["inside: MAYO + FAEST + PoMFRIT, in pure go,",
         "byte-exact vs their references, runs on bare metal"]);
   refreshButtons();
@@ -343,123 +367,170 @@ function label(g, x, y, text) {
 
 /* ================================================================
    the story — fully hands-off; each beat sets a caption, moves
-   the props with d3 transitions, and (quietly) shows the math
+   the props with d3 transitions, and (quietly) shows the math.
+
+   the story is a list of BEATS. each beat renders its whole scene from
+   scratch (with an entry animation), so it can be reached two ways:
+   sequentially on a timer (the HATCH button) or directly by scroll
+   position (the parallax scrubber). cast and props are drawn larger
+   than v1, and hand-offs get a dotted flight path so the package is
+   the obvious protagonist.
    ================================================================ */
+const PUPX = 62, STAX = 200, OWLX = 338;   // cast x positions
+const CASTY = 150, CS = 1.3, PS = 1.5;     // cast y, cast scale, prop scale
+const PROPY = 73;                          // props float above the cast
+
+function drawCast(g) {
+  drawPup(g, PUPX, CASTY, CS);          label(g, PUPX, 210, "PUP (user)");
+  drawStamper(g, STAX, CASTY + 5, CS);  label(g, STAX, 214, "STAMPER (signer)");
+  drawJudge(g, OWLX, CASTY, CS);        label(g, OWLX, 210, "OWL (verifier)");
+}
+function flightPath(x1, x2) {           // dotted arc so hand-offs read clearly
+  world.append("path")
+    .attr("d", `M ${x1} ${PROPY - 6} Q ${(x1 + x2) / 2} ${PROPY - 46} ${x2} ${PROPY - 6}`)
+    .attr("fill", "none").attr("stroke", SOFT)
+    .attr("stroke-width", 2.5).attr("stroke-dasharray", "2 7")
+    .attr("opacity", 0)
+    .transition().duration(300).attr("opacity", .9);
+}
+function fly(prop, x1, x2) {            // arc + scale pulse: the package pops
+  prop.transition().duration(1300).ease(d3.easeCubicInOut)
+    .attrTween("transform", () => tt => {
+      const x = x1 + (x2 - x1) * tt;
+      const y = PROPY - Math.sin(Math.PI * tt) * 30;
+      const s = PS * (1 + 0.3 * Math.sin(Math.PI * tt));
+      return `translate(${x},${y}) scale(${s})`;
+    });
+}
+
+function beatHatch() {
+  caption(["hatching..."]);
+  nerd([]);
+  const zoomT = d3.timer((el) => {
+    const z = 1 + el / 700 * 6;
+    drawEgg(z, Math.max(0, 1 - el / 700));
+    if (el > 750) { zoomT.stop(); world.selectAll("circle.egg").remove(); }
+  });
+}
+function beatCast() {
+  const g = world.append("g");
+  drawCast(g);
+  g.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
+  caption(["three friends: a pup, a stamper, an owl"]);
+  nerd(["user U, signer S with mayo keypair (cpk, csk), verifier V with epk = ExpandPK(cpk)"]);
+}
+function beatBone() {
+  drawCast(world);
+  drawBone(world, PUPX, PROPY, PS)
+    .attr("opacity", 0).attr("transform", `translate(${PUPX},${PROPY + 20}) scale(0.4)`)
+    .transition().duration(450)
+    .attr("opacity", 1).attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
+  caption(["the pup has a bone it loves", "(the bone is the message)"]);
+  nerd(["m ∈ {0,1}*"]);
+}
+function beatBlind() {
+  drawCast(world);
+  drawBone(world, PUPX, PROPY, PS)
+    .transition().duration(600)
+    .attr("transform", `translate(${PUPX},${PROPY + 4}) scale(0.3)`).attr("opacity", 0);
+  drawBox(world, PUPX, PROPY, 0.01)
+    .transition().delay(450).duration(500)
+    .attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
+  caption(["the pup hides the bone in a box", "nobody can see inside — not even the stamper"]);
+  nerd(["sign₁:  h = SHAKE256(m ‖ π₁),   t = h ⊕ r   (r one-time pad → t is uniform)"]);
+}
+function beatTravel() {
+  drawCast(world);
+  flightPath(PUPX + 32, STAX - 32);
+  fly(drawBox(world, PUPX, PROPY, PS), PUPX, STAX);
+  caption(["the box goes to the stamper"]);
+  nerd(["U → S :  t   (that's all the signer ever sees)"]);
+}
+function beatStamp() {
+  drawCast(world);
+  drawBox(world, STAX, PROPY, PS);
+  const y0 = CASTY + 5;
+  world.select(".stamper")
+    .transition().duration(200).attr("transform", `translate(${STAX},${y0 + 14}) scale(${CS})`)
+    .transition().duration(200).attr("transform", `translate(${STAX},${y0}) scale(${CS})`)
+    .transition().duration(200).attr("transform", `translate(${STAX},${y0 + 14}) scale(${CS})`)
+    .transition().duration(200).attr("transform", `translate(${STAX},${y0}) scale(${CS})`);
+  drawSeal(world, STAX + 36, PROPY - 26, 0.01)
+    .transition().delay(750).duration(400)
+    .attr("transform", `translate(${STAX + 36},${PROPY - 26}) scale(1.5)`);
+  caption(["STAMP! right through the closed lid", "the stamper never opens the box"]);
+  nerd(["sign₂:  s = MAYO⁻¹(t)  — SignWithoutHashing: vinegar V = SHAKE256(t ‖ seed_sk ‖ ctr), no salt"]);
+}
+function beatCert() {
+  drawCast(world);
+  drawBox(world, PUPX, PROPY, PS)
+    .transition().delay(900).duration(500).attr("opacity", 0);
+  drawSeal(world, PUPX + 36, PROPY - 26, 1.5)
+    .transition().delay(900).duration(500).attr("opacity", 0);
+  for (let i = 0; i < 10; i++) {
+    world.append("circle").attr("cx", PUPX + (Math.random() - .5) * 90)
+      .attr("cy", PROPY + (Math.random() - .5) * 70).attr("r", 2.5).attr("fill", INK)
+      .attr("opacity", 1)
+      .transition().delay(600).duration(800).attr("opacity", 0).attr("r", 8).remove();
+  }
+  drawCert(world, PUPX, PROPY, 0.01)
+    .transition().delay(1300).duration(500)
+    .attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
+  caption(["back home, the pup turns the stamp into", "a certificate that never mentions the box"]);
+  nerd(["sign₃:  π = VOLEitH proof of “I know s with P(s)=t”  — GGM forest → small-VOLE → deg-2 QuickSilver",
+        "π is 6895 bytes at L1 (15862 at L3, 29615 at L5) — the box and the bone stay secret"]);
+}
+function beatVerify() {
+  drawCast(world);
+  flightPath(PUPX + 32, OWLX - 32);
+  fly(drawCert(world, PUPX, PROPY, PS), PUPX, OWLX - 26);
+  const tick = world.append("path")
+    .attr("d", `M ${OWLX - 52} ${PROPY + 6} L ${OWLX - 36} ${PROPY + 24} L ${OWLX - 4} ${PROPY - 16}`)
+    .attr("stroke", INK).attr("stroke-width", 9).attr("fill", "none")
+    .attr("stroke-linecap", "round");
+  const len = tick.node().getTotalLength();
+  tick.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+      .transition().delay(1400).duration(500).attr("stroke-dashoffset", 0);
+  caption(["the owl checks: it's real, signed by the stamper", "but which bone? the owl can't tell. nobody can"]);
+  nerd(["verify:  BlindVerify(epk, m, π)  recomputes h and replays vole_verify"]);
+}
+function beatFinale() {
+  drawStamper(world, STAX, 92, 1.2);
+  for (let i = 0; i < 5; i++) {
+    drawBox(world, 52 + i * 74, 30, 0.7);
+    drawCert(world, 52 + i * 74, 202, 0.85);
+  }
+  world.append("text").attr("x", STAX).attr("y", 158).attr("text-anchor", "middle")
+    .attr("font-size", 26).attr("fill", INK).attr("font-weight", 700).text("?");
+  caption(["the stamper sees boxes. the world sees certificates.", "no one can match them up — that's a blind signature"]);
+  nerd(["unlinkability: t = h ⊕ r is uniform, π is zero-knowledge — S's view ⊥ (m, π)",
+        "this exact loop runs byte-exact on bare-metal riscv64 in this repo"]);
+}
+
+const BEATS = [
+  { dur:  900, fn: beatHatch },
+  { dur: 3400, fn: beatCast },
+  { dur: 3200, fn: beatBone },
+  { dur: 4000, fn: beatBlind },
+  { dur: 2800, fn: beatTravel },
+  { dur: 4200, fn: beatStamp },
+  { dur: 4800, fn: beatCert },
+  { dur: 4400, fn: beatVerify },
+  { dur: 6000, fn: beatFinale },
+];
+function renderBeat(i) {
+  stopEgg();
+  world.selectAll("*").remove(); hud.selectAll("*").remove();
+  BEATS[i].fn();
+}
 async function playStory() {
   const tok = ++playToken;
   mode = "story";
   refreshButtons();
-  stopEgg();
-  world.selectAll("*").remove(); hud.selectAll("*").remove(); nerd([]);
-
-  /* beat 0 — hatch: zoom INTO the 3d egg -------------------------- */
-  caption(["hatching..."]);
-  let zoomT = d3.timer((el) => {
-    const z = 1 + el / 700 * 6;
-    drawEgg(z, Math.max(0, 1 - el / 700));
-    if (el > 750) zoomT.stop();
-  });
-  await sleep(850); if (!alive(tok)) return;
-  world.selectAll("*").remove();
-
-  /* beat 1 — meet everyone --------------------------------------- */
-  const cast = world.append("g");
-  drawPup(cast, 70, 120);      label(cast, 70, 168, "PUP (user)");
-  drawStamper(cast, 200, 124); label(cast, 200, 168, "STAMPER (signer)");
-  drawJudge(cast, 330, 120);   label(cast, 330, 168, "OWL (verifier)");
-  cast.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
-  caption(["three friends: a pup, a stamper, an owl"]);
-  nerd(["user U, signer S with mayo keypair (cpk, csk), verifier V with epk = ExpandPK(cpk)"]);
-  await sleep(3600); if (!alive(tok)) return;
-
-  /* beat 2 — the bone --------------------------------------------- */
-  const bone = drawBone(world, 70, 70);
-  bone.attr("opacity", 0).transition().duration(400).attr("opacity", 1);
-  caption(["the pup has a bone it loves", "(the bone is the message)"]);
-  nerd(["m ∈ {0,1}*"]);
-  await sleep(3400); if (!alive(tok)) return;
-
-  /* beat 3 — blinding: bone goes in an opaque box ------------------ */
-  bone.transition().duration(700).attr("transform", "translate(70,95) scale(0.45)").attr("opacity", 0);
-  const box = drawBox(world, 70, 95, 0);
-  box.transition().delay(500).duration(500).attr("transform", "translate(70,95) scale(1)");
-  caption(["the pup hides the bone in a box", "nobody can see inside — not even the stamper"]);
-  nerd(["sign₁:  h = SHAKE256(m ‖ π₁),   t = h ⊕ r   (r one-time pad → t is uniform)"]);
-  await sleep(4200); if (!alive(tok)) return;
-
-  /* beat 4 — box travels to the stamper ---------------------------- */
-  box.transition().duration(900).ease(d3.easeCubicInOut)
-     .attr("transform", "translate(200,80) scale(1)");
-  caption(["the box goes to the stamper"]);
-  nerd(["U → S :  t   (that's all the signer ever sees)"]);
-  await sleep(2600); if (!alive(tok)) return;
-
-  /* beat 5 — stamping without opening ------------------------------ */
-  const arm = world.select(".stamper");
-  for (let i = 0; i < 2; i++) {
-    arm.transition().duration(180).attr("transform", "translate(200,136) scale(1)")
-       .transition().duration(180).attr("transform", "translate(200,124) scale(1)");
-    await sleep(380); if (!alive(tok)) return;
+  for (let i = 0; i < BEATS.length; i++) {
+    renderBeat(i);
+    await sleep(BEATS[i].dur); if (!alive(tok)) return;
   }
-  const seal = drawSeal(world, 200, 62, 0);
-  seal.transition().duration(400).attr("transform", "translate(200,62) scale(1)");
-  caption(["STAMP! right through the closed lid", "the stamper never opens the box"]);
-  nerd(["sign₂:  s = MAYO⁻¹(t)  — SignWithoutHashing: vinegar V = SHAKE256(t ‖ seed_sk ‖ ctr), no salt"]);
-  await sleep(4200); if (!alive(tok)) return;
-
-  /* beat 6 — box returns, pup makes a certificate ------------------ */
-  box.transition().duration(800).attr("transform", "translate(70,95) scale(1)");
-  seal.transition().duration(800).attr("transform", "translate(70,62) scale(1)");
-  await sleep(1000); if (!alive(tok)) return;
-  caption(["back home, the pup turns the stamp into", "a certificate that never mentions the box"]);
-  // sparkle
-  for (let i = 0; i < 8; i++) {
-    world.append("circle").attr("cx", 70 + (Math.random() - .5) * 70)
-      .attr("cy", 80 + (Math.random() - .5) * 60).attr("r", 2).attr("fill", INK)
-      .attr("opacity", 1).transition().duration(700).attr("opacity", 0).attr("r", 6).remove();
-  }
-  nerd(["sign₃:  π = VOLEitH proof of “I know s with P(s)=t”  — GGM forest → small-VOLE → deg-2 QuickSilver"]);
-  await sleep(1200); if (!alive(tok)) return;
-  box.transition().duration(500).attr("opacity", 0);
-  seal.transition().duration(500).attr("opacity", 0);
-  const cert = drawCert(world, 70, 84, 0);
-  cert.transition().duration(500).attr("transform", "translate(70,84) scale(1)");
-  nerd(["π is 6895 bytes at L1 (15862 at L3, 29615 at L5) — the box and the bone stay secret"]);
-  await sleep(3400); if (!alive(tok)) return;
-
-  /* beat 7 — the owl verifies -------------------------------------- */
-  cert.transition().duration(900).ease(d3.easeCubicInOut)
-      .attr("transform", "translate(330,76) scale(1)");
-  caption(["the owl checks the certificate"]);
-  nerd(["verify:  BlindVerify(epk, m, π)  recomputes h and replays vole_verify"]);
-  await sleep(2200); if (!alive(tok)) return;
-  const tick = world.append("path")
-    .attr("d", "M 312 100 L 326 116 L 352 84")
-    .attr("stroke", INK).attr("stroke-width", 7).attr("fill", "none")
-    .attr("stroke-linecap", "round");
-  const len = tick.node().getTotalLength();
-  tick.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
-      .transition().duration(600).attr("stroke-dashoffset", 0);
-  caption(["it's real! signed by the stamper", "but which bone? the owl can't tell. nobody can"]);
-  await sleep(4200); if (!alive(tok)) return;
-
-  /* beat 8 — unlinkability finale ----------------------------------- */
-  world.selectAll("*").transition().duration(500).attr("opacity", 0);
-  await sleep(550); if (!alive(tok)) return;
-  world.selectAll("*").remove();
-  drawStamper(world, 200, 90);
-  for (let i = 0; i < 5; i++) {
-    drawCert(world, 60 + i * 70, 190, 0.7);
-    drawBox(world, 60 + i * 70, 30, 0.55);
-  }
-  world.append("text").attr("x", 200).attr("y", 130).attr("text-anchor", "middle")
-    .attr("font-size", 22).attr("fill", INK).attr("font-weight", 700).text("?");
-  caption(["the stamper sees boxes. the world sees certificates.", "no one can match them up — that's a blind signature"]);
-  nerd(["unlinkability: t = h ⊕ r is uniform, π is zero-knowledge — S's view ⊥ (m, π)",
-        "this exact loop runs byte-exact on bare-metal riscv64 in this repo"]);
-  await sleep(6000); if (!alive(tok)) return;
-
-  /* back to the idle egg */
   world.selectAll("*").remove();
   startEggIdle();
 }
@@ -520,16 +591,23 @@ function aboutStep(d) {
 const LBL = { A: d3.select("#lblA"), B: d3.select("#lblB"), C: d3.select("#lblC") };
 const BTN = { A: d3.select("#btnA"), B: d3.select("#btnB"), C: d3.select("#btnC") };
 const actions = { A: null, B: null, C: null };
+/* the label text swaps on a timeout (mid-fade), so "did it change" must be
+   tracked against the *target* text, not the DOM — two mode flips inside
+   150ms would otherwise resurrect a stale label with the wrong action */
+const lblTarget = { A: LBL.A.text(), B: LBL.B.text(), C: LBL.C.text() };
+const lblTimer  = { A: 0, B: 0, C: 0 };
 
 function setButtons(spec) {
   for (const k of ["A", "B", "C"]) {
     const [text, fn] = spec[k];
     actions[k] = fn;
     BTN[k].attr("title", text.toLowerCase());
+    if (lblTarget[k] === text) continue;
+    lblTarget[k] = text;
+    clearTimeout(lblTimer[k]);
     const el = LBL[k];
-    if (el.text() === text) continue;
     el.style("opacity", 0);                       // css transition fades out
-    setTimeout(() => { el.text(text); el.style("opacity", 1); }, 150);
+    lblTimer[k] = setTimeout(() => { el.text(text); el.style("opacity", 1); }, 150);
   }
 }
 const mathLabel = () => mathOn ? "MATH ✓" : "MATH";
@@ -538,6 +616,8 @@ function goHome() {
   playToken++;
   world.selectAll("*").remove();
   startEggIdle();
+  // park the page where the egg sits centered, just before the story region
+  scrollTo({ top: INTRO_VH * innerHeight, behavior: "smooth" });
 }
 function refreshButtons() {
   if (mode === "about") {
@@ -558,8 +638,59 @@ d3.select("#btnA").on("click", () => actions.A && actions.A());
 d3.select("#btnB").on("click", () => actions.B && actions.B());
 d3.select("#btnC").on("click", () => actions.C && actions.C());
 
+/* ================================================================
+   parallax scroll — phase 1 slides the egg up from the fold (it
+   starts half-clipped at the bottom edge); phase 2 pins the page
+   and converts scroll distance into story beats, like a scrubber
+   ================================================================ */
+const rigEl  = document.querySelector(".rig");
+const footEl = document.querySelector("footer");
+const hintEl = document.querySelector(".scroll-hint");
+const spaceEl= document.getElementById("scrollspace");
+const INTRO_VH = 0.9;   // scroll distance (in viewports) of the slide-in
+const BEAT_VH  = 0.55;  // scroll distance per story beat
+let rigCenter0 = 0;     // rig center y at rest, measured at layout time
+let scrubBeat  = -1;    // story beat currently owned by the scrubber
+
+function layoutScroll() {
+  rigEl.style.transform = "none";
+  const r = rigEl.getBoundingClientRect();
+  rigCenter0 = r.top + r.height / 2;
+  spaceEl.style.height =
+    innerHeight * (1 + INTRO_VH + BEATS.length * BEAT_VH + 0.2) + "px";
+  onScroll();
+}
+const smooth = t => t * t * (3 - 2 * t);
+function onScroll() {
+  const vh = innerHeight, s1 = INTRO_VH * vh;
+  const t = Math.max(0, Math.min(1, scrollY / s1));
+  rigEl.style.transform = `translateY(${(1 - smooth(t)) * (vh - rigCenter0)}px)`;
+  footEl.style.opacity = t;
+  hintEl.style.opacity = t < 1 ? 1 : 0;
+  if (scrollY <= s1) {
+    if (scrubBeat !== -1) {      // scrolled back out of the story region
+      scrubBeat = -1;
+      playToken++;
+      world.selectAll("*").remove();
+      startEggIdle();
+    }
+  } else {
+    const k = Math.min(BEATS.length - 1, Math.floor((scrollY - s1) / (BEAT_VH * vh)));
+    if (k !== scrubBeat) {
+      scrubBeat = k;
+      playToken++;               // take over from any timed playback
+      mode = "story";
+      refreshButtons();
+      renderBeat(k);
+    }
+  }
+}
+addEventListener("scroll", onScroll, { passive: true });
+addEventListener("resize", layoutScroll);
+
 /* boot */
 startEggIdle();
+layoutScroll();
 </script>
 </body>
 </html>
