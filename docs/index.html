@@ -1,8 +1,9 @@
 <!doctype html>
 <!-- tamayo: a hand-rolled gen-1 tamagotchi that explains the pomfrit
      one-more-mayo blind signature. no build step, no framework — one file,
-     d3 for the 3d egg + scene transitions. buttons: A = about pages,
-     B = hatch / replay the story, C = math overlay for the nerds. -->
+     d3 for the 3d egg + scene transitions. gen-1 button semantics:
+     A cycles the icon highlight, B confirms, C cancels — and scrolling
+     just presses the buttons for you (visibly). -->  
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -81,30 +82,32 @@
      egg's curve and the square screen, so neither outline has to bend
      to the other (clip-path kills box-shadow, hence the rig wrapper) */
   .frame-rig {
-    position: absolute; inset: 44px 24px auto 24px; height: 296px;
+    position: absolute; inset: 38px 14px auto 14px; height: 310px;
     filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .4));
   }
   .frame {
     position: absolute; inset: 0;
     background: linear-gradient(170deg, #38339c 0%, var(--trim) 55%, #201c58 100%);
-    /* irregular ~9-point burst, tips/valleys hand-placed like the gen-1 */
+    /* irregular burst, tips/valleys hand-placed like the gen-1; valleys stay
+       outside the screen rect so the frame fully surrounds the lcd */
     clip-path: polygon(
-      20% 6%, 33% 14%, 47% 0%, 60% 13%, 78% 4%,
-      86% 26%, 100% 40%, 88% 55%, 97% 75%,
-      80% 86%, 65% 100%, 50% 88%, 32% 99%,
-      18% 84%, 0% 65%, 12% 48%, 3% 28%, 12% 20%
+      2% 20%, 13% 12%, 30% 2%, 45% 12%, 62% 0%, 77% 11%,
+      97% 16%, 87% 30%, 100% 48%, 88% 62%, 98% 80%,
+      84% 88%, 64% 100%, 48% 89%, 30% 98%, 14% 87%,
+      0% 64%, 12% 50%, 4% 30%
     );
   }
-  /* the screen — deliberately bigger than a real gen-1 */
+  /* the screen — bigger than a real gen-1, sits directly on the burst:
+     no inner border, the jagged frame IS the outline (per the reference) */
   .screen {
-    position: absolute; inset: 38px 42px;
+    position: absolute; inset: 44px 52px;
     background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
-    border: 6px solid #17144a;
-    border-radius: 18px;
-    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45),
-                0 0 0 2px rgba(255, 255, 255, .18);
+    border-radius: 14px;
+    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45);
     overflow: hidden;
+    transition: filter .18s;
   }
+  .screen.lit { filter: brightness(1.16) saturate(1.1); }  /* button-press glow */
   .screen svg { width: 100%; height: 100%; display: block; }
 
   .buttons {
@@ -119,7 +122,8 @@
                 0 5px 10px rgba(0,0,0,.35);
     color: #dfe2ff; font-family: inherit; font-size: 13px; font-weight: 700;
   }
-  .btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); }
+  .btn:active,
+  .btn.pressed { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); filter: brightness(1.25); }
   .btn.mid { margin-top: 16px; }  /* middle button sits lower, like the original */
   .btn-labels {
     position: absolute; bottom: 34px; left: 0; right: 0;
@@ -157,12 +161,12 @@
       <button class="btn mid" id="btnB">B</button>
       <button class="btn" id="btnC">C</button>
     </div>
-    <div class="btn-labels"><span id="lblA">ABOUT</span><span id="lblB">HATCH</span><span id="lblC">MATH</span></div>
+    <div class="btn-labels"><span id="lblA">MENU</span><span id="lblB">HATCH</span><span id="lblC">MATH</span></div>
   </div>
 </div>
 
 <footer>
-  scroll drives the whole story — or use the buttons; their labels follow the screen you're on<br>
+  scrolling presses the buttons for you — or press them yourself; the labels follow the screen<br>
   <span class="math-hint">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
 </footer>
 
@@ -180,21 +184,21 @@ const svg  = d3.select("#lcd");
 const INK  = "#22301f", SOFT = "#4a5a44", LCD = "#c7d3a0";
 const W = 400, H = 300;
 
-/* dot-matrix border, an homage to the gen-1 pixel bezel */
+/* dot-matrix border (top only — the gen-1 icon row lives at the bottom) */
 const frame = svg.append("g");
 for (let x = 8; x < W; x += 16) {
   frame.append("rect").attr("x", x).attr("y", 4).attr("width", 6).attr("height", 6).attr("fill", INK).attr("opacity", .18);
-  frame.append("rect").attr("x", x).attr("y", H - 10).attr("width", 6).attr("height", 6).attr("fill", INK).attr("opacity", .18);
 }
 
 const world  = svg.append("g");                    // scene layer (camera target)
 const hud    = svg.append("g");                    // captions
+const iconbar= svg.append("g");                    // gen-1 style icon row (bottom)
 const math441= svg.append("g").attr("opacity", 0); // nerd layer
 
 let mathOn   = false;
 let playToken= 0;      // bump to cancel a running story
-let mode     = "idle"; // idle | story | about
-let aboutPage= 0;
+let mode     = "idle"; // idle | menu | story
+let menuSel  = 0;      // highlighted menu icon (gen-1: A cycles, B picks, C cancels)
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 function alive(tok) { return tok === playToken; }
@@ -205,7 +209,7 @@ function caption(lines) {
   const arr = Array.isArray(lines) ? lines : [lines];
   arr.forEach((t, i) => {
     hud.append("text")
-      .attr("x", W / 2).attr("y", 262 + i * 15)
+      .attr("x", W / 2).attr("y", 240 + i * 15)
       .attr("text-anchor", "middle")
       .attr("font-size", 13).attr("font-family", "inherit")
       .attr("fill", INK).attr("font-weight", 700)
@@ -227,6 +231,45 @@ function nerd(lines) {
 function setMath(on) {
   mathOn = on;
   math441.transition().duration(300).attr("opacity", on ? 1 : 0);
+}
+
+/* gen-1 icon row: always printed at the bottom of the lcd (like the
+   original's fixed icons); lit up + inverted when highlighted in menu
+   mode. tapping an icon selects and picks it directly */
+const MENU_ITEMS = [
+  { label: "SHOW ME THE DEMO", icon: drawIconPlay },
+  { label: "SHOW ME THE MATH", icon: drawIconMath },
+  { label: "SHOW ME THE REPO", icon: drawIconRepo },
+];
+const ICON_XS = [148, 200, 252], ICON_Y = 282;
+function drawIconPlay(g, c) {
+  g.append("path").attr("d", "M -6 -8 L 8 0 L -6 8 Z").attr("fill", c);
+}
+function drawIconMath(g, c) {
+  g.append("text").attr("y", 6).attr("text-anchor", "middle")
+    .attr("font-size", 17).attr("font-weight", 800).attr("fill", c).text("Σ");
+}
+function drawIconRepo(g, c) {   // a little book, like github's repo icon
+  g.append("rect").attr("x", -7).attr("y", -8).attr("width", 14).attr("height", 16)
+    .attr("rx", 2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.5);
+  g.append("line").attr("x1", -3).attr("y1", -8).attr("x2", -3).attr("y2", 8)
+    .attr("stroke", c).attr("stroke-width", 2);
+}
+function updateIcons(sel) {     // sel: highlighted index, or -1 for none
+  iconbar.selectAll("*").remove();
+  MENU_ITEMS.forEach((item, i) => {
+    const g = iconbar.append("g")
+      .attr("transform", `translate(${ICON_XS[i]},${ICON_Y})`)
+      .style("cursor", "pointer")
+      .on("click", () => { menuSel = i; if (mode !== "menu") showMenu(); pick(i); });
+    if (i === sel) {
+      g.append("rect").attr("x", -17).attr("y", -14).attr("width", 34).attr("height", 28)
+        .attr("rx", 5).attr("fill", INK);
+      item.icon(g, LCD);
+    } else {
+      item.icon(g.attr("opacity", sel === -1 ? .3 : .55), INK);
+    }
+  });
 }
 
 /* ================================================================
@@ -270,10 +313,12 @@ function drawEgg(zoom = 1, opacity = 1) {
 function startEggIdle() {
   stopEgg();
   mode = "idle";
+  world.selectAll("*").remove();
   eggTimer = d3.timer(() => drawEgg(1, 1));
-  caption(["a wild egg appears", "scroll — or press HATCH"]);
+  caption(["a mysterious egg appears", "keep scrolling..."]);
   nerd(["inside: MAYO + FAEST + PoMFRIT, in pure go,",
         "byte-exact vs their references, runs on bare metal"]);
+  updateIcons(-1);
   refreshButtons();
 }
 function stopEgg() { if (eggTimer) { eggTimer.stop(); eggTimer = null; } }
@@ -523,70 +568,84 @@ function renderBeat(i) {
   world.selectAll("*").remove(); hud.selectAll("*").remove();
   BEATS[i].fn();
 }
+/* once the movie starts it keeps playing — looping back to the cast
+   after the finale (the hatch zoom only plays the first time round) */
 async function playStory() {
   const tok = ++playToken;
   mode = "story";
   refreshButtons();
-  for (let i = 0; i < BEATS.length; i++) {
-    renderBeat(i);
-    await sleep(BEATS[i].dur); if (!alive(tok)) return;
+  updateIcons(-1);
+  let first = true;
+  while (alive(tok)) {
+    for (let i = first ? 0 : 1; i < BEATS.length; i++) {
+      renderBeat(i);
+      await sleep(BEATS[i].dur); if (!alive(tok)) return;
+    }
+    first = false;
   }
-  world.selectAll("*").remove();
-  startEggIdle();
 }
 
 /* ================================================================
-   about pages (button A)
+   the menu — the gen-1 interaction, verbatim: A cycles the icon
+   highlight, B executes the selection, C cancels. big wacky text so
+   nobody wonders what they're looking at
    ================================================================ */
-const ABOUT = [
-  ["WHAT IS POMFRIT?",
-   "a post-quantum BLIND signature:",
-   "you get a real signature on your",
-   "message, but the signer never",
-   "learns what it signed — and can",
-   "never link signature to signing"],
-  ["HOW?",
-   "MAYO signs a blinded target t,",
-   "then a VOLE-in-the-Head zero-",
-   "knowledge proof shows the",
-   "signature exists — without",
-   "revealing it. (baum et al.)"],
-  ["WHY THE EGG?",
-   "tamago = egg (and a bare-metal",
-   "go runtime). tamago + mayo =",
-   "tamayo. this repo runs the whole",
-   "scheme byte-exact vs reference,",
-   "even on a riscv64 with no OS"],
-];
-function showAbout() {
-  playToken++; stopEgg(); mode = "about";
-  aboutPage = 0;
-  renderAbout();
+function showMenu() {
+  playToken++; stopEgg(); mode = "menu";
+  renderMenu();
   refreshButtons();
 }
-function renderAbout() {
+function renderMenu() {
   world.selectAll("*").remove(); hud.selectAll("*").remove();
-  const page = ABOUT[aboutPage];
   const g = world.append("g");
-  g.append("text").attr("x", W / 2).attr("y", 64).attr("text-anchor", "middle")
-    .attr("font-size", 17).attr("fill", INK).attr("font-weight", 800).text(page[0]);
-  page.slice(1).forEach((t, i) =>
-    g.append("text").attr("x", W / 2).attr("y", 100 + i * 22).attr("text-anchor", "middle")
-      .attr("font-size", 13.5).attr("fill", INK).text(t));
-  g.attr("opacity", 0).transition().duration(300).attr("opacity", 1);
-  caption([`page ${aboutPage + 1}/${ABOUT.length}`]);
+  g.append("text").attr("x", W / 2).attr("y", 52).attr("text-anchor", "middle")
+    .attr("font-size", 27).attr("fill", INK).attr("font-weight", 800)
+    .attr("transform", `rotate(-2 ${W / 2} 52)`)
+    .text("WAIT — WHAT IS THIS?");
+  [["a virtual pet that performs a post-quantum"],
+   ["BLIND SIGNATURE — for real, byte-exact"]].forEach((t, i) =>
+    g.append("text").attr("x", W / 2).attr("y", 76 + i * 17).attr("text-anchor", "middle")
+      .attr("font-size", 13.5).attr("fill", INK).text(t[0]));
+  MENU_ITEMS.forEach((item, i) => {
+    const y = 130 + i * 38;
+    const row = g.append("g").style("cursor", "pointer")
+      .on("click", () => { menuSel = i; pick(i); });
+    if (i === menuSel) {
+      row.append("rect").attr("x", 52).attr("y", y - 24).attr("width", 296).attr("height", 34)
+        .attr("rx", 8).attr("fill", INK);
+      row.append("text").attr("x", W / 2).attr("y", y).attr("text-anchor", "middle")
+        .attr("font-size", 19).attr("fill", LCD).attr("font-weight", 800)
+        .text("▶ " + item.label);
+    } else {
+      row.append("text").attr("x", W / 2).attr("y", y).attr("text-anchor", "middle")
+        .attr("font-size", 19).attr("fill", INK).attr("font-weight", 700)
+        .attr("opacity", .55).text(item.label);
+    }
+  });
+  g.attr("opacity", 0).transition().duration(250).attr("opacity", 1);
+  caption(["keep scrolling to auto-pick the demo"]);
   nerd(["h = SHAKE256(m‖π₁) · t = h⊕r · s = MAYO⁻¹(t) · π = VOLEitH(s) · BlindVerify(epk,m,π)"]);
+  updateIcons(menuSel);
 }
-function aboutStep(d) {
-  aboutPage = (aboutPage + d + ABOUT.length) % ABOUT.length;
-  renderAbout();
+function menuCycle() {
+  menuSel = (menuSel + 1) % MENU_ITEMS.length;
+  renderMenu();
+}
+function pick(i) {
+  if (i === 2) { window.open("https://github.com/maceip/tamayo", "_blank"); return; }
+  setMath(i === 1);
+  playStory();
 }
 
 /* ================================================================
-   buttons — labels and actions follow the screen you're on:
-     idle:   ABOUT · HATCH  · MATH
-     about:  ‹BACK · NEXT›  · HOME
-     story:  HOME  · REPLAY · MATH
+   buttons — gen-1 semantics (A cycles, B confirms, C cancels), with
+   labels that follow the screen you're on:
+     idle:  MENU  · HATCH  · MATH
+     menu:  NEXT ▸ · PICK  · HOME
+     story: HOME  · REPLAY · MATH
+   every press — real or scroll-driven — is made visible: the button
+   dips, the screen glows, the device beeps (once audio is unlocked
+   by a first touch) and vibrates on phones that support it
    ================================================================ */
 const LBL = { A: d3.select("#lblA"), B: d3.select("#lblB"), C: d3.select("#lblC") };
 const BTN = { A: d3.select("#btnA"), B: d3.select("#btnB"), C: d3.select("#btnC") };
@@ -614,75 +673,112 @@ const mathLabel = () => mathOn ? "MATH ✓" : "MATH";
 function toggleMath() { setMath(!mathOn); refreshButtons(); }
 function goHome() {
   playToken++;
-  world.selectAll("*").remove();
   startEggIdle();
-  // park the page where the egg sits centered, just before the story region
-  scrollTo({ top: INTRO_VH * innerHeight, behavior: "smooth" });
+  // park the page where the egg sits centered, just before the menu band
+  scrollTo({ top: INTRO_VH * innerHeight - 2, behavior: "smooth" });
 }
 function refreshButtons() {
-  if (mode === "about") {
-    setButtons({ A: ["‹ BACK", () => aboutStep(-1)],
-                 B: ["NEXT ›", () => aboutStep(+1)],
+  if (mode === "menu") {
+    setButtons({ A: ["NEXT ▸", menuCycle],
+                 B: ["PICK",   () => pick(menuSel)],
                  C: ["HOME",   goHome] });
   } else if (mode === "story") {
     setButtons({ A: ["HOME",   goHome],
                  B: ["REPLAY", () => playStory()],
                  C: [mathLabel(), toggleMath] });
   } else { // idle
-    setButtons({ A: ["ABOUT",  showAbout],
+    setButtons({ A: ["MENU",   showMenu],
                  B: ["HATCH",  () => playStory()],
                  C: [mathLabel(), toggleMath] });
   }
 }
-d3.select("#btnA").on("click", () => actions.A && actions.A());
-d3.select("#btnB").on("click", () => actions.B && actions.B());
-d3.select("#btnC").on("click", () => actions.C && actions.C());
+
+/* press feedback: visual dip + screen glow + haptic + gen-1 pip */
+const screenEl = document.querySelector(".screen");
+let actx = null;
+function unlockAudio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) actx = new AC();
+  }
+  if (actx && actx.state === "suspended") actx.resume();
+}
+addEventListener("pointerdown", unlockAudio);
+addEventListener("keydown", unlockAudio);
+const BEEP_HZ = { A: 660, B: 880, C: 550 };
+function beep(k) {
+  if (!actx || actx.state !== "running") return;   // needs a first touch
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = "square"; o.frequency.value = BEEP_HZ[k];
+  g.gain.setValueAtTime(0.035, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.07);
+  o.connect(g); g.connect(actx.destination);
+  o.start(); o.stop(actx.currentTime + 0.07);
+}
+function pressButton(k) {
+  const btn = document.getElementById("btn" + k);
+  btn.classList.add("pressed");
+  screenEl.classList.add("lit");
+  setTimeout(() => { btn.classList.remove("pressed"); screenEl.classList.remove("lit"); }, 200);
+  if (navigator.vibrate) navigator.vibrate(18);
+  beep(k);
+}
+for (const k of ["A", "B", "C"]) {
+  document.getElementById("btn" + k).addEventListener("click", () => {
+    pressButton(k);
+    if (actions[k]) actions[k]();
+  });
+}
 
 /* ================================================================
-   parallax scroll — phase 1 slides the egg up from the fold (it
-   starts half-clipped at the bottom edge); phase 2 pins the page
-   and converts scroll distance into story beats, like a scrubber
+   parallax scroll — three zones, and every zone change is a visible
+   virtual button press (the scroll is just pressing buttons for you):
+     zone 0: egg slides up from the fold (idle)
+     zone 1: the menu screen ("wait — what is this?")
+     zone 2: presses PICK for you → the movie starts and then simply
+             keeps playing (it loops); scroll does nothing further
    ================================================================ */
 const rigEl  = document.querySelector(".rig");
 const footEl = document.querySelector("footer");
 const hintEl = document.querySelector(".scroll-hint");
 const spaceEl= document.getElementById("scrollspace");
 const INTRO_VH = 0.9;   // scroll distance (in viewports) of the slide-in
-const BEAT_VH  = 0.55;  // scroll distance per story beat
+const MENU_VH  = 0.7;   // scroll distance the menu stays on screen
+const TAIL_VH  = 0.5;   // slack after the auto-pick point
 let rigCenter0 = 0;     // rig center y at rest, measured at layout time
-let scrubBeat  = -1;    // story beat currently owned by the scrubber
+let lastZone   = 0;
 
 function layoutScroll() {
   rigEl.style.transform = "none";
   const r = rigEl.getBoundingClientRect();
   rigCenter0 = r.top + r.height / 2;
   spaceEl.style.height =
-    innerHeight * (1 + INTRO_VH + BEATS.length * BEAT_VH + 0.2) + "px";
+    innerHeight * (1 + INTRO_VH + MENU_VH + TAIL_VH) + "px";
   onScroll();
 }
 const smooth = t => t * t * (3 - 2 * t);
 function onScroll() {
-  const vh = innerHeight, s1 = INTRO_VH * vh;
+  const vh = innerHeight, s1 = INTRO_VH * vh, s2 = s1 + MENU_VH * vh;
   const t = Math.max(0, Math.min(1, scrollY / s1));
   rigEl.style.transform = `translateY(${(1 - smooth(t)) * (vh - rigCenter0)}px)`;
   footEl.style.opacity = t;
   hintEl.style.opacity = t < 1 ? 1 : 0;
-  if (scrollY <= s1) {
-    if (scrubBeat !== -1) {      // scrolled back out of the story region
-      scrubBeat = -1;
-      playToken++;
-      world.selectAll("*").remove();
-      startEggIdle();
-    }
-  } else {
-    const k = Math.min(BEATS.length - 1, Math.floor((scrollY - s1) / (BEAT_VH * vh)));
-    if (k !== scrubBeat) {
-      scrubBeat = k;
-      playToken++;               // take over from any timed playback
-      mode = "story";
-      refreshButtons();
-      renderBeat(k);
-    }
+
+  const z = scrollY <= s1 ? 0 : scrollY <= s2 ? 1 : 2;
+  if (z === lastZone) return;
+  const goingDown = z > lastZone;
+  lastZone = z;
+  if (z === 0) {                       // cancelled all the way back out
+    pressButton("C");
+    playToken++;
+    startEggIdle();
+  } else if (z === 1) {                // A opens the menu / C backs out of the movie
+    pressButton(goingDown ? "A" : "C");
+    menuSel = 0;
+    showMenu();
+  } else if (mode !== "story") {       // B picks for you (demo, or math if highlighted)
+    pressButton("B");
+    pick(menuSel === 1 ? 1 : 0);       // never auto-open the repo tab
   }
 }
 addEventListener("scroll", onScroll, { passive: true });
