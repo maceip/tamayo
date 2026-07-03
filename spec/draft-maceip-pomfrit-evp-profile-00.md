@@ -427,6 +427,11 @@ unlinkability, not the relying party.
 - Relying parties SHOULD accept the current and immediately previous epoch,
   and MUST NOT accept older ones; this bounds the utility of hoarded tokens
   and of any key compromised after rotation.
+- The issuer MUST destroy (zeroize) an epoch's secret key when the epoch
+  closes. Verification requires only the public key, so the acceptance
+  grace period is unaffected. Sealing the epoch means a later compromise of
+  the issuer cannot retroactively mint tokens for past epochs, and the
+  total token supply of a closed epoch is fixed forever.
 - Blind JWK Sets SHOULD be served with cache lifetimes covering the epoch
   and SHOULD be fetchable without credentials, so relying-party fetches are
   anonymous and amortized. Issuers SHOULD publish epoch keys in an
@@ -619,6 +624,18 @@ riscv64. Measured single-core on an Apple M5 Max: blind-sign 0.74 s / 1.9 s
 reference optimized C++ reports sub-100 ms showings at L1). Sizes in
 {{alg}} are the byte-exact values from that implementation:
 `ProofSize() = 6895 / 15862 / 29615`.
+
+The surrounding token machinery this profile assumes — per-epoch issuer
+keys with secret-key destruction at epoch close, batched issuance into a
+client-side token store spent one at a time, an origin-side replay cache,
+a public per-epoch key directory, and a base64url HTTP header wire format —
+exists as a C++ implementation ("faest-pass") layered on the FAEST
+reference code, using plain (non-blind) FAEST signatures over
+issuer-constructed payloads. It demonstrates the epoch/refill/spend
+lifecycle end to end and is the origin of the key-destruction requirement
+in {{epochs}}; being non-blind, its tokens carry an issuer-assigned index
+and a per-account commitment and are therefore issuer-linkable — precisely
+the property this profile removes.
 
 What does not yet exist, and is out of scope here: a browser wallet, the
 issuance endpoint, and the JWS plumbing for the `alg`/`kty` values sketched
