@@ -61,19 +61,32 @@
     width: 40px; height: 40px; border: 6px solid #b9bdd6; border-radius: 50%;
     box-shadow: inset 0 0 4px rgba(0,0,0,.4);
   }
-  .bezel {
-    position: absolute; inset: 54px 38px auto 38px; height: 268px;
-    background: var(--trim);
-    border-radius: 46% 46% 40% 40% / 30% 30% 26% 26%;
-    box-shadow: inset 0 6px 14px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.35);
-    padding: 16px;
+  /* the gen-1 "weird shape" frame: a jagged burst mediates between the
+     egg's curve and the square screen, so neither outline has to bend
+     to the other (clip-path kills box-shadow, hence the rig wrapper) */
+  .frame-rig {
+    position: absolute; inset: 44px 24px auto 24px; height: 296px;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .4));
+  }
+  .frame {
+    position: absolute; inset: 0;
+    background: linear-gradient(170deg, #38339c 0%, var(--trim) 55%, #201c58 100%);
+    /* irregular ~9-point burst, tips/valleys hand-placed like the gen-1 */
+    clip-path: polygon(
+      20% 6%, 33% 14%, 47% 0%, 60% 13%, 78% 4%,
+      86% 26%, 100% 40%, 88% 55%, 97% 75%,
+      80% 86%, 65% 100%, 50% 88%, 32% 99%,
+      18% 84%, 0% 65%, 12% 48%, 3% 28%, 12% 20%
+    );
   }
   /* the screen — deliberately bigger than a real gen-1 */
   .screen {
-    width: 100%; height: 100%;
+    position: absolute; inset: 38px 42px;
     background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
-    border-radius: 14px;
-    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45);
+    border: 6px solid #17144a;
+    border-radius: 18px;
+    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45),
+                0 0 0 2px rgba(255, 255, 255, .18);
     overflow: hidden;
   }
   .screen svg { width: 100%; height: 100%; display: block; }
@@ -116,7 +129,10 @@
 <div class="rig">
   <div class="egg-shell">
     <div class="keyring"></div>
-    <div class="bezel"><div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div></div>
+    <div class="frame-rig">
+      <div class="frame"></div>
+      <div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
     <div class="buttons">
       <button class="btn" id="btnA" title="about pomfrit">A</button>
       <button class="btn mid" id="btnB" title="hatch / replay">B</button>
