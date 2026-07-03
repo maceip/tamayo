@@ -418,7 +418,7 @@ const W = 400, H = 300;
 
 const world   = svg.append("g");   // scene layer
 const hud     = svg.append("g");   // captions
-const iconbar = svg.append("g");   // gen-1 chapter icons (3 top, 3 bottom)
+const iconbar = svg.append("g");   // gen-1 icon bands (4 top, 4 bottom)
 
 let mode = "idle";                 // idle | story
 let cur  = 0;                      // current state index
@@ -710,7 +710,7 @@ st(0, ["press NEXT ▸ (or keep scrolling)"], g => {
       .attr("text-anchor", "middle").attr("font-size", i === 1 ? 16 : 13.5)
       .attr("fill", INK).attr("font-weight", i === 1 ? 800 : 400).text(t));
   g.append("text").attr("x", W / 2).attr("y", 182).attr("text-anchor", "middle")
-    .attr("font-size", 12).attr("fill", SOFT).text("a story in 6 chapters — the icons below are the chapters")
+    .attr("font-size", 12).attr("fill", SOFT).text("6 chapters — the icons are the chapters, tap to jump")
     .attr("opacity", 0).transition().delay(400).duration(400).attr("opacity", 1);
 });
 st(0, ["this is the pup. it has a bone (a message)", "that it needs stamped as APPROVED"], g => {
@@ -1059,80 +1059,153 @@ st(5, ["everything you just watched runs for real in", "this repo: pure go, byte
 });
 
 /* ================================================================
-   chapters + the gen-1 icon rows (3 top, 3 bottom, big — the
-   current chapter is inverted like a real selection; tap to jump)
+   chapters + the gen-1 icon rows — laid out like the original lcd:
+   two tinted bands pinned to the top and bottom edges, four chunky
+   1-bit pixel icons per band. the current chapter inverts, exactly
+   like the device's selection highlight; tap an icon to jump.
+   slots: top = chapters 0-3 · bottom = chapters 4-5, egg (home),
+   book (repo)
    ================================================================ */
-function iconBone(g, c)  { drawBoneIcon(g, c); }
-function drawBoneIcon(g, c) {
-  g.append("rect").attr("x", -8).attr("y", -2.5).attr("width", 16).attr("height", 5).attr("rx", 2.5)
-    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.4);
-  [[-8, -3.5], [-8, 3.5], [8, -3.5], [8, 3.5]].forEach(([x, y]) =>
-    g.append("circle").attr("cx", x).attr("cy", y).attr("r", 3.6)
-      .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.4));
-}
-function iconGear(g, c) {
-  for (let i = 0; i < 8; i++)
-    g.append("rect").attr("x", -1.7).attr("y", -11).attr("width", 3.4).attr("height", 4)
-      .attr("fill", c).attr("transform", `rotate(${i * 45})`);
-  g.append("circle").attr("r", 7.5).attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
-  g.append("circle").attr("r", 2).attr("fill", c);
-}
-function iconBox(g, c) {
-  g.append("rect").attr("x", -9).attr("y", -7).attr("width", 18).attr("height", 14).attr("rx", 2)
-    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
-  g.append("line").attr("x1", -9).attr("y1", -2).attr("x2", 9).attr("y2", -2)
-    .attr("stroke", c).attr("stroke-width", 2);
-  g.append("text").attr("y", 8).attr("text-anchor", "middle").attr("font-size", 9)
-    .attr("font-weight", 800).attr("fill", c).text("?");
-}
-function iconBubble(g, c) {
-  g.append("ellipse").attr("cy", -3).attr("rx", 10).attr("ry", 7.5)
-    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
-  g.append("circle").attr("cx", -7).attr("cy", 7).attr("r", 2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 1.8);
-  g.append("circle").attr("cx", -11).attr("cy", 11).attr("r", 1.2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 1.6);
-}
-function iconMonocle(g, c) {
-  g.append("circle").attr("cx", -2).attr("cy", -2).attr("r", 7.5)
-    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
-  g.append("line").attr("x1", 3.5).attr("y1", 3.5).attr("x2", 10).attr("y2", 10)
-    .attr("stroke", c).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
-}
-function iconFlag(g, c) {
-  g.append("line").attr("x1", -7).attr("y1", -11).attr("x2", -7).attr("y2", 11)
-    .attr("stroke", c).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
-  g.append("path").attr("d", "M -7 -10 L 10 -6 L -7 -1 Z").attr("fill", c);
+const PX = {
+  bone: [
+    ".###......###.",
+    "#####....#####",
+    "#####....#####",
+    ".############.",
+    ".############.",
+    "#####....#####",
+    "#####....#####",
+    ".###......###."],
+  gear: [
+    "....####....",
+    ".##.####.##.",
+    ".##########.",
+    "####....####",
+    "###..##..###",
+    "###..##..###",
+    "####....####",
+    ".##########.",
+    ".##.####.##.",
+    "....####...."],
+  box: [
+    "############",
+    "#..........#",
+    "#...####...#",
+    "#..##..##..#",
+    "#......##..#",
+    "#.....##...#",
+    "#....##....#",
+    "#..........#",
+    "#....##....#",
+    "#..........#",
+    "############"],
+  bubble: [
+    "..########..",
+    ".##......##.",
+    "##..#.#.#.##",
+    "##........##",
+    ".##......##.",
+    "..########..",
+    "....##......",
+    "...##.......",
+    "...#........"],
+  lens: [
+    "..######....",
+    ".##....##...",
+    "##......##..",
+    "##......##..",
+    "##......##..",
+    ".##....##...",
+    "..######.#..",
+    ".......####.",
+    "........####",
+    ".........###"],
+  flag: [
+    "##.........",
+    "###########",
+    "###########",
+    "###########",
+    "###########",
+    "##.........",
+    "##.........",
+    "##.........",
+    "##........."],
+  egg: [
+    "...####...",
+    "..######..",
+    ".########.",
+    ".###.####.",
+    "##########",
+    "####.#####",
+    "##########",
+    ".########.",
+    "..######.."],
+  book: [
+    "############",
+    "#..#.......#",
+    "#..#..###..#",
+    "#..#.......#",
+    "#..#..###..#",
+    "#..#.......#",
+    "#..#..###..#",
+    "#..#.......#",
+    "############"],
+};
+function pxIcon(g, rows, c, cell = 3) {
+  const h = rows.length, w = rows[0].length;
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++)
+      if (row[x] === "#")
+        g.append("rect")
+          .attr("x", (x - w / 2) * cell).attr("y", (y - h / 2) * cell)
+          .attr("width", cell + .2).attr("height", cell + .2)
+          .attr("fill", c);
+  });
 }
 const CHAPTERS = [
-  { name: "the setup",   icon: iconBone },
-  { name: "the machine", icon: iconGear },
-  { name: "blind stamp", icon: iconBox },
-  { name: "the proof",   icon: iconBubble },
-  { name: "the check",   icon: iconMonocle },
-  { name: "so what",     icon: iconFlag },
+  { name: "the setup",   px: PX.bone },
+  { name: "the machine", px: PX.gear },
+  { name: "blind stamp", px: PX.box },
+  { name: "the proof",   px: PX.bubble },
+  { name: "the check",   px: PX.lens },
+  { name: "so what",     px: PX.flag },
 ];
 CHAPTERS.forEach(c => { c.start = STATES.findIndex(s => s.ch === CHAPTERS.indexOf(c)); });
-const ICON_XS = [80, 200, 320], ICON_TOP = 22, ICON_BOT = 279;
+/* the two extra gen-1 slots: egg = home, book = repo */
+const ICON_SLOTS = [
+  ...CHAPTERS.map((c, i) => ({ px: c.px, act: () => mode === "story" ? goto(c.start) : enterStory(c.start), ch: i })),
+  { px: PX.egg,  act: () => { if (mode === "story") exitStory(); }, ch: -2 },
+  { px: PX.book, act: () => window.open("https://github.com/maceip/tamayo", "_blank"), ch: -2 },
+];
+const ICON_XS = [56, 152, 248, 344], ICON_TOP = 23, ICON_BOT = 277, BAND_H = 40;
 function drawChapterIcons(activeCh) {
   iconbar.selectAll("*").remove();
-  CHAPTERS.forEach((chap, i) => {
-    const x = ICON_XS[i % 3], y = i < 3 ? ICON_TOP : ICON_BOT;
+  /* the tinted bands the icons live in, edge to edge like the gen-1 —
+     opaque, so scene sprites slide underneath like art printed on the glass */
+  [0, H - BAND_H].forEach(y => {
+    iconbar.append("rect").attr("x", 0).attr("y", y).attr("width", W).attr("height", BAND_H)
+      .attr("fill", LCD);
+    iconbar.append("rect").attr("x", 0).attr("y", y).attr("width", W).attr("height", BAND_H)
+      .attr("fill", INK).attr("opacity", .08);
+  });
+  [BAND_H - .75, H - BAND_H + .75].forEach(y =>
+    iconbar.append("line").attr("x1", 0).attr("x2", W).attr("y1", y).attr("y2", y)
+      .attr("stroke", INK).attr("stroke-width", 1.5).attr("opacity", .18));
+  ICON_SLOTS.forEach((slot, i) => {
+    const x = ICON_XS[i % 4], y = i < 4 ? ICON_TOP : ICON_BOT;
     const g = iconbar.append("g")
       .attr("transform", `translate(${x},${y})`)
       .style("cursor", "pointer")
-      .on("click", ev => {
-        ev.stopPropagation();
-        if (mode === "story") goto(chap.start);
-        else enterStory(chap.start);
-      });
+      .on("click", ev => { ev.stopPropagation(); slot.act(); });
     // generous invisible hit area so the icons are easy to tap
-    g.append("rect").attr("x", -32).attr("y", -19).attr("width", 64).attr("height", 38)
+    g.append("rect").attr("x", -42).attr("y", -20).attr("width", 84).attr("height", 40)
       .attr("fill", "transparent");
-    if (i === activeCh) {
-      g.append("rect").attr("x", -26).attr("y", -17).attr("width", 52).attr("height", 34)
-        .attr("rx", 6).attr("fill", INK);
-      chap.icon(g.append("g"), LCD);
+    if (slot.ch === activeCh) {
+      g.append("rect").attr("x", -24).attr("y", -18).attr("width", 48).attr("height", 36)
+        .attr("rx", 5).attr("fill", INK);
+      pxIcon(g.append("g"), slot.px, LCD);
     } else {
-      chap.icon(g.append("g").attr("opacity", activeCh === -1 ? .35 : .55), INK);
+      pxIcon(g.append("g").attr("opacity", activeCh === -1 ? .6 : .78), slot.px, INK);
     }
   });
 }
