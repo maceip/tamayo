@@ -181,7 +181,7 @@
     background: radial-gradient(20px 20px at 35% 30%, var(--btn-hi), var(--btn) 70%);
     box-shadow: inset 0 -4px 6px rgba(0,0,0,.45), inset 0 3px 4px rgba(255,255,255,.35),
                 0 5px 10px rgba(0,0,0,.35);
-    color: #dfe2ff; font-family: inherit; font-size: 13px; font-weight: 700;
+    color: var(--btn-ink, #dfe2ff); font-family: inherit; font-size: 13px; font-weight: 700;
   }
   .btn:active,
   .btn.pressed { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); filter: brightness(1.25); }
@@ -315,7 +315,7 @@ const SHELL = (() => {
     ? `hsl(${c[0]} ${c[1]}% ${c[2]}%)`
     : `hsla(${c[0]}, ${c[1]}%, ${c[2]}%, ${a})`;
   const lite = (c, dl, ds = 0) => [c[0], Math.max(0, c[1] + ds), Math.max(4, Math.min(97, c[2] + dl))];
-  const dark = shell[2] < 40;
+  const dark = shell[2] < 52;
 
   const css = {
     "--shell-a":    H(shell),
@@ -327,6 +327,7 @@ const SHELL = (() => {
     "--trim-lo":    H(lite(trim, -8)),
     "--btn":        H(btn),
     "--btn-hi":     H(lite(btn, 12)),
+    "--btn-ink":    btn[2] >= 60 ? H([btn[0], Math.min(60, btn[1] + 10), 16], .9) : "#eef0ff",
     "--lbl":        dark ? H(lite(shell, 62, -20), .92) : H([trim[0], Math.min(60, trim[1] + 10), 24], .88),
     "--seam-ink":   H([shell[0], shell[1], Math.max(5, shell[2] - 34)], .55),
     "--seam-lip":   dark ? "rgba(255,255,255,.14)" : "rgba(255,255,255,.5)",
@@ -385,7 +386,8 @@ const SHELL = (() => {
 
 <footer>
   scroll or press: NEXT and BACK step the movie, one scene per half wheel-notch<br>
-  <span class="fine">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
+  <span class="fine">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span><br>
+  <span class="fine">shell <span id="shellid"></span> — hatched from a key this browser keeps, like a wallet and its blockie</span>
 </footer>
 
 </div><!-- .stage -->
@@ -1344,7 +1346,171 @@ addEventListener("keydown", e => {
   else if (e.key === "Escape") virtualPress("C");
 });
 
+/* ================================================================
+   the coat — paints SHELL's archetype artwork (see head script) into
+   .shell-pattern. mints draw with a canonical rng, so every mint of
+   an archetype is identical; variants re-seed layout from the key.
+   art covers the whole shell and simply runs under the frame, the
+   same way the printed cases do.
+   ================================================================ */
+function paintShell() {
+  const R = SHELL.rnd, P = SHELL.pat;
+  const pc = i => P[i % Math.max(1, P.length)];
+  const rr = (a, b) => a + R() * (b - a);
+  const g = d3.select(".shell-pattern").append("svg")
+    .attr("viewBox", "0 0 380 470").attr("preserveAspectRatio", "none")
+    .append("g");
+
+  const starPts = (x, y, r) => {
+    const p = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * .45 : r;
+      p.push((x + Math.cos(a) * rad).toFixed(1) + "," + (y + Math.sin(a) * rad).toFixed(1));
+    }
+    return p.join(" ");
+  };
+  const star = (x, y, r, col, fill = true) => g.append("polygon")
+    .attr("points", starPts(x, y, r))
+    .attr("fill", fill ? col : "none")
+    .attr("stroke", col).attr("stroke-width", fill ? 0 : 2.4)
+    .attr("stroke-linejoin", "round")
+    .attr("transform", `rotate(${rr(-30, 30)} ${x} ${y})`);
+  const heart = (x, y, s, col) => g.append("path")
+    .attr("d", "M0 3 C-7 -6 -18 1 -9 10 L0 17 L9 10 C18 1 7 -6 0 3 Z")
+    .attr("fill", col)
+    .attr("transform", `translate(${x},${y}) scale(${s}) rotate(${rr(-25, 25)})`);
+  const blob = (x, y, r, col, stretch = 1.5) => {
+    const n = 7, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / n * 2 * Math.PI;
+      pts.push((x + Math.cos(a) * r * rr(.5, 1.2) * stretch).toFixed(1) + " " +
+               (y + Math.sin(a) * r * rr(.5, 1.2)).toFixed(1));
+    }
+    g.append("path").attr("d", "M" + pts.join(" L") + " Z")
+      .attr("fill", col).attr("stroke", col)
+      .attr("stroke-width", r * .9).attr("stroke-linejoin", "round");
+  };
+  const specks = (n, col, rmin, rmax, omin, omax) => {
+    for (let i = 0; i < n; i++)
+      g.append("circle").attr("cx", rr(8, 372)).attr("cy", rr(8, 462))
+        .attr("r", rr(rmin, rmax)).attr("fill", col).attr("opacity", rr(omin, omax));
+  };
+  const squiggle = (x, y, col) => g.append("path")
+    .attr("d", `M ${x} ${y} q 7 -9 14 0 t 14 0 t 14 0`)
+    .attr("fill", "none").attr("stroke", col).attr("stroke-width", 2.6)
+    .attr("stroke-linecap", "round")
+    .attr("transform", `rotate(${rr(-30, 30)} ${x} ${y})`);
+  const gloss = () => {   // translucent-case shine
+    g.append("path").attr("d", "M 60 88 Q 92 40 168 26 Q 108 66 92 118 Z")
+      .attr("fill", "#fff").attr("opacity", .2);
+    g.append("path").attr("d", "M 320 350 Q 344 300 342 236 Q 360 320 338 372 Z")
+      .attr("fill", "#fff").attr("opacity", .13);
+    g.append("ellipse").attr("cx", 190).attr("cy", 238).attr("rx", 158).attr("ry", 202)
+      .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 9).attr("opacity", .3);
+  };
+  const camo = () => {
+    for (let i = 0; i < 17; i++)
+      blob(rr(-10, 390), rr(-10, 480), rr(24, 44), pc(i));
+  };
+  const ring = (n, fn) => {   // n spots around the shell rim
+    for (let i = 0; i < n; i++) {
+      const a = i / n * 2 * Math.PI + rr(-.14, .14);
+      fn(190 + Math.cos(a) * rr(140, 168), 238 + Math.sin(a) * rr(168, 205) * .95, i);
+    }
+  };
+
+  ({
+    doodle() {
+      ring(14, (x, y, i) => {
+        const k = i % 4;
+        if (k === 0)      star(x, y, rr(8, 13), pc(i), i % 3 !== 0);
+        else if (k === 1) heart(x, y, rr(.7, 1.1), pc(i));
+        else if (k === 2) squiggle(x - 20, y, pc(i));
+        else              g.append("circle").attr("cx", x).attr("cy", y).attr("r", rr(4, 7))
+                            .attr("fill", "none").attr("stroke", pc(i)).attr("stroke-width", 2.6);
+      });
+    },
+    clearblue: gloss, clearpurple: gloss,
+    camopink: camo, camogreen: camo,
+    kitty() {
+      [-1, 1].forEach(s => [0, 1, 2].forEach(i => {
+        const y = 234 + i * 16, x = 190 + s * 160;
+        g.append("line").attr("x1", x).attr("y1", y).attr("x2", x + s * 34).attr("y2", y + (i - 1) * 8)
+          .attr("stroke", pc(3)).attr("stroke-width", 3.4).attr("stroke-linecap", "round");
+      }));
+      const bow = g.append("g").attr("transform", "translate(285,40) rotate(-14) scale(1.15)");
+      bow.append("path").attr("d", "M0 0 L-26 -12 Q-34 0 -26 12 Z").attr("fill", pc(0));
+      bow.append("path").attr("d", "M0 0 L26 -12 Q34 0 26 12 Z").attr("fill", pc(0));
+      bow.append("circle").attr("r", 6.5).attr("fill", pc(0));
+    },
+    ocean() {
+      ring(12, (x, y, i) => {
+        if (i % 3 === 0) star(x, y, rr(7, 11), pc(i));
+        else if (i % 3 === 1) g.append("circle").attr("cx", x).attr("cy", y).attr("r", rr(4, 9))
+          .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.4).attr("opacity", .85);
+        else squiggle(x - 18, y, pc(i));
+      });
+      specks(26, pc(0), .8, 1.8, .3, .7);
+    },
+    stars() {
+      specks(90, pc(0), .6, 1.6, .35, .9);
+      ring(9, (x, y, i) => star(x, y, rr(9, 16), pc(i), i % 3 !== 1));
+      for (let r = 0; r < 3; r++) for (let col = 0; col < 5; col++)
+        if ((r + col) % 2 === 0)
+          g.append("rect").attr("x", 36 + col * 15).attr("y", 380 + r * 15)
+            .attr("width", 15).attr("height", 15).attr("fill", pc(0)).attr("opacity", .92)
+            .attr("transform", "rotate(-8 70 400)");
+    },
+    toys() {
+      ring(10, (x, y, i) => {
+        blob(x, y, rr(16, 26), pc(i), 1.2);
+        for (let d = 0; d < 4; d++)
+          g.append("circle").attr("cx", x + rr(-14, 14)).attr("cy", y + rr(-12, 12))
+            .attr("r", rr(1.6, 3)).attr("fill", "#fff").attr("opacity", .85);
+      });
+      specks(40, "#fff", .5, 1.4, .3, .8);
+      gloss();
+    },
+    fragblack() { bolt(); }, fragwhite() { bolt(); },
+    devil() {
+      [-1, 1].forEach(s => {
+        const w = g.append("g")
+          .attr("transform", `translate(${190 + s * 158},212) scale(${s * 1.05},1.05)`);
+        w.append("path").attr("d", "M0 0 Q22 -18 40 -8 Q30 -2 32 6 Q20 2 16 10 Q10 4 0 8 Z")
+          .attr("fill", pc(1)).attr("opacity", .92);
+      });
+      ring(8, (x, y, i) => { if (i % 2 === 0) star(x, y, rr(4, 7), pc(0)); });
+      g.append("circle").attr("cx", 320).attr("cy", 388).attr("r", 11)
+        .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.6);
+      [[320, 371], [308, 379], [332, 379]].forEach(([x, y]) =>
+        g.append("path").attr("d", `M ${x} ${y + 6} L ${x - 3} ${y} L ${x + 3} ${y} Z`)
+          .attr("fill", pc(0)));
+    },
+    conan() {
+      specks(70, pc(0), .5, 1.5, .3, .8);
+      g.append("circle").attr("cx", 190).attr("cy", 235).attr("r", 165)
+        .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 3).attr("opacity", .6);
+      ring(10, (x, y, i) => {
+        g.append("rect").attr("x", x - 13).attr("y", y - 5).attr("width", 26).attr("height", 10)
+          .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2)
+          .attr("opacity", .7).attr("transform", `rotate(${rr(-15, 15)} ${x} ${y})`);
+      });
+    },
+  }[SHELL.name] || (() => {}))();
+
+  function bolt() {
+    g.append("path").attr("d", "M 6 0 L -3 15 L 2 15 L -5 32 L 10 12 L 4 12 Z")
+      .attr("fill", pc(0)).attr("transform", "translate(248,26) scale(.9)");
+    g.append("circle").attr("cx", 251).attr("cy", 40).attr("r", 15)
+      .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.4);
+  }
+
+  document.getElementById("shellid").textContent =
+    `${SHELL.name} ${SHELL.mint ? "(mint)" : "variant"} · ${SHELL.key}`;
+}
+
 /* boot */
+paintShell();
 startEggIdle();
 layoutScroll();
 </script>
