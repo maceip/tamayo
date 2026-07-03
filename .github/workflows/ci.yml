@@ -38,7 +38,8 @@ jobs:
           echo "TAMAGO=/usr/local/tamago-go/bin/go" >> "$GITHUB_ENV"
       # GOOSPKG resolution needs the tamago module present in the module cache.
       - name: Download modules
-        run: "$TAMAGO" mod download
+        run: |
+          "$TAMAGO" mod download
       - name: Cross-build all packages
         run: |
           for arch in amd64 arm arm64 riscv64; do
