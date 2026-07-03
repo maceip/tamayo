@@ -179,6 +179,13 @@ func (p FaestParams) Verify(msg []byte, pk *PublicKey, sig []byte) bool {
 	uTildeLen := lam + 2
 	decomSize := p.Tau.Tau*3*lam + p.Tau.Topen*lam
 
+	// Malformed input must be rejected, not panic: the signature length is a
+	// fixed function of the parameter set.
+	sigLen := csLen + uTildeLen + o.LBytes + 2*lam + decomSize + lam + 16 + 4
+	if len(sig) != sigLen {
+		return false
+	}
+
 	off := 0
 	take := func(n int) []byte { s := sig[off : off+n]; off += n; return s }
 	cs := take(csLen)

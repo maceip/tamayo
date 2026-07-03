@@ -219,6 +219,36 @@ the rerun: the third back-to-back L5 verify once tipped past 15.75 GiB before
 GC kicked in, so `cmd/qemudemo` now runs `runtime.GC()` between verifies —
 GC-timing dependent headroom, not a correctness issue.
 
+## Security review (2026-07-02)
+
+Manual review of the whole tree (constant-time discipline, randomness
+handling, memory hygiene, boundary validation, overflow). Findings and
+dispositions:
+
+1. **`field.GF8.Mul` had data-dependent branches** on a secret path (FAEST
+   witness extension → `invnorm` → `gf8Exp238`), unlike the mask-based `gf16`,
+   `GF64` and big-field multiplies. **Fixed**: rewritten branch-free; FAEST
+   KATs confirm byte-identical output.
+2. **Verifier boundaries panicked on malformed input** (slice out of range):
+   `faest.Verify` with a short signature, `pomfrit.BlindVerify`/`Verify` with a
+   short proof or wrong-sized key, `mayo.SignWithoutHashing` with a wrong-sized
+   t (attacker-controlled in the blind protocol). `mayo.Verify` already
+   length-checked. **Fixed**: all four now validate lengths and reject; probe
+   program confirms no reachable panic from truncated/empty inputs.
+3. **No zeroization of secret key material** (keys, vinegar, solver buffers).
+   **Accepted** for a research prototype (Go's GC can copy buffers, making
+   wiping best-effort at most); documented in the README security notes.
+4. **Caller-supplied randomness invites misuse** (`randomizer`, `rho`,
+   `rAdditional`; examples use fixed values for reproducibility). For MAYO a
+   fixed randomizer degrades to hedged deterministic signing (salt still binds
+   seed_sk + digest), not catastrophic reuse. **Documented** in the README.
+
+Clean: constant-time comparisons everywhere secrets are compared
+(`crypto/subtle` in mayo, xor-accumulate in pomfrit); the MAYO echelon
+solver/back-substitution is branch-free with mask-selected pivots; no
+secret-indexed table lookups; sizes derive from parameter constants, not
+attacker input.
+
 ## Verification method (the check that was skipped before)
 
 1. On the box, run the reference (`test_voleopti_bs` / the Rust `blind-signatures`)

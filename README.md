@@ -151,6 +151,27 @@ for scale: the full 600-vector faest nist kat replay finishes in ~2 min wall
 and the bare-metal qemu run of the blind loop at all three levels takes
 ~5 min under tcg emulation on the same machine
 
+## security notes
+
+a security review pass (2026-07-02) is recorded in [`PLAN.md`](./PLAN.md); the
+posture in short:
+
+- secret-dependent arithmetic is branch-free and table-free (`gf16`, `field`,
+  the mayo echelon solver and back-substitution), and secret comparisons use
+  constant-time equality (`crypto/subtle` in mayo, xor-accumulate in pomfrit)
+- verify entry points (`mayo.Verify`, `faest.Verify`, `pomfrit.BlindVerify`,
+  `mayo.SignWithoutHashing`) length-check their inputs and reject malformed
+  data instead of panicking
+- callers supply signing randomness (`randomizer` in mayo, `rho` in faest,
+  `rAdditional` in pomfrit): pass fresh csprng output in production — fixed
+  values degrade mayo to hedged deterministic signing (the salt still binds
+  `seed_sk` and the message digest) and are used in tests/examples only for
+  reproducibility
+- secret key material is not zeroized after use (go's gc can copy buffers, so
+  best-effort wiping would be partial); accepted gap for a research prototype
+- no independent audit; "verified" means byte-exact against the references,
+  nothing more
+
 ## provenance and license
 
 transpiled from and validated against the sources in [`SOURCES.md`](./SOURCES.md):

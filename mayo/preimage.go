@@ -16,7 +16,13 @@ import (
 //
 // It returns a preimage s (the blinded MAYO signature) with eval_public_map(s)
 // == decode(t), i.e. the vole witness s-part for the ZK proof.
+//
+// t is attacker-controlled in the blind protocol (the user supplies it), so a
+// wrong-sized t or csk returns nil instead of panicking.
 func (p *Params) SignWithoutHashing(t, csk []byte) []byte {
+	if len(t) < p.MBytes || len(csk) != p.CSKBytes {
+		return nil
+	}
 	m := p.M
 	n := p.N
 	oo := p.O

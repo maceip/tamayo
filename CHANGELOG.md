@@ -2,6 +2,12 @@
 
 ## unreleased
 
+- security review pass: `field.GF8.Mul` made branch-free (it sits on faest's
+  secret witness path via invnorm); verify boundaries (`faest.Verify`,
+  `pomfrit.Verify`/`BlindVerify`, `mayo.SignWithoutHashing`) now length-check
+  and reject malformed input instead of panicking; `pomfrit.(MayoOWF).ProofSize`
+  exported; security notes added to the readme
+
 - exported mayo public api: `CompactKeyGen` / `KeyGen` / `Sign` / `Verify` /
   `ExpandPK` (thin wrappers over the kat-verified internals; `ExpandPK` is
   byte-exact vs mayo-c `mayo_expand_pk`)

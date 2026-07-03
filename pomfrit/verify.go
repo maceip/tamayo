@@ -182,6 +182,9 @@ func (m MayoForest) voleCheckReceiver(q, challenge, uTilde, deltaBytes []byte) [
 // Transpiled from vole_verify. Returns true iff the proof's Delta equals the
 // recomputed H_2^3(chall2 || qs_check || qs_proof).
 func (o MayoOWF) Verify(pk, rAdditional, proof []byte) bool {
+	if len(proof) != o.ProofSize() || len(pk) != o.publicSize() {
+		return false
+	}
 	f := o.F.field()
 	lam := o.lam()
 	wB := o.witnessBytes()

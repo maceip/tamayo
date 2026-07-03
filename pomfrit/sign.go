@@ -200,6 +200,13 @@ func (o MayoOWF) Prove(sk, pk, rAdditional []byte) MayoProof {
 // VOLE_COMMIT_SIZE.
 func (o MayoOWF) proof1Size() int { return o.voleCommitSize() }
 
+// ProofSize returns the exact byte length of a proof for this instance
+// (6895/15862/29615 for L1/L3/L5).
+func (o MayoOWF) ProofSize() int {
+	return o.voleCommitSize() + o.voleCheckProofBytes() + o.witnessBytes() +
+		o.qsProofBytes() + o.openSize() + o.lam() + 16
+}
+
 // Sign1 is the blind-signature sign_1: run prove_1, form the blinded message
 // t = h + r with h = SHAKE256(m || proof1), and return t, the carried state,
 // and h. h uses SHAKE256 at every level (reference mayo-c-sys shake256).
@@ -225,7 +232,11 @@ func (o MayoOWF) Sign3(epk, h, bsig []byte, st MayoProveState, rAdditional []byt
 
 // BlindVerify is the blind-signature verify: recompute h = SHAKE256(m ||
 // proof1) from the proof and check the VOLE proof against epk || h.
+// Malformed proofs and wrong-sized keys are rejected, not panicked on.
 func (o MayoOWF) BlindVerify(epk, m, proof, rAdditional []byte) bool {
+	if len(proof) != o.ProofSize() || len(epk) != o.expandedPkBytes() {
+		return false
+	}
 	proof1 := proof[:o.proof1Size()]
 	h := shake256Sum(o.hBytes(), m, proof1)
 	packedPk := append(append([]byte(nil), epk...), h...)

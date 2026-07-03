@@ -6,22 +6,15 @@ package field
 type GF8 uint8
 
 // Mul returns a * b via bit-serial multiplication with reduction by 0x1b.
+// Branch-free: FAEST's witness extension calls this on secret key material
+// (invnorm), so like the other fields here it must not branch on operands.
 func (a GF8) Mul(b GF8) GF8 {
 	l := uint8(a)
 	r := uint8(b)
-	var res uint8
-	if r&1 != 0 {
-		res = l
-	}
+	res := l & -(r & 1)
 	for i := 1; i < 8; i++ {
-		var mask uint8
-		if l&0x80 != 0 {
-			mask = 0x1b
-		}
-		l = (l << 1) ^ mask
-		if (r>>i)&1 != 0 {
-			res ^= l
-		}
+		l = (l << 1) ^ (0x1b & -(l >> 7))
+		res ^= l & -((r >> uint(i)) & 1)
 	}
 	return GF8(res)
 }
