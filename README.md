@@ -128,7 +128,28 @@ go test -bench . -run xxx ./mayo/ ./faest/ ./pomfrit/
 ```
 
 covers keygen / sign / verify per parameter set (mayo, faest) and the full
-blind sign + verify loop per level (pomfrit)
+blind sign + verify loop per level (pomfrit) — measured on an apple m5 max
+(arm64, single core):
+
+| scheme | set | keygen | sign | verify |
+|---|---|---|---|---|
+| mayo | MAYO_1 | 0.25 ms | 1.4 ms | 0.27 ms |
+| mayo | MAYO_3 | 0.58 ms | 3.5 ms | 0.76 ms |
+| mayo | MAYO_5 | 1.2 ms | 7.7 ms | 1.3 ms |
+| faest | 128s / 128f | 6 µs / 2 µs | 74 ms / 18 ms | 65 ms / 13 ms |
+| faest | 192s / 192f | 3 µs / 2 µs | 233 ms / 53 ms | 212 ms / 41 ms |
+| faest | 256s / 256f | 3 µs / 3 µs | 528 ms / 109 ms | 504 ms / 88 ms |
+
+| scheme | level | blind sign (sign_1+2+3) | blind verify |
+|---|---|---|---|
+| pomfrit | L1 | 0.74 s | 0.63 s |
+| pomfrit | L3 | 1.9 s | 1.5 s |
+| pomfrit | L5 | 5.2 s | 3.8 s |
+
+for scale: the full 600-vector faest nist kat replay finishes in ~2 min wall
+(sets run in parallel, 256s the slowest at ~112 s for its 100 sign+verify),
+and the bare-metal qemu run of the blind loop at all three levels takes
+~5 min under tcg emulation on the same machine
 
 ## provenance and license
 
