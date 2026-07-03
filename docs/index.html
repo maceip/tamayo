@@ -1,0 +1,499 @@
+<!doctype html>
+<!-- tamayo: a hand-rolled gen-1 tamagotchi that explains the pomfrit
+     one-more-mayo blind signature. no build step, no framework — one file,
+     d3 for the 3d egg + scene transitions. buttons: A = about pages,
+     B = hatch / replay the story, C = math overlay for the nerds. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tamayo — pomfrit, explained by an egg</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  :root {
+    --shell-a: #ffd94a;    /* classic gen-1 yellow */
+    --shell-b: #f5b711;
+    --trim:    #2e2a72;    /* deep blue trim ring */
+    --btn:     #3a35a0;
+    --btn-hi:  #5a54d4;
+    --lcd:     #c7d3a0;    /* lcd green */
+    --lcd-dim: #b4c18c;
+    --ink:     #22301f;    /* lcd pixel ink */
+    --ink-soft:#4a5a44;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 50% 20%, #1b1e2e 0%, #0d0f18 70%);
+    color: #cfd3e8;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100%;
+  }
+  header { text-align: center; margin: 28px 12px 6px; }
+  header h1 { font-size: 20px; letter-spacing: 3px; color: #eceef8; font-weight: 600; }
+  header p  { font-size: 12px; color: #8b90ad; margin-top: 6px; }
+  header a  { color: #a7b6ff; text-decoration: none; }
+
+  /* ---------------- the device ---------------- */
+  .rig { perspective: 900px; margin: 18px 0 8px; }
+  .egg-shell {
+    position: relative;
+    width: 380px; height: 470px;
+    background:
+      radial-gradient(220px 200px at 35% 25%, #ffe98f 0%, var(--shell-a) 45%, var(--shell-b) 100%);
+    border-radius: 50% 50% 47% 47% / 56% 56% 44% 44%;
+    box-shadow:
+      inset -14px -18px 40px rgba(120, 70, 0, .28),
+      inset 10px 12px 30px rgba(255, 255, 255, .5),
+      0 24px 60px rgba(0, 0, 0, .55);
+    transform: rotateX(4deg);
+  }
+  /* keychain nub + ring, like the original */
+  .egg-shell::before {
+    content: ""; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    width: 44px; height: 26px; background: var(--shell-b);
+    border-radius: 12px 12px 4px 4px;
+    box-shadow: inset 0 4px 6px rgba(255,255,255,.5), inset 0 -4px 6px rgba(120,70,0,.3);
+  }
+  .keyring {
+    position: absolute; top: -46px; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 40px; border: 6px solid #b9bdd6; border-radius: 50%;
+    box-shadow: inset 0 0 4px rgba(0,0,0,.4);
+  }
+  .bezel {
+    position: absolute; inset: 54px 38px auto 38px; height: 268px;
+    background: var(--trim);
+    border-radius: 46% 46% 40% 40% / 30% 30% 26% 26%;
+    box-shadow: inset 0 6px 14px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.35);
+    padding: 16px;
+  }
+  /* the screen — deliberately bigger than a real gen-1 */
+  .screen {
+    width: 100%; height: 100%;
+    background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
+    border-radius: 14px;
+    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45);
+    overflow: hidden;
+  }
+  .screen svg { width: 100%; height: 100%; display: block; }
+
+  .buttons {
+    position: absolute; bottom: 58px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 34px;
+  }
+  .btn {
+    width: 54px; height: 54px; border-radius: 50%;
+    border: none; cursor: pointer;
+    background: radial-gradient(20px 20px at 35% 30%, var(--btn-hi), var(--btn) 70%);
+    box-shadow: inset 0 -4px 6px rgba(0,0,0,.45), inset 0 3px 4px rgba(255,255,255,.35),
+                0 5px 10px rgba(0,0,0,.35);
+    color: #dfe2ff; font-family: inherit; font-size: 13px; font-weight: 700;
+  }
+  .btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); }
+  .btn.mid { margin-top: 16px; }  /* middle button sits lower, like the original */
+  .btn-labels {
+    position: absolute; bottom: 34px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 30px;
+    font-size: 9px; color: rgba(46, 42, 114, .85); font-weight: 700; letter-spacing: 1px;
+  }
+  .btn-labels span { width: 58px; text-align: center; }
+  .btn-labels span:nth-child(2) { margin-top: 14px; }
+
+  footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; }
+  footer a { color: #a7b6ff; text-decoration: none; }
+  footer .math-hint { color: #565b78; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TAMAYO</h1>
+  <p>the pomfrit one-more-mayo blind signature, explained by an egg ·
+     <a href="https://github.com/maceip/tamayo">github.com/maceip/tamayo</a></p>
+</header>
+
+<div class="rig">
+  <div class="egg-shell">
+    <div class="keyring"></div>
+    <div class="bezel"><div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div></div>
+    <div class="buttons">
+      <button class="btn" id="btnA" title="about pomfrit">A</button>
+      <button class="btn mid" id="btnB" title="hatch / replay">B</button>
+      <button class="btn" id="btnC" title="math for the nerds">C</button>
+    </div>
+    <div class="btn-labels"><span>ABOUT</span><span>HATCH</span><span>MATH</span></div>
+  </div>
+</div>
+
+<footer>
+  A cycles what-is-this pages · B hatches the egg and plays the whole story · C is for the nerds<br>
+  <span class="math-hint">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
+</footer>
+
+<script>
+"use strict";
+/* ================================================================
+   lcd stage
+   ================================================================ */
+const svg  = d3.select("#lcd");
+const INK  = "#22301f", SOFT = "#4a5a44", LCD = "#c7d3a0";
+const W = 400, H = 300;
+
+/* dot-matrix border, an homage to the gen-1 pixel bezel */
+const frame = svg.append("g");
+for (let x = 8; x < W; x += 16) {
+  frame.append("rect").attr("x", x).attr("y", 4).attr("width", 6).attr("height", 6).attr("fill", INK).attr("opacity", .18);
+  frame.append("rect").attr("x", x).attr("y", H - 10).attr("width", 6).attr("height", 6).attr("fill", INK).attr("opacity", .18);
+}
+
+const world  = svg.append("g");                    // scene layer (camera target)
+const hud    = svg.append("g");                    // captions
+const math441= svg.append("g").attr("opacity", 0); // nerd layer
+
+let mathOn   = false;
+let playToken= 0;      // bump to cancel a running story
+let mode     = "idle"; // idle | story | about
+let aboutPage= 0;
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+function alive(tok) { return tok === playToken; }
+
+/* caption helpers ------------------------------------------------ */
+function caption(lines) {
+  hud.selectAll("*").remove();
+  const arr = Array.isArray(lines) ? lines : [lines];
+  arr.forEach((t, i) => {
+    hud.append("text")
+      .attr("x", W / 2).attr("y", 262 + i * 15)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 13).attr("font-family", "inherit")
+      .attr("fill", INK).attr("font-weight", 700)
+      .text(t)
+      .attr("opacity", 0).transition().duration(350).attr("opacity", 1);
+  });
+}
+function nerd(lines) {
+  math441.selectAll("*").remove();
+  const arr = Array.isArray(lines) ? lines : [lines];
+  arr.forEach((t, i) => {
+    math441.append("text")
+      .attr("x", W / 2).attr("y", 22 + i * 14)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 11).attr("fill", SOFT).attr("font-style", "italic")
+      .text(t);
+  });
+}
+function setMath(on) {
+  mathOn = on;
+  math441.transition().duration(300).attr("opacity", on ? 1 : 0);
+}
+
+/* ================================================================
+   the 3d egg — hand-rolled parametric surface, rotated and
+   perspective-projected by hand, rendered with d3. this is the
+   "3d" part: real points in R^3, real rotation matrix, real
+   perspective divide. (the repo is named after this egg.)
+   ================================================================ */
+const eggPts = [];
+for (let i = 0; i <= 14; i++) {           // latitude rings
+  const v = i / 14 * Math.PI;
+  // egg profile: radius pinched toward the top (classic egg equation-ish)
+  const r = Math.sin(v) * (1 + 0.25 * Math.cos(v));
+  const y = -Math.cos(v) * (1 + 0.08 * Math.cos(v));
+  const n = i === 0 || i === 14 ? 1 : 18;  // longitude samples
+  for (let j = 0; j < n; j++) {
+    const u = j / n * 2 * Math.PI;
+    eggPts.push([r * Math.cos(u), y, r * Math.sin(u)]);
+  }
+}
+let eggTimer = null;
+function drawEgg(zoom = 1, opacity = 1) {
+  const t = Date.now() / 1600;
+  const cy = Math.cos(t), sy = Math.sin(t);
+  const cam = 4.2;
+  const proj = eggPts.map(([x, y, z]) => {
+    const rx = x * cy + z * sy;            // rotate about Y
+    const rz = -x * sy + z * cy;
+    const d  = cam / (cam - rz * 0.9);     // perspective divide
+    return [W / 2 + rx * 62 * d * zoom, 148 + y * 62 * d * zoom, d];
+  });
+  const sel = world.selectAll("circle.egg").data(proj);
+  sel.enter().append("circle").attr("class", "egg")
+    .merge(sel)
+    .attr("cx", p => p[0]).attr("cy", p => p[1])
+    .attr("r",  p => 1.1 + p[2] * 1.4)
+    .attr("fill", INK)
+    .attr("opacity", p => opacity * (0.25 + 0.55 * (p[2] - 0.7)));
+  sel.exit().remove();
+}
+function startEggIdle() {
+  stopEgg();
+  eggTimer = d3.timer(() => drawEgg(1, 1));
+  caption(["a wild egg appears", "press  B  to hatch it"]);
+  nerd(["inside: MAYO + FAEST + PoMFRIT, in pure go,",
+        "byte-exact vs their references, runs on bare metal"]);
+}
+function stopEgg() { if (eggTimer) { eggTimer.stop(); eggTimer = null; } }
+
+/* ================================================================
+   cast of characters — simple enough for a golden retriever
+   ================================================================ */
+function drawPup(g, x, y, s = 1) {  // the user IS a golden retriever
+  const p = g.append("g").attr("class", "pup")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  p.append("ellipse").attr("cx", -22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);              // ear
+  p.append("ellipse").attr("cx",  22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);              // ear
+  p.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);                 // head
+  p.append("circle").attr("cx", -8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);                              // eyes
+  p.append("circle").attr("cx",  8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);
+  p.append("ellipse").attr("cy", 9).attr("rx", 10).attr("ry", 7).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5); // snout
+  p.append("circle").attr("cy", 6).attr("r", 3).attr("fill", INK);                                                // nose
+  p.append("path").attr("d", "M -4 12 Q 0 16 4 12").attr("stroke", INK).attr("stroke-width", 2).attr("fill", "none"); // smile
+  return p;
+}
+function drawStamper(g, x, y, s = 1) { // the signer: a stamping machine
+  const m = g.append("g").attr("class", "stamper")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  m.append("rect").attr("x", -30).attr("y", -20).attr("width", 60).attr("height", 44)
+    .attr("rx", 6).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  m.append("rect").attr("x", -10).attr("y", -38).attr("width", 20).attr("height", 20)
+    .attr("fill", INK);                                                       // stamp arm
+  m.append("rect").attr("x", -18).attr("y", -42).attr("width", 36).attr("height", 8)
+    .attr("rx", 3).attr("fill", INK);                                         // stamp head
+  m.append("circle").attr("cx", -12).attr("cy", 0).attr("r", 3).attr("fill", INK);   // eyes
+  m.append("circle").attr("cx",  12).attr("cy", 0).attr("r", 3).attr("fill", INK);
+  m.append("rect").attr("x", -8).attr("y", 10).attr("width", 16).attr("height", 3).attr("fill", INK); // mouth
+  return m;
+}
+function drawJudge(g, x, y, s = 1) {  // the verifier: an owl with a monocle
+  const o = g.append("g").attr("class", "judge")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  o.append("path").attr("d", "M -20 -22 L -12 -10 L -26 -12 Z").attr("fill", INK);   // ear tufts
+  o.append("path").attr("d", "M 20 -22 L 12 -10 L 26 -12 Z").attr("fill", INK);
+  o.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 7).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5); // monocle
+  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
+  o.append("circle").attr("cx", 9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
+  o.append("path").attr("d", "M -4 8 L 0 13 L 4 8 Z").attr("fill", INK);             // beak
+  return o;
+}
+function drawBone(g, x, y, s = 1) {   // the message m
+  const b = g.append("g").attr("class", "bone")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  b.append("rect").attr("x", -14).attr("y", -4).attr("width", 28).attr("height", 8).attr("rx", 4)
+    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  [[-14, -5], [-14, 5], [14, -5], [14, 5]].forEach(([cx, cy]) =>
+    b.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 5.5)
+      .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5));
+  return b;
+}
+function drawBox(g, x, y, s = 1) {    // the blinded message t (opaque!)
+  const b = g.append("g").attr("class", "box")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  b.append("rect").attr("x", -20).attr("y", -16).attr("width", 40).attr("height", 32)
+    .attr("rx", 4).attr("fill", INK);
+  b.append("line").attr("x1", -20).attr("y1", -6).attr("x2", 20).attr("y2", -6)
+    .attr("stroke", LCD).attr("stroke-width", 2);
+  b.append("text").attr("y", 8).attr("text-anchor", "middle").attr("font-size", 12)
+    .attr("fill", LCD).attr("font-weight", 700).text("?");
+  return b;
+}
+function drawSeal(g, x, y, s = 1) {   // the mayo preimage: a wax-seal stamp
+  const c = g.append("g").attr("class", "seal")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  c.append("circle").attr("r", 10).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  c.append("path").attr("d", "M -4 0 L -1 4 L 5 -4").attr("stroke", INK)
+    .attr("stroke-width", 2.5).attr("fill", "none");
+  return c;
+}
+function drawCert(g, x, y, s = 1) {   // the zk proof: a certificate scroll
+  const c = g.append("g").attr("class", "cert")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  c.append("rect").attr("x", -16).attr("y", -20).attr("width", 32).attr("height", 40)
+    .attr("rx", 3).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  for (let i = 0; i < 4; i++)
+    c.append("line").attr("x1", -10).attr("y1", -12 + i * 7).attr("x2", 10).attr("y2", -12 + i * 7)
+      .attr("stroke", INK).attr("stroke-width", 2);
+  c.append("circle").attr("cx", 6).attr("cy", 13).attr("r", 5).attr("fill", INK);
+  return c;
+}
+function label(g, x, y, text) {
+  return g.append("text").attr("x", x).attr("y", y).attr("text-anchor", "middle")
+    .attr("font-size", 11).attr("fill", SOFT).attr("font-weight", 700).text(text);
+}
+
+/* ================================================================
+   the story — fully hands-off; each beat sets a caption, moves
+   the props with d3 transitions, and (quietly) shows the math
+   ================================================================ */
+async function playStory() {
+  const tok = ++playToken;
+  mode = "story";
+  stopEgg();
+  world.selectAll("*").remove(); hud.selectAll("*").remove(); nerd([]);
+
+  /* beat 0 — hatch: zoom INTO the 3d egg -------------------------- */
+  caption(["hatching..."]);
+  let zoomT = d3.timer((el) => {
+    const z = 1 + el / 700 * 6;
+    drawEgg(z, Math.max(0, 1 - el / 700));
+    if (el > 750) zoomT.stop();
+  });
+  await sleep(850); if (!alive(tok)) return;
+  world.selectAll("*").remove();
+
+  /* beat 1 — meet everyone --------------------------------------- */
+  const cast = world.append("g");
+  drawPup(cast, 70, 120);      label(cast, 70, 168, "PUP (user)");
+  drawStamper(cast, 200, 124); label(cast, 200, 168, "STAMPER (signer)");
+  drawJudge(cast, 330, 120);   label(cast, 330, 168, "OWL (verifier)");
+  cast.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
+  caption(["three friends: a pup, a stamper, an owl"]);
+  nerd(["user U, signer S with mayo keypair (cpk, csk), verifier V with epk = ExpandPK(cpk)"]);
+  await sleep(3600); if (!alive(tok)) return;
+
+  /* beat 2 — the bone --------------------------------------------- */
+  const bone = drawBone(world, 70, 70);
+  bone.attr("opacity", 0).transition().duration(400).attr("opacity", 1);
+  caption(["the pup has a bone it loves", "(the bone is the message)"]);
+  nerd(["m ∈ {0,1}*"]);
+  await sleep(3400); if (!alive(tok)) return;
+
+  /* beat 3 — blinding: bone goes in an opaque box ------------------ */
+  bone.transition().duration(700).attr("transform", "translate(70,95) scale(0.45)").attr("opacity", 0);
+  const box = drawBox(world, 70, 95, 0);
+  box.transition().delay(500).duration(500).attr("transform", "translate(70,95) scale(1)");
+  caption(["the pup hides the bone in a box", "nobody can see inside — not even the stamper"]);
+  nerd(["sign₁:  h = SHAKE256(m ‖ π₁),   t = h ⊕ r   (r one-time pad → t is uniform)"]);
+  await sleep(4200); if (!alive(tok)) return;
+
+  /* beat 4 — box travels to the stamper ---------------------------- */
+  box.transition().duration(900).ease(d3.easeCubicInOut)
+     .attr("transform", "translate(200,80) scale(1)");
+  caption(["the box goes to the stamper"]);
+  nerd(["U → S :  t   (that's all the signer ever sees)"]);
+  await sleep(2600); if (!alive(tok)) return;
+
+  /* beat 5 — stamping without opening ------------------------------ */
+  const arm = world.select(".stamper");
+  for (let i = 0; i < 2; i++) {
+    arm.transition().duration(180).attr("transform", "translate(200,136) scale(1)")
+       .transition().duration(180).attr("transform", "translate(200,124) scale(1)");
+    await sleep(380); if (!alive(tok)) return;
+  }
+  const seal = drawSeal(world, 200, 62, 0);
+  seal.transition().duration(400).attr("transform", "translate(200,62) scale(1)");
+  caption(["STAMP! right through the closed lid", "the stamper never opens the box"]);
+  nerd(["sign₂:  s = MAYO⁻¹(t)  — SignWithoutHashing: vinegar V = SHAKE256(t ‖ seed_sk ‖ ctr), no salt"]);
+  await sleep(4200); if (!alive(tok)) return;
+
+  /* beat 6 — box returns, pup makes a certificate ------------------ */
+  box.transition().duration(800).attr("transform", "translate(70,95) scale(1)");
+  seal.transition().duration(800).attr("transform", "translate(70,62) scale(1)");
+  await sleep(1000); if (!alive(tok)) return;
+  caption(["back home, the pup turns the stamp into", "a certificate that never mentions the box"]);
+  // sparkle
+  for (let i = 0; i < 8; i++) {
+    world.append("circle").attr("cx", 70 + (Math.random() - .5) * 70)
+      .attr("cy", 80 + (Math.random() - .5) * 60).attr("r", 2).attr("fill", INK)
+      .attr("opacity", 1).transition().duration(700).attr("opacity", 0).attr("r", 6).remove();
+  }
+  nerd(["sign₃:  π = VOLEitH proof of “I know s with P(s)=t”  — GGM forest → small-VOLE → deg-2 QuickSilver"]);
+  await sleep(1200); if (!alive(tok)) return;
+  box.transition().duration(500).attr("opacity", 0);
+  seal.transition().duration(500).attr("opacity", 0);
+  const cert = drawCert(world, 70, 84, 0);
+  cert.transition().duration(500).attr("transform", "translate(70,84) scale(1)");
+  nerd(["π is 6895 bytes at L1 (15862 at L3, 29615 at L5) — the box and the bone stay secret"]);
+  await sleep(3400); if (!alive(tok)) return;
+
+  /* beat 7 — the owl verifies -------------------------------------- */
+  cert.transition().duration(900).ease(d3.easeCubicInOut)
+      .attr("transform", "translate(330,76) scale(1)");
+  caption(["the owl checks the certificate"]);
+  nerd(["verify:  BlindVerify(epk, m, π)  recomputes h and replays vole_verify"]);
+  await sleep(2200); if (!alive(tok)) return;
+  const tick = world.append("path")
+    .attr("d", "M 312 100 L 326 116 L 352 84")
+    .attr("stroke", INK).attr("stroke-width", 7).attr("fill", "none")
+    .attr("stroke-linecap", "round");
+  const len = tick.node().getTotalLength();
+  tick.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+      .transition().duration(600).attr("stroke-dashoffset", 0);
+  caption(["it's real! signed by the stamper", "but which bone? the owl can't tell. nobody can"]);
+  await sleep(4200); if (!alive(tok)) return;
+
+  /* beat 8 — unlinkability finale ----------------------------------- */
+  world.selectAll("*").transition().duration(500).attr("opacity", 0);
+  await sleep(550); if (!alive(tok)) return;
+  world.selectAll("*").remove();
+  drawStamper(world, 200, 90);
+  for (let i = 0; i < 5; i++) {
+    drawCert(world, 60 + i * 70, 190, 0.7);
+    drawBox(world, 60 + i * 70, 30, 0.55);
+  }
+  world.append("text").attr("x", 200).attr("y", 130).attr("text-anchor", "middle")
+    .attr("font-size", 22).attr("fill", INK).attr("font-weight", 700).text("?");
+  caption(["the stamper sees boxes. the world sees certificates.", "no one can match them up — that's a blind signature"]);
+  nerd(["unlinkability: t = h ⊕ r is uniform, π is zero-knowledge — S's view ⊥ (m, π)",
+        "this exact loop runs byte-exact on bare-metal riscv64 in this repo"]);
+  await sleep(6000); if (!alive(tok)) return;
+
+  /* back to the idle egg */
+  world.selectAll("*").remove();
+  mode = "idle";
+  startEggIdle();
+}
+
+/* ================================================================
+   about pages (button A)
+   ================================================================ */
+const ABOUT = [
+  ["WHAT IS POMFRIT?",
+   "a post-quantum BLIND signature:",
+   "you get a real signature on your",
+   "message, but the signer never",
+   "learns what it signed — and can",
+   "never link signature to signing"],
+  ["HOW?",
+   "MAYO signs a blinded target t,",
+   "then a VOLE-in-the-Head zero-",
+   "knowledge proof shows the",
+   "signature exists — without",
+   "revealing it. (baum et al.)"],
+  ["WHY THE EGG?",
+   "tamago = egg (and a bare-metal",
+   "go runtime). tamago + mayo =",
+   "tamayo. this repo runs the whole",
+   "scheme byte-exact vs reference,",
+   "even on a riscv64 with no OS"],
+];
+function showAbout() {
+  playToken++; stopEgg(); mode = "about";
+  world.selectAll("*").remove(); hud.selectAll("*").remove();
+  const page = ABOUT[aboutPage % ABOUT.length];
+  const g = world.append("g");
+  g.append("text").attr("x", W / 2).attr("y", 64).attr("text-anchor", "middle")
+    .attr("font-size", 17).attr("fill", INK).attr("font-weight", 800).text(page[0]);
+  page.slice(1).forEach((t, i) =>
+    g.append("text").attr("x", W / 2).attr("y", 100 + i * 22).attr("text-anchor", "middle")
+      .attr("font-size", 13.5).attr("fill", INK).text(t));
+  g.attr("opacity", 0).transition().duration(300).attr("opacity", 1);
+  caption([`page ${aboutPage % ABOUT.length + 1}/${ABOUT.length} — A: next · B: hatch`]);
+  nerd(["h = SHAKE256(m‖π₁) · t = h⊕r · s = MAYO⁻¹(t) · π = VOLEitH(s) · BlindVerify(epk,m,π)"]);
+  aboutPage++;
+}
+
+/* ================================================================
+   buttons
+   ================================================================ */
+d3.select("#btnA").on("click", showAbout);
+d3.select("#btnB").on("click", () => playStory());
+d3.select("#btnC").on("click", () => setMath(!mathOn));
+
+/* boot */
+startEggIdle();
+</script>
+</body>
+</html>

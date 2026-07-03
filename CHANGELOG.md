@@ -2,6 +2,13 @@
 
 ## unreleased
 
+- github pages explainer at maceip.github.io/tamayo: a hand-rolled gen-1
+  tamagotchi (bigger screen) whose B button hatches a d3-projected 3d egg
+  into an auto-playing story of the pomfrit blind signature (pup / stamper /
+  owl), with a C-button math overlay for the nerds; deployed by
+  `.github/workflows/pages.yml`
+- readme: concise security log citing commits, overall length cut by a third
+
 - security review pass: `field.GF8.Mul` made branch-free (it sits on faest's
   secret witness path via invnorm); verify boundaries (`faest.Verify`,
   `pomfrit.Verify`/`BlindVerify`, `mayo.SignWithoutHashing`) now length-check
