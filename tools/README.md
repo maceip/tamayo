@@ -56,3 +56,19 @@ g++ -O2 -std=c++23 -march=native \
 the exact per-dumper include and link lines are the ones recorded in the
 commit history; the blind-loop dumper additionally links mayo-c
 (`params.c arithmetic.c mayo_without_hashing.c common/*.c`) via `mayo_bridge.c`
+
+## pages_verify
+
+end-to-end checks for the github pages demo (`docs/index.html`), run against
+headless chrome via puppeteer-core:
+
+- `verify.js` — walks the whole interaction design (scroll zones, gen-1 button
+  semantics, auto-playing looping story, math overlay, press feedback) and
+  asserts 33 behaviors plus a clean console
+- `ogshots.js` — renders the live page and captures `docs/og.png` and the
+  favicon sources from the actual egg
+
+```
+npm i puppeteer-core   # plus a local chrome; edit executablePath to match
+node verify.js
+```
