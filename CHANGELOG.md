@@ -2,6 +2,13 @@
 
 ## unreleased
 
+- `spec/draft-maceip-pomfrit-evp-profile-00.md`: rfc-style (kramdown-rfc)
+  profile draft layering pomfrit blind issuance on the email verification
+  protocol's discovery/transport rails — private verification token
+  (`typ: pvt+jwt`, `alg: PoMFRIT-L1`, `email` omitted, `mailbox_verified:
+  true`, epoch-scoped keys), issuer metadata + endpoint, jose `alg`/`kty`
+  registration sketch; every size in the draft verified byte-exact against
+  this repo (t=39, s=430, proof=6895 at l1)
 - github pages explainer at maceip.github.io/tamayo: a hand-rolled gen-1
   tamagotchi (bigger screen) whose B button hatches a d3-projected 3d egg
   into an auto-playing story of the pomfrit blind signature (pup / stamper /

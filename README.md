@@ -20,6 +20,7 @@ interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo
 | `faest` | the faest aes signature and its voleith engine | full nist kat 600/600 byte-exact (100 vectors x 6 sets) |
 | `pomfrit` | the one-more-mayo blind signature and its vole engine (ggm-forest bavc, small-vole, deg-2 quicksilver, mayo-eval circuit) | byte-exact vs the c++/c reference, both directions, l1/l3/l5 |
 | `cmd/qemudemo` | the blind loop bare-metal on qemu sifive_u (riscv64) | on-device byte-exact at l1+l3+l5 |
+| `spec/` | rfc-style profile draft: pomfrit blind issuance on the email verification protocol's rails (`alg: PoMFRIT-L1`, no `email` claim, `mailbox_verified: true`) + jose registration sketch | sizes byte-exact vs this repo |
 
 no cryptographic primitive is hand-written — every construct is a transpile of
 a named source in [`SOURCES.md`](./SOURCES.md); sha-3 and aes come from go's
