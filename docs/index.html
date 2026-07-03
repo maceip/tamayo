@@ -1,9 +1,15 @@
 <!doctype html>
 <!-- tamayo: a hand-rolled gen-1 tamagotchi that explains the pomfrit
      one-more-mayo blind signature. no build step, no framework — one file,
-     d3 for the 3d egg + scene transitions. gen-1 button semantics:
-     A cycles the icon highlight, B confirms, C cancels — and scrolling
-     just presses the buttons for you (visibly). -->  
+     d3 for the 3d egg + scene transitions.
+
+     the demo is a 23-state movie in 6 chapters. NEXT/BACK step the states
+     (clicks interrupt whatever animation is running); scrolling just presses
+     the buttons for you (about half a wheel notch = one press). when the
+     movie starts the camera zooms in so the lcd nearly fills the window,
+     and a fixed A/B/C bar takes over for the physical buttons. the gen-1
+     icon rows (3 top, 3 bottom) are the chapter list — the current chapter
+     is inverted, tap an icon to jump. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -34,7 +40,6 @@
     --lcd:     #c7d3a0;    /* lcd green */
     --lcd-dim: #b4c18c;
     --ink:     #22301f;    /* lcd pixel ink */
-    --ink-soft:#4a5a44;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -42,8 +47,8 @@
     color: #cfd3e8;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
-  /* parallax: the page scrolls, the stage stays pinned; js slides the
-     egg up from the fold, then turns further scroll into story progress */
+  /* parallax intro: the page scrolls, the stage stays pinned; js slides the
+     egg up from the fold. once centered, scrolling presses buttons instead */
   .stage {
     position: sticky; top: 0; height: 100vh;
     display: flex; flex-direction: column; align-items: center;
@@ -61,13 +66,14 @@
     0%, 100% { transform: translate(-50%, 0); }
     50%      { transform: translate(-50%, 9px); }
   }
-  header { text-align: center; margin: 28px 12px 6px; }
+  header { text-align: center; margin: 28px 12px 6px; transition: opacity .4s; }
   header h1 { font-size: 20px; letter-spacing: 3px; color: #eceef8; font-weight: 600; }
   header p  { font-size: 12px; color: #8b90ad; margin-top: 6px; }
   header a  { color: #a7b6ff; text-decoration: none; }
 
   /* ---------------- the device ---------------- */
   .rig { perspective: 900px; margin: 18px 0 8px; will-change: transform; }
+  .rig.zooming { transition: transform .8s cubic-bezier(.22, .9, .3, 1); }
   .egg-shell {
     position: relative;
     width: 380px; height: 470px;
@@ -102,8 +108,6 @@
   .frame {
     position: absolute; inset: 0;
     background: linear-gradient(170deg, #38339c 0%, var(--trim) 55%, #201c58 100%);
-    /* irregular burst, tips/valleys hand-placed like the gen-1; valleys stay
-       outside the screen rect so the frame fully surrounds the lcd */
     clip-path: polygon(
       2% 20%, 13% 12%, 30% 2%, 45% 12%, 62% 0%, 77% 11%,
       97% 16%, 87% 30%, 100% 48%, 88% 62%, 98% 80%,
@@ -111,8 +115,6 @@
       0% 64%, 12% 50%, 4% 30%
     );
   }
-  /* the screen — bigger than a real gen-1, sits directly on the burst:
-     no inner border, the jagged frame IS the outline (per the reference) */
   .screen {
     position: absolute; inset: 44px 52px;
     background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
@@ -147,9 +149,27 @@
   .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
   .btn-labels span:nth-child(2) { margin-top: 14px; }
 
+  /* fixed A/B/C bar for the zoomed-in movie (the physical buttons scroll
+     out of frame when the camera pushes into the screen) */
+  #zoomctl {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 30px; z-index: 6;
+    opacity: 0; pointer-events: none; transition: opacity .4s;
+  }
+  body.zoomed #zoomctl { opacity: 1; pointer-events: auto; }
+  #zoomctl .ctl { text-align: center; }
+  #zoomctl .btn { width: 46px; height: 46px; font-size: 12px; }
+  #zoomctl .ctl-label {
+    margin-top: 5px; font-size: 10px; letter-spacing: 1px; font-weight: 700;
+    color: #9aa0c4; transition: opacity .14s;
+  }
+  body.zoomed header, body.zoomed footer, body.zoomed .scroll-hint {
+    opacity: 0 !important; pointer-events: none;
+  }
+
   footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; transition: opacity .35s; }
   footer a { color: #a7b6ff; text-decoration: none; }
-  footer .math-hint { color: #565b78; }
+  footer .fine { color: #565b78; }
 </style>
 </head>
 <body>
@@ -165,29 +185,41 @@
 
 <div class="rig">
   <div class="egg-shell">
+    <div class="shell-pattern"></div>
+    <div class="seam"></div>
     <div class="keyring"></div>
     <div class="frame-rig">
       <div class="frame"></div>
       <div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
     <div class="buttons">
-      <button class="btn" id="btnA">A</button>
-      <button class="btn mid" id="btnB">B</button>
-      <button class="btn" id="btnC">C</button>
+      <button class="btn" id="btnA" data-key="A">A</button>
+      <button class="btn mid" id="btnB" data-key="B">B</button>
+      <button class="btn" id="btnC" data-key="C">C</button>
     </div>
-    <div class="btn-labels"><span id="lblA">MENU</span><span id="lblB">HATCH</span><span id="lblC">MATH</span></div>
+    <div class="btn-labels">
+      <span id="lblA" data-lbl="A">START</span>
+      <span id="lblB" data-lbl="B">START</span>
+      <span id="lblC" data-lbl="C">REPO</span>
+    </div>
   </div>
 </div>
 
 <footer>
-  scrolling presses the buttons for you — or press them yourself; the labels follow the screen<br>
-  <span class="math-hint">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
+  scroll or press: NEXT and BACK step the movie, one scene per half wheel-notch<br>
+  <span class="fine">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
 </footer>
 
 </div><!-- .stage -->
 </div><!-- #scrollspace -->
 
 <div class="scroll-hint">▼ scroll</div>
+
+<div id="zoomctl">
+  <div class="ctl"><button class="btn" id="zbtnA" data-key="A">A</button><div class="ctl-label" data-lbl="A">BACK</div></div>
+  <div class="ctl"><button class="btn" id="zbtnB" data-key="B">B</button><div class="ctl-label" data-lbl="B">NEXT</div></div>
+  <div class="ctl"><button class="btn" id="zbtnC" data-key="C">C</button><div class="ctl-label" data-lbl="C">HOME</div></div>
+</div>
 
 <script>
 "use strict";
@@ -198,107 +230,49 @@ const svg  = d3.select("#lcd");
 const INK  = "#22301f", SOFT = "#4a5a44", LCD = "#c7d3a0";
 const W = 400, H = 300;
 
-/* dot-matrix border (top only — the gen-1 icon row lives at the bottom) */
-const frame = svg.append("g");
-for (let x = 8; x < W; x += 16) {
-  frame.append("rect").attr("x", x).attr("y", 4).attr("width", 6).attr("height", 6).attr("fill", INK).attr("opacity", .18);
+const world   = svg.append("g");   // scene layer
+const hud     = svg.append("g");   // captions
+const iconbar = svg.append("g");   // gen-1 chapter icons (3 top, 3 bottom)
+
+let mode = "idle";                 // idle | story
+let cur  = 0;                      // current state index
+
+/* deterministic rng so noise patterns hold still between frames */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
 }
 
-const world  = svg.append("g");                    // scene layer (camera target)
-const hud    = svg.append("g");                    // captions
-const iconbar= svg.append("g");                    // gen-1 style icon row (bottom)
-const math441= svg.append("g").attr("opacity", 0); // nerd layer
-
-let mathOn   = false;
-let playToken= 0;      // bump to cancel a running story
-let mode     = "idle"; // idle | menu | story
-let menuSel  = 0;      // highlighted menu icon (gen-1: A cycles, B picks, C cancels)
-
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-function alive(tok) { return tok === playToken; }
-
-/* caption helpers ------------------------------------------------ */
+/* caption: up to 3 lines under the scene, above the bottom icon row */
 function caption(lines) {
-  hud.selectAll("*").remove();
+  hud.selectAll("*").interrupt().remove();
   const arr = Array.isArray(lines) ? lines : [lines];
   arr.forEach((t, i) => {
     hud.append("text")
-      .attr("x", W / 2).attr("y", 240 + i * 15)
+      .attr("x", W / 2).attr("y", 218 + i * 15)
       .attr("text-anchor", "middle")
-      .attr("font-size", 13).attr("font-family", "inherit")
+      .attr("font-size", 12.5).attr("font-family", "inherit")
       .attr("fill", INK).attr("font-weight", 700)
       .text(t)
-      .attr("opacity", 0).transition().duration(350).attr("opacity", 1);
-  });
-}
-function nerd(lines) {
-  math441.selectAll("*").remove();
-  const arr = Array.isArray(lines) ? lines : [lines];
-  arr.forEach((t, i) => {
-    math441.append("text")
-      .attr("x", W / 2).attr("y", 22 + i * 14)
-      .attr("text-anchor", "middle")
-      .attr("font-size", 11).attr("fill", SOFT).attr("font-style", "italic")
-      .text(t);
-  });
-}
-function setMath(on) {
-  mathOn = on;
-  math441.transition().duration(300).attr("opacity", on ? 1 : 0);
-}
-
-/* gen-1 icon row: always printed at the bottom of the lcd (like the
-   original's fixed icons); lit up + inverted when highlighted in menu
-   mode. tapping an icon selects and picks it directly */
-const MENU_ITEMS = [
-  { label: "SHOW ME THE DEMO", icon: drawIconPlay },
-  { label: "SHOW ME THE MATH", icon: drawIconMath },
-  { label: "SHOW ME THE REPO", icon: drawIconRepo },
-];
-const ICON_XS = [148, 200, 252], ICON_Y = 282;
-function drawIconPlay(g, c) {
-  g.append("path").attr("d", "M -6 -8 L 8 0 L -6 8 Z").attr("fill", c);
-}
-function drawIconMath(g, c) {
-  g.append("text").attr("y", 6).attr("text-anchor", "middle")
-    .attr("font-size", 17).attr("font-weight", 800).attr("fill", c).text("Σ");
-}
-function drawIconRepo(g, c) {   // a little book, like github's repo icon
-  g.append("rect").attr("x", -7).attr("y", -8).attr("width", 14).attr("height", 16)
-    .attr("rx", 2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.5);
-  g.append("line").attr("x1", -3).attr("y1", -8).attr("x2", -3).attr("y2", 8)
-    .attr("stroke", c).attr("stroke-width", 2);
-}
-function updateIcons(sel) {     // sel: highlighted index, or -1 for none
-  iconbar.selectAll("*").remove();
-  MENU_ITEMS.forEach((item, i) => {
-    const g = iconbar.append("g")
-      .attr("transform", `translate(${ICON_XS[i]},${ICON_Y})`)
-      .style("cursor", "pointer")
-      .on("click", () => { menuSel = i; if (mode !== "menu") showMenu(); pick(i); });
-    if (i === sel) {
-      g.append("rect").attr("x", -17).attr("y", -14).attr("width", 34).attr("height", 28)
-        .attr("rx", 5).attr("fill", INK);
-      item.icon(g, LCD);
-    } else {
-      item.icon(g.attr("opacity", sel === -1 ? .3 : .55), INK);
-    }
+      .attr("opacity", 0).transition().duration(300).attr("opacity", 1);
   });
 }
 
 /* ================================================================
-   the 3d egg — hand-rolled parametric surface, rotated and
-   perspective-projected by hand, rendered with d3. this is the
-   "3d" part: real points in R^3, real rotation matrix, real
-   perspective divide. (the repo is named after this egg.)
+   the 3d egg — real points in R^3, hand rotation matrix, hand
+   perspective divide, rendered with d3. the repo's namesake.
    ================================================================ */
 const eggPts = [];
-for (let i = 0; i <= 14; i++) {           // latitude rings
+for (let i = 0; i <= 14; i++) {
   const v = i / 14 * Math.PI;
-  // egg profile: radius pinched toward the top (classic egg equation-ish)
   const r = Math.sin(v) * (1 + 0.25 * Math.cos(v));
   const y = -Math.cos(v) * (1 + 0.08 * Math.cos(v));
-  const n = i === 0 || i === 14 ? 1 : 18;  // longitude samples
+  const n = i === 0 || i === 14 ? 1 : 18;
   for (let j = 0; j < n; j++) {
     const u = j / n * 2 * Math.PI;
     eggPts.push([r * Math.cos(u), y, r * Math.sin(u)]);
@@ -310,10 +284,10 @@ function drawEgg(zoom = 1, opacity = 1) {
   const cy = Math.cos(t), sy = Math.sin(t);
   const cam = 4.2;
   const proj = eggPts.map(([x, y, z]) => {
-    const rx = x * cy + z * sy;            // rotate about Y
+    const rx = x * cy + z * sy;
     const rz = -x * sy + z * cy;
-    const d  = cam / (cam - rz * 0.9);     // perspective divide
-    return [W / 2 + rx * 62 * d * zoom, 148 + y * 62 * d * zoom, d];
+    const d  = cam / (cam - rz * 0.9);
+    return [W / 2 + rx * 62 * d * zoom, 140 + y * 62 * d * zoom, d];
   });
   const sel = world.selectAll("circle.egg").data(proj);
   sel.enter().append("circle").attr("class", "egg")
@@ -327,59 +301,67 @@ function drawEgg(zoom = 1, opacity = 1) {
 function startEggIdle() {
   stopEgg();
   mode = "idle";
-  world.selectAll("*").remove();
+  world.selectAll("*").interrupt().remove();
   eggTimer = d3.timer(() => drawEgg(1, 1));
-  caption(["a mysterious egg appears", "keep scrolling..."]);
-  nerd(["inside: MAYO + FAEST + PoMFRIT, in pure go,",
-        "byte-exact vs their references, runs on bare metal"]);
-  updateIcons(-1);
+  caption(["a mysterious egg appears", "scroll (or press START) to hatch it"]);
+  drawChapterIcons(-1);
   refreshButtons();
 }
 function stopEgg() { if (eggTimer) { eggTimer.stop(); eggTimer = null; } }
 
 /* ================================================================
-   cast of characters — simple enough for a golden retriever
+   cast + props — chunky 1-bit glyphs a golden retriever can read
    ================================================================ */
-function drawPup(g, x, y, s = 1) {  // the user IS a golden retriever
+function drawPup(g, x, y, s = 1) {
   const p = g.append("g").attr("class", "pup")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
-  p.append("ellipse").attr("cx", -22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);              // ear
-  p.append("ellipse").attr("cx",  22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);              // ear
-  p.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);                 // head
-  p.append("circle").attr("cx", -8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);                              // eyes
+  p.append("ellipse").attr("cx", -22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);
+  p.append("ellipse").attr("cx",  22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);
+  p.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  p.append("circle").attr("cx", -8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);
   p.append("circle").attr("cx",  8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);
-  p.append("ellipse").attr("cy", 9).attr("rx", 10).attr("ry", 7).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5); // snout
-  p.append("circle").attr("cy", 6).attr("r", 3).attr("fill", INK);                                                // nose
-  p.append("path").attr("d", "M -4 12 Q 0 16 4 12").attr("stroke", INK).attr("stroke-width", 2).attr("fill", "none"); // smile
+  p.append("ellipse").attr("cy", 9).attr("rx", 10).attr("ry", 7).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  p.append("circle").attr("cy", 6).attr("r", 3).attr("fill", INK);
+  p.append("path").attr("d", "M -4 12 Q 0 16 4 12").attr("stroke", INK).attr("stroke-width", 2).attr("fill", "none");
   return p;
 }
-function drawStamper(g, x, y, s = 1) { // the signer: a stamping machine
+function drawStamper(g, x, y, s = 1) {
   const m = g.append("g").attr("class", "stamper")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
   m.append("rect").attr("x", -30).attr("y", -20).attr("width", 60).attr("height", 44)
     .attr("rx", 6).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  m.append("rect").attr("x", -10).attr("y", -38).attr("width", 20).attr("height", 20)
-    .attr("fill", INK);                                                       // stamp arm
-  m.append("rect").attr("x", -18).attr("y", -42).attr("width", 36).attr("height", 8)
-    .attr("rx", 3).attr("fill", INK);                                         // stamp head
-  m.append("circle").attr("cx", -12).attr("cy", 0).attr("r", 3).attr("fill", INK);   // eyes
+  m.append("rect").attr("x", -10).attr("y", -38).attr("width", 20).attr("height", 20).attr("fill", INK);
+  m.append("rect").attr("x", -18).attr("y", -42).attr("width", 36).attr("height", 8).attr("rx", 3).attr("fill", INK);
+  m.append("circle").attr("cx", -12).attr("cy", 0).attr("r", 3).attr("fill", INK);
   m.append("circle").attr("cx",  12).attr("cy", 0).attr("r", 3).attr("fill", INK);
-  m.append("rect").attr("x", -8).attr("y", 10).attr("width", 16).attr("height", 3).attr("fill", INK); // mouth
+  m.append("rect").attr("x", -8).attr("y", 10).attr("width", 16).attr("height", 3).attr("fill", INK);
   return m;
 }
-function drawJudge(g, x, y, s = 1) {  // the verifier: an owl with a monocle
+function drawJudge(g, x, y, s = 1) {
   const o = g.append("g").attr("class", "judge")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
-  o.append("path").attr("d", "M -20 -22 L -12 -10 L -26 -12 Z").attr("fill", INK);   // ear tufts
+  o.append("path").attr("d", "M -20 -22 L -12 -10 L -26 -12 Z").attr("fill", INK);
   o.append("path").attr("d", "M 20 -22 L 12 -10 L 26 -12 Z").attr("fill", INK);
   o.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 7).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5); // monocle
+  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 7).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
   o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
   o.append("circle").attr("cx", 9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
-  o.append("path").attr("d", "M -4 8 L 0 13 L 4 8 Z").attr("fill", INK);             // beak
+  o.append("path").attr("d", "M -4 8 L 0 13 L 4 8 Z").attr("fill", INK);
   return o;
 }
-function drawBone(g, x, y, s = 1) {   // the message m
+function drawRaccoon(g, x, y, s = 1) {
+  const r = g.append("g").attr("class", "raccoon")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  r.append("path").attr("d", "M -22 -14 L -10 -24 L -8 -10 Z").attr("fill", INK);
+  r.append("path").attr("d", "M 22 -14 L 10 -24 L 8 -10 Z").attr("fill", INK);
+  r.append("circle").attr("r", 22).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  r.append("path").attr("d", "M -22 -6 Q 0 -14 22 -6 L 22 4 Q 0 -2 -22 4 Z").attr("fill", INK); // bandit mask
+  r.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 2.6).attr("fill", LCD);
+  r.append("circle").attr("cx",  9).attr("cy", -3).attr("r", 2.6).attr("fill", LCD);
+  r.append("circle").attr("cy", 10).attr("r", 3).attr("fill", INK);
+  return r;
+}
+function drawBone(g, x, y, s = 1) {
   const b = g.append("g").attr("class", "bone")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
   b.append("rect").attr("x", -14).attr("y", -4).attr("width", 28).attr("height", 8).attr("rx", 4)
@@ -389,18 +371,20 @@ function drawBone(g, x, y, s = 1) {   // the message m
       .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5));
   return b;
 }
-function drawBox(g, x, y, s = 1) {    // the blinded message t (opaque!)
+function drawBox(g, x, y, s = 1) {
   const b = g.append("g").attr("class", "box")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
   b.append("rect").attr("x", -20).attr("y", -16).attr("width", 40).attr("height", 32)
     .attr("rx", 4).attr("fill", INK);
   b.append("line").attr("x1", -20).attr("y1", -6).attr("x2", 20).attr("y2", -6)
     .attr("stroke", LCD).attr("stroke-width", 2);
-  b.append("text").attr("y", 8).attr("text-anchor", "middle").attr("font-size", 12)
-    .attr("fill", LCD).attr("font-weight", 700).text("?");
+  const rnd = rng(7);
+  for (let i = 0; i < 12; i++)
+    b.append("circle").attr("cx", -14 + rnd() * 28).attr("cy", 0 + rnd() * 12)
+      .attr("r", 1.4).attr("fill", LCD);
   return b;
 }
-function drawSeal(g, x, y, s = 1) {   // the mayo preimage: a wax-seal stamp
+function drawSeal(g, x, y, s = 1) {
   const c = g.append("g").attr("class", "seal")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
   c.append("circle").attr("r", 10).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
@@ -408,7 +392,7 @@ function drawSeal(g, x, y, s = 1) {   // the mayo preimage: a wax-seal stamp
     .attr("stroke-width", 2.5).attr("fill", "none");
   return c;
 }
-function drawCert(g, x, y, s = 1) {   // the zk proof: a certificate scroll
+function drawCert(g, x, y, s = 1) {
   const c = g.append("g").attr("class", "cert")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
   c.append("rect").attr("x", -16).attr("y", -20).attr("width", 32).attr("height", 40)
@@ -419,296 +403,640 @@ function drawCert(g, x, y, s = 1) {   // the zk proof: a certificate scroll
   c.append("circle").attr("cx", 6).attr("cy", 13).attr("r", 5).attr("fill", INK);
   return c;
 }
-function label(g, x, y, text) {
+function drawEye(g, x, y, s = 1) {
+  const e = g.append("g").attr("transform", `translate(${x},${y}) scale(${s})`);
+  e.append("path").attr("d", "M -16 0 Q 0 -14 16 0 Q 0 14 -16 0 Z")
+    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  e.append("circle").attr("r", 4.5).attr("fill", INK);
+  return e;
+}
+function drawLockG(g, x, y, s = 1) {   // padlock with an openable shackle
+  const l = g.append("g").attr("class", "lock")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  l.append("path").attr("class", "sh")
+    .attr("d", "M -6 0 L -6 -5 A 6 6 0 0 1 6 -5 L 6 0")
+    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
+  l.append("rect").attr("x", -9).attr("y", 0).attr("width", 18).attr("height", 14)
+    .attr("rx", 2).attr("fill", INK);
+  l.append("circle").attr("cy", 6).attr("r", 2).attr("fill", LCD);
+  return l;
+}
+function openLock(l, delay = 0) {      // shackle swings up-left
+  l.select(".sh").transition().delay(delay).duration(240)
+    .attr("transform", "translate(-5,-4) rotate(-38)");
+}
+function drawGear(g, x, y, r, solid) { // solid = vinegar, outline = oil
+  const outer = g.append("g").attr("transform", `translate(${x},${y})`);
+  const inner = outer.append("g").attr("class", "gear");
+  for (let i = 0; i < 8; i++)
+    inner.append("rect").attr("x", -2.6).attr("y", -r - 5).attr("width", 5.2).attr("height", 7)
+      .attr("fill", INK).attr("transform", `rotate(${i * 45})`);
+  inner.append("circle").attr("r", r)
+    .attr("fill", solid ? INK : LCD).attr("stroke", INK).attr("stroke-width", 3);
+  inner.append("circle").attr("r", 3.4).attr("fill", solid ? LCD : INK);
+  return inner;                        // rotate this
+}
+function spinGear(gear, deg, delay = 0, dur = 700) {
+  gear.transition().delay(delay).duration(dur).ease(d3.easeCubicInOut)
+    .attrTween("transform", () => t => `rotate(${deg * t})`);
+}
+function drawStrip(g, x, y, seed, w = 46, h = 12) {
+  const s = g.append("g").attr("class", "strip")
+             .attr("transform", `translate(${x},${y})`);
+  s.append("rect").attr("x", -w / 2).attr("y", -h / 2).attr("width", w).attr("height", h)
+    .attr("rx", 2).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2);
+  const rnd = rng(seed * 1000 + 13);
+  for (let i = 0; i < 14; i++)
+    s.append("circle").attr("cx", (rnd() - .5) * (w - 8)).attr("cy", (rnd() - .5) * (h - 5))
+      .attr("r", 1.5).attr("fill", INK);
+  return s;
+}
+function drawEnvelope(g, x, y, s = 1) {
+  const e = g.append("g").attr("class", "env")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  e.append("rect").attr("x", -16).attr("y", -11).attr("width", 32).attr("height", 22)
+    .attr("rx", 2).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  e.append("path").attr("class", "flap").attr("d", "M -16 -11 L 0 2 L 16 -11")
+    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
+  return e;
+}
+function drawTick(g, x, y, s = 1, delay = 0) {
+  const p = g.append("path")
+    .attr("transform", `translate(${x},${y}) scale(${s})`)
+    .attr("d", "M -7 0 L -2 6 L 9 -7")
+    .attr("stroke", INK).attr("stroke-width", 3.5).attr("fill", "none")
+    .attr("stroke-linecap", "round");
+  const len = p.node().getTotalLength();
+  p.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+    .transition().delay(delay).duration(300).attr("stroke-dashoffset", 0);
+  return p;
+}
+function drawX(g, x, y, s = 1, delay = 0) {
+  [["M -6 -6 L 6 6"], ["M 6 -6 L -6 6"]].forEach(([d]) =>
+    g.append("path").attr("transform", `translate(${x},${y}) scale(${s})`)
+      .attr("d", d).attr("stroke", INK).attr("stroke-width", 3.2)
+      .attr("stroke-linecap", "round")
+      .attr("opacity", 0).transition().delay(delay).duration(150).attr("opacity", 1));
+}
+function label(g, x, y, text, size = 11) {
   return g.append("text").attr("x", x).attr("y", y).attr("text-anchor", "middle")
-    .attr("font-size", 11).attr("fill", SOFT).attr("font-weight", 700).text(text);
+    .attr("font-size", size).attr("fill", SOFT).attr("font-weight", 700).text(text);
 }
-
-/* ================================================================
-   the story — fully hands-off; each beat sets a caption, moves
-   the props with d3 transitions, and (quietly) shows the math.
-
-   the story is a list of BEATS. each beat renders its whole scene from
-   scratch (with an entry animation), so it can be reached two ways:
-   sequentially on a timer (the HATCH button) or directly by scroll
-   position (the parallax scrubber). cast and props are drawn larger
-   than v1, and hand-offs get a dotted flight path so the package is
-   the obvious protagonist.
-   ================================================================ */
-const PUPX = 62, STAX = 200, OWLX = 338;   // cast x positions
-const CASTY = 150, CS = 1.3, PS = 1.5;     // cast y, cast scale, prop scale
-const PROPY = 73;                          // props float above the cast
-
-function drawCast(g) {
-  drawPup(g, PUPX, CASTY, CS);          label(g, PUPX, 210, "PUP (user)");
-  drawStamper(g, STAX, CASTY + 5, CS);  label(g, STAX, 214, "STAMPER (signer)");
-  drawJudge(g, OWLX, CASTY, CS);        label(g, OWLX, 210, "OWL (verifier)");
+function big(g, x, y, text, size = 24, tilt = -2) {
+  return g.append("text").attr("x", x).attr("y", y).attr("text-anchor", "middle")
+    .attr("font-size", size).attr("fill", INK).attr("font-weight", 800)
+    .attr("transform", `rotate(${tilt} ${x} ${y})`).text(text);
 }
-function flightPath(x1, x2) {           // dotted arc so hand-offs read clearly
-  world.append("path")
-    .attr("d", `M ${x1} ${PROPY - 6} Q ${(x1 + x2) / 2} ${PROPY - 46} ${x2} ${PROPY - 6}`)
-    .attr("fill", "none").attr("stroke", SOFT)
-    .attr("stroke-width", 2.5).attr("stroke-dasharray", "2 7")
-    .attr("opacity", 0)
-    .transition().duration(300).attr("opacity", .9);
-}
-function fly(prop, x1, x2) {            // arc + scale pulse: the package pops
-  prop.transition().duration(1300).ease(d3.easeCubicInOut)
+function fly(prop, x1, y1, x2, y2, s = 1.4, dur = 1100) {
+  prop.transition().duration(dur).ease(d3.easeCubicInOut)
     .attrTween("transform", () => tt => {
       const x = x1 + (x2 - x1) * tt;
-      const y = PROPY - Math.sin(Math.PI * tt) * 30;
-      const s = PS * (1 + 0.3 * Math.sin(Math.PI * tt));
-      return `translate(${x},${y}) scale(${s})`;
+      const y = y1 + (y2 - y1) * tt - Math.sin(Math.PI * tt) * 26;
+      return `translate(${x},${y}) scale(${s * (1 + 0.25 * Math.sin(Math.PI * tt))})`;
     });
 }
 
-function beatHatch() {
-  caption(["hatching..."]);
-  nerd([]);
-  const zoomT = d3.timer((el) => {
-    const z = 1 + el / 700 * 6;
-    drawEgg(z, Math.max(0, 1 - el / 700));
-    if (el > 750) { zoomT.stop(); world.selectAll("circle.egg").remove(); }
-  });
-}
-function beatCast() {
+/* a fade-in wrapper every scene draws into */
+function scene() {
   const g = world.append("g");
-  drawCast(g);
-  g.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
-  caption(["three friends: a pup, a stamper, an owl"]);
-  nerd(["user U, signer S with mayo keypair (cpk, csk), verifier V with epk = ExpandPK(cpk)"]);
-}
-function beatBone() {
-  drawCast(world);
-  drawBone(world, PUPX, PROPY, PS)
-    .attr("opacity", 0).attr("transform", `translate(${PUPX},${PROPY + 20}) scale(0.4)`)
-    .transition().duration(450)
-    .attr("opacity", 1).attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
-  caption(["the pup has a bone it loves", "(the bone is the message)"]);
-  nerd(["m ∈ {0,1}*"]);
-}
-function beatBlind() {
-  drawCast(world);
-  drawBone(world, PUPX, PROPY, PS)
-    .transition().duration(600)
-    .attr("transform", `translate(${PUPX},${PROPY + 4}) scale(0.3)`).attr("opacity", 0);
-  drawBox(world, PUPX, PROPY, 0.01)
-    .transition().delay(450).duration(500)
-    .attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
-  caption(["the pup hides the bone in a box", "nobody can see inside — not even the stamper"]);
-  nerd(["sign₁:  h = SHAKE256(m ‖ π₁),   t = h ⊕ r   (r one-time pad → t is uniform)"]);
-}
-function beatTravel() {
-  drawCast(world);
-  flightPath(PUPX + 32, STAX - 32);
-  fly(drawBox(world, PUPX, PROPY, PS), PUPX, STAX);
-  caption(["the box goes to the stamper"]);
-  nerd(["U → S :  t   (that's all the signer ever sees)"]);
-}
-function beatStamp() {
-  drawCast(world);
-  drawBox(world, STAX, PROPY, PS);
-  const y0 = CASTY + 5;
-  world.select(".stamper")
-    .transition().duration(200).attr("transform", `translate(${STAX},${y0 + 14}) scale(${CS})`)
-    .transition().duration(200).attr("transform", `translate(${STAX},${y0}) scale(${CS})`)
-    .transition().duration(200).attr("transform", `translate(${STAX},${y0 + 14}) scale(${CS})`)
-    .transition().duration(200).attr("transform", `translate(${STAX},${y0}) scale(${CS})`);
-  drawSeal(world, STAX + 36, PROPY - 26, 0.01)
-    .transition().delay(750).duration(400)
-    .attr("transform", `translate(${STAX + 36},${PROPY - 26}) scale(1.5)`);
-  caption(["STAMP! right through the closed lid", "the stamper never opens the box"]);
-  nerd(["sign₂:  s = MAYO⁻¹(t)  — SignWithoutHashing: vinegar V = SHAKE256(t ‖ seed_sk ‖ ctr), no salt"]);
-}
-function beatCert() {
-  drawCast(world);
-  drawBox(world, PUPX, PROPY, PS)
-    .transition().delay(900).duration(500).attr("opacity", 0);
-  drawSeal(world, PUPX + 36, PROPY - 26, 1.5)
-    .transition().delay(900).duration(500).attr("opacity", 0);
-  for (let i = 0; i < 10; i++) {
-    world.append("circle").attr("cx", PUPX + (Math.random() - .5) * 90)
-      .attr("cy", PROPY + (Math.random() - .5) * 70).attr("r", 2.5).attr("fill", INK)
-      .attr("opacity", 1)
-      .transition().delay(600).duration(800).attr("opacity", 0).attr("r", 8).remove();
-  }
-  drawCert(world, PUPX, PROPY, 0.01)
-    .transition().delay(1300).duration(500)
-    .attr("transform", `translate(${PUPX},${PROPY}) scale(${PS})`);
-  caption(["back home, the pup turns the stamp into", "a certificate that never mentions the box"]);
-  nerd(["sign₃:  π = VOLEitH proof of “I know s with P(s)=t”  — GGM forest → small-VOLE → deg-2 QuickSilver",
-        "π is 6895 bytes at L1 (15862 at L3, 29615 at L5) — the box and the bone stay secret"]);
-}
-function beatVerify() {
-  drawCast(world);
-  flightPath(PUPX + 32, OWLX - 32);
-  fly(drawCert(world, PUPX, PROPY, PS), PUPX, OWLX - 26);
-  const tick = world.append("path")
-    .attr("d", `M ${OWLX - 52} ${PROPY + 6} L ${OWLX - 36} ${PROPY + 24} L ${OWLX - 4} ${PROPY - 16}`)
-    .attr("stroke", INK).attr("stroke-width", 9).attr("fill", "none")
-    .attr("stroke-linecap", "round");
-  const len = tick.node().getTotalLength();
-  tick.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
-      .transition().delay(1400).duration(500).attr("stroke-dashoffset", 0);
-  caption(["the owl checks: it's real, signed by the stamper", "but which bone? the owl can't tell. nobody can"]);
-  nerd(["verify:  BlindVerify(epk, m, π)  recomputes h and replays vole_verify"]);
-}
-function beatFinale() {
-  drawStamper(world, STAX, 92, 1.2);
-  for (let i = 0; i < 5; i++) {
-    drawBox(world, 52 + i * 74, 30, 0.7);
-    drawCert(world, 52 + i * 74, 202, 0.85);
-  }
-  world.append("text").attr("x", STAX).attr("y", 158).attr("text-anchor", "middle")
-    .attr("font-size", 26).attr("fill", INK).attr("font-weight", 700).text("?");
-  caption(["the stamper sees boxes. the world sees certificates.", "no one can match them up — that's a blind signature"]);
-  nerd(["unlinkability: t = h ⊕ r is uniform, π is zero-knowledge — S's view ⊥ (m, π)",
-        "this exact loop runs byte-exact on bare-metal riscv64 in this repo"]);
-}
-
-const BEATS = [
-  { dur:  900, fn: beatHatch },
-  { dur: 3400, fn: beatCast },
-  { dur: 3200, fn: beatBone },
-  { dur: 4000, fn: beatBlind },
-  { dur: 2800, fn: beatTravel },
-  { dur: 4200, fn: beatStamp },
-  { dur: 4800, fn: beatCert },
-  { dur: 4400, fn: beatVerify },
-  { dur: 6000, fn: beatFinale },
-];
-function renderBeat(i) {
-  stopEgg();
-  world.selectAll("*").remove(); hud.selectAll("*").remove();
-  BEATS[i].fn();
-}
-/* once the movie starts it keeps playing — looping back to the cast
-   after the finale (the hatch zoom only plays the first time round) */
-async function playStory() {
-  const tok = ++playToken;
-  mode = "story";
-  refreshButtons();
-  updateIcons(-1);
-  let first = true;
-  while (alive(tok)) {
-    for (let i = first ? 0 : 1; i < BEATS.length; i++) {
-      renderBeat(i);
-      await sleep(BEATS[i].dur); if (!alive(tok)) return;
-    }
-    first = false;
-  }
-}
-
-/* ================================================================
-   the menu — the gen-1 interaction, verbatim: A cycles the icon
-   highlight, B executes the selection, C cancels. big wacky text so
-   nobody wonders what they're looking at
-   ================================================================ */
-function showMenu() {
-  playToken++; stopEgg(); mode = "menu";
-  renderMenu();
-  refreshButtons();
-}
-function renderMenu() {
-  world.selectAll("*").remove(); hud.selectAll("*").remove();
-  const g = world.append("g");
-  g.append("text").attr("x", W / 2).attr("y", 52).attr("text-anchor", "middle")
-    .attr("font-size", 27).attr("fill", INK).attr("font-weight", 800)
-    .attr("transform", `rotate(-2 ${W / 2} 52)`)
-    .text("WAIT — WHAT IS THIS?");
-  [["a virtual pet that performs a post-quantum"],
-   ["BLIND SIGNATURE — for real, byte-exact"]].forEach((t, i) =>
-    g.append("text").attr("x", W / 2).attr("y", 76 + i * 17).attr("text-anchor", "middle")
-      .attr("font-size", 13.5).attr("fill", INK).text(t[0]));
-  MENU_ITEMS.forEach((item, i) => {
-    const y = 130 + i * 38;
-    const row = g.append("g").style("cursor", "pointer")
-      .on("click", () => { menuSel = i; pick(i); });
-    if (i === menuSel) {
-      row.append("rect").attr("x", 52).attr("y", y - 24).attr("width", 296).attr("height", 34)
-        .attr("rx", 8).attr("fill", INK);
-      row.append("text").attr("x", W / 2).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 19).attr("fill", LCD).attr("font-weight", 800)
-        .text("▶ " + item.label);
-    } else {
-      row.append("text").attr("x", W / 2).attr("y", y).attr("text-anchor", "middle")
-        .attr("font-size", 19).attr("fill", INK).attr("font-weight", 700)
-        .attr("opacity", .55).text(item.label);
-    }
-  });
   g.attr("opacity", 0).transition().duration(250).attr("opacity", 1);
-  caption(["keep scrolling to auto-pick the demo"]);
-  nerd(["h = SHAKE256(m‖π₁) · t = h⊕r · s = MAYO⁻¹(t) · π = VOLEitH(s) · BlindVerify(epk,m,π)"]);
-  updateIcons(menuSel);
+  return g;
 }
-function menuCycle() {
-  menuSel = (menuSel + 1) % MENU_ITEMS.length;
-  renderMenu();
-}
-function pick(i) {
-  if (i === 2) { window.open("https://github.com/maceip/tamayo", "_blank"); return; }
-  setMath(i === 1);
-  playStory();
+function castTrio(g) {
+  drawPup(g, 66, 140, 1.15);      label(g, 66, 192, "PUP");
+  drawStamper(g, 200, 144, 1.15); label(g, 200, 196, "STAMPER");
+  drawJudge(g, 334, 140, 1.15);   label(g, 334, 192, "OWL");
 }
 
 /* ================================================================
-   buttons — gen-1 semantics (A cycles, B confirms, C cancels), with
-   labels that follow the screen you're on:
-     idle:  MENU  · HATCH  · MATH
-     menu:  NEXT ▸ · PICK  · HOME
-     story: HOME  · REPLAY · MATH
-   every press — real or scroll-driven — is made visible: the button
-   dips, the screen glows, the device beeps (once audio is unlocked
-   by a first touch) and vibrates on phones that support it
+   THE MOVIE — 23 states, 6 chapters. each state draws its whole
+   scene from scratch with an entry animation, then holds. NEXT and
+   BACK jump between states, interrupting anything mid-flight.
    ================================================================ */
-const LBL = { A: d3.select("#lblA"), B: d3.select("#lblB"), C: d3.select("#lblC") };
-const BTN = { A: d3.select("#btnA"), B: d3.select("#btnB"), C: d3.select("#btnC") };
-const actions = { A: null, B: null, C: null };
-/* the label text swaps on a timeout (mid-fade), so "did it change" must be
-   tracked against the *target* text, not the DOM — two mode flips inside
-   150ms would otherwise resurrect a stale label with the wrong action */
-const lblTarget = { A: LBL.A.text(), B: LBL.B.text(), C: LBL.C.text() };
-const lblTimer  = { A: 0, B: 0, C: 0 };
+const STATES = [];
+const st = (ch, cap, fn) => STATES.push({ ch, cap, fn });
 
+/* ---------- chapter 0: the setup (why) ---------- */
+st(0, ["press NEXT ▸ (or keep scrolling)"], g => {
+  big(g, W / 2, 78, "WAIT — WHAT IS THIS?", 27);
+  ["a virtual pet performing a", "POST-QUANTUM BLIND SIGNATURE", "for real — byte-exact — as you watch"]
+    .forEach((t, i) => g.append("text").attr("x", W / 2).attr("y", 116 + i * 20)
+      .attr("text-anchor", "middle").attr("font-size", i === 1 ? 16 : 13.5)
+      .attr("fill", INK).attr("font-weight", i === 1 ? 800 : 400).text(t));
+  g.append("text").attr("x", W / 2).attr("y", 182).attr("text-anchor", "middle")
+    .attr("font-size", 12).attr("fill", SOFT).text("a story in 6 chapters — the icons below are the chapters")
+    .attr("opacity", 0).transition().delay(400).duration(400).attr("opacity", 1);
+});
+st(0, ["this is the pup. it has a bone (a message)", "that it needs stamped as APPROVED"], g => {
+  drawPup(g, 140, 130, 1.9);
+  drawBone(g, 262, 118, 0.3).attr("opacity", 0)
+    .transition().duration(500)
+    .attr("opacity", 1).attr("transform", "translate(262,118) scale(2)");
+});
+st(0, ["this is the stamper. its stamp makes things", "official — but it's nosy: it reads", "everything it stamps, and it keeps notes"], g => {
+  drawStamper(g, 140, 135, 1.8);
+  const eye = drawEye(g, 262, 90, 1.4);
+  eye.attr("opacity", 0).transition().delay(300).duration(400).attr("opacity", 1);
+  drawBone(g, 262, 145, 1.5);
+  g.append("line").attr("x1", 190).attr("y1", 120).attr("x2", 240).attr("y2", 138)
+    .attr("stroke", SOFT).attr("stroke-width", 2).attr("stroke-dasharray", "2 5")
+    .attr("opacity", 0).transition().delay(500).duration(300).attr("opacity", 1);
+});
+st(0, ["the goal: a REAL stamp the owl can check —", "without the stamper ever seeing the bone.", "that's called a blind signature"], g => {
+  castTrio(g);
+  const eye = drawEye(g, 200, 84, 1.1);
+  g.append("line").attr("x1", 186).attr("y1", 72).attr("x2", 214).attr("y2", 96)
+    .attr("stroke", INK).attr("stroke-width", 3.5).attr("stroke-linecap", "round")
+    .attr("opacity", 0).transition().delay(600).duration(250).attr("opacity", 1);
+  drawSeal(g, 334, 88, 1.2);
+  drawTick(g, 356, 78, 0.9, 800);
+});
+
+/* ---------- chapter 1: the stamp machine (mayo) ---------- */
+st(1, ["a stamp is not rubber. it's the one answer", "that opens EVERY lock on this wall at once.", "the wall is public — everyone has a copy"], g => {
+  drawStamper(g, 70, 140, 1.35);
+  const panel = g.append("g");
+  panel.append("rect").attr("x", 150).attr("y", 52).attr("width", 226).attr("height", 148)
+    .attr("rx", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    const l = drawLockG(panel, 182 + c * 54, 78 + r * 46, 1);
+    l.attr("opacity", 0).transition().delay((r * 4 + c) * 60).duration(200).attr("opacity", 1);
+  }
+});
+st(1, ["checking is instant: press an answer against", "the wall, watch every lock pop open.", "that's ALL the owl will ever have to do"], g => {
+  const locks = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++)
+    locks.push(drawLockG(g, 116 + c * 56, 78 + r * 46, 1.05));
+  const key = drawSeal(g, 30, 40, 1.4);
+  key.transition().duration(1600).ease(d3.easeLinear)
+    .attr("transform", "translate(370,40) scale(1.4)");
+  locks.forEach((l, i) => openLock(l, 300 + (i % 4) * 350));
+  drawTick(g, 358, 180, 1.6, 1900);
+});
+st(1, ["forging from outside? the locks share dials —", "turn one, four others move. you'd finish long", "after the sun burns out. quantum? still no"], g => {
+  drawRaccoon(g, 60, 130, 1.4);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+    const l = drawLockG(g, 210 + c * 56, 78 + r * 46, 1);
+    if ((r + c) % 2 === 0) drawX(g, 210 + c * 56, 78 + r * 46 - 24, 0.8, 700 + (r * 3 + c) * 180);
+  }
+  // wobbling tries counter
+  const counter = g.append("text").attr("x", 200).attr("y", 46).attr("text-anchor", "middle")
+    .attr("font-size", 14).attr("fill", INK).attr("font-weight", 800);
+  counter.transition().duration(4000).ease(d3.easeQuadIn)
+    .tween("count", function () {
+      const n = d3.interpolateNumber(1, 4.9e12);
+      return t => { this.textContent = "tries: " + d3.format(",.0f")(n(t)); };
+    });
+  // the sun gives up
+  const sun = g.append("g").attr("transform", "translate(64,52)");
+  sun.append("circle").attr("r", 12).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
+  for (let i = 0; i < 8; i++)
+    sun.append("line").attr("x1", 0).attr("y1", -17).attr("x2", 0).attr("y2", -23)
+      .attr("stroke", INK).attr("stroke-width", 3).attr("transform", `rotate(${i * 45})`)
+      .transition().delay(1500 + i * 250).duration(600).attr("opacity", 0.12);
+});
+st(1, ["the machine's secret: its gears come in two", "kinds. VINEGAR gears mesh with everything;", "OIL gears NEVER touch each other"], g => {
+  // oil gears (outline) only ever mesh with vinegar gears (solid)
+  drawGear(g, 116, 100, 18, false);
+  drawGear(g, 284, 100, 18, false);
+  drawGear(g, 200, 168, 16, false);
+  const v1 = drawGear(g, 200, 100, 20, true);
+  const v2 = drawGear(g, 152, 140, 14, true);
+  const v3 = drawGear(g, 248, 140, 14, true);
+  [v1, v2, v3].forEach((v, i) => spinGear(v, 90, 300 + i * 120, 900));
+  label(g, 200, 52, "VINEGAR = solid (public randomness)");
+  label(g, 200, 200, "OIL = outline (the secret ones)");
+});
+st(1, ["spin the vinegar gears ANYWHERE, freeze them.", "now every oil gear turns freely — one crank,", "every lock opens. oil + vinegar = MAYO"], g => {
+  const o1 = drawGear(g, 116, 96, 18, false);
+  const o2 = drawGear(g, 284, 96, 18, false);
+  const o3 = drawGear(g, 200, 160, 16, false);
+  const v1 = drawGear(g, 200, 96, 20, true);
+  const v2 = drawGear(g, 152, 134, 14, true);
+  const v3 = drawGear(g, 248, 134, 14, true);
+  const rnd = rng(42);
+  [v1, v2, v3].forEach((v, i) => spinGear(v, 120 + rnd() * 240, i * 150, 800));
+  [[200, 96], [152, 134], [248, 134]].forEach(([x, y], i) =>
+    drawLockG(g, x + 14, y - 16, 0.55).attr("opacity", 0)
+      .transition().delay(1100 + i * 100).duration(200).attr("opacity", 1));
+  [o1, o2, o3].forEach((o, i) => spinGear(o, 180, 1500 + i * 350, 500));
+  const row = g.append("g");
+  for (let i = 0; i < 5; i++) {
+    const l = drawLockG(row, 128 + i * 36, 196, 0.7);
+    openLock(l, 2700 + i * 120);
+  }
+});
+
+/* ---------- chapter 2: the blind stamp ---------- */
+st(2, ["the pup seals the bone in a box lined with", "carbon paper. from outside: pure static.", "even the label is random noise"], g => {
+  drawPup(g, 82, 130, 1.5);
+  const bone = drawBone(g, 200, 90, 1.6);
+  const box = drawBox(g, 282, 130, 0.01);
+  bone.transition().delay(400).duration(600)
+    .attr("transform", "translate(282,130) scale(0.2)").attr("opacity", 0);
+  box.transition().delay(500).duration(600)
+    .attr("transform", "translate(282,130) scale(1.9)");
+  label(g, 282, 176, "??? — nothing to read", 10.5);
+});
+st(2, ["the box travels to the stamper, who turns it", "over, shakes it, holds it to the light...", "static. it stamps anyway — that's the deal"], g => {
+  drawPup(g, 60, 140, 1.2);
+  drawStamper(g, 320, 140, 1.5);
+  const box = drawBox(g, 60, 90, 1.4);
+  fly(box, 60, 90, 250, 96, 1.5);
+  box.transition().delay(1300).duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(14)")
+     .transition().duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(-14)")
+     .transition().duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(0)");
+  g.append("text").attr("x", 250).attr("y", 52).attr("text-anchor", "middle")
+    .attr("font-size", 22).attr("fill", INK).attr("font-weight", 800).text("?")
+    .attr("opacity", 0).transition().delay(1500).duration(300).attr("opacity", 1);
+});
+st(2, ["STAMP — right through the closed lid.", "the carbon paper prints the mark onto the", "bone inside. the stamper never saw it"], g => {
+  drawStamper(g, 200, 148, 1.6);
+  drawBox(g, 200, 84, 1.6);
+  const y0 = 148;
+  g.select(".stamper")
+    .transition().delay(300).duration(180).attr("transform", `translate(200,${y0 - 16}) scale(1.6)`)
+    .transition().duration(160).attr("transform", `translate(200,${y0}) scale(1.6)`)
+    .transition().duration(180).attr("transform", `translate(200,${y0 - 16}) scale(1.6)`)
+    .transition().duration(160).attr("transform", `translate(200,${y0}) scale(1.6)`);
+  drawSeal(g, 246, 62, 0.01).transition().delay(1000).duration(350)
+    .attr("transform", "translate(246,62) scale(1.5)");
+  for (let i = 0; i < 6; i++)
+    g.append("line")
+      .attr("x1", 200 + (i - 2.5) * 14).attr("y1", 108).attr("x2", 200 + (i - 2.5) * 14).attr("y2", 118)
+      .attr("stroke", INK).attr("stroke-width", 2).attr("opacity", 0)
+      .transition().delay(1100 + i * 60).duration(200).attr("opacity", .7);
+});
+st(2, ["back home the pup opens the box:", "a REAL stamp, on a bone the stamper", "never laid eyes on"], g => {
+  drawPup(g, 96, 130, 1.6);
+  const lid = g.append("rect").attr("x", 226).attr("y", 96).attr("width", 76).attr("height", 12)
+    .attr("rx", 3).attr("fill", INK);
+  g.append("rect").attr("x", 226).attr("y", 112).attr("width", 76).attr("height", 48)
+    .attr("rx", 4).attr("fill", INK);
+  lid.transition().delay(400).duration(500)
+    .attr("transform", "translate(-8,-42) rotate(-18 264 102)");
+  const bone = drawBone(g, 264, 130, 0.4).attr("opacity", 0);
+  bone.transition().delay(800).duration(500)
+    .attr("opacity", 1).attr("transform", "translate(264,72) scale(1.8)");
+  drawSeal(g, 292, 58, 0.01).transition().delay(1300).duration(300)
+    .attr("transform", "translate(292,58) scale(1.1)");
+  const rnd = rng(5);
+  for (let i = 0; i < 8; i++)
+    g.append("circle").attr("cx", 264 + (rnd() - .5) * 100).attr("cy", 80 + (rnd() - .5) * 60)
+      .attr("r", 2).attr("fill", INK).attr("opacity", 0)
+      .transition().delay(900 + i * 80).duration(500).attr("opacity", .8)
+      .transition().duration(400).attr("opacity", 0);
+});
+
+/* ---------- chapter 3: the proof (vole-in-the-head) ---------- */
+st(3, ["new problem: showing the raw stamp would let", "the stamper recognize its own press and trace", "it back. the stamp must stay HIDDEN"], g => {
+  drawPup(g, 84, 136, 1.5);
+  drawBone(g, 160, 84, 1.4);
+  drawSeal(g, 186, 66, 0.9);
+  drawStamper(g, 318, 136, 1.4);
+  drawCert(g, 318, 66, 0.9);   // the stamper's ledger
+  g.append("path").attr("d", "M 196 74 Q 255 40 300 60")
+    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5)
+    .attr("stroke-dasharray", "3 6").attr("opacity", 0)
+    .transition().delay(500).duration(600).attr("opacity", 1);
+  drawEye(g, 255, 34, 1);
+});
+st(3, ["so the pup plays a game entirely inside its", "own head, with 8 imaginary puppet friends.", "(really: 'VOLE in the head')"], g => {
+  drawPup(g, 76, 158, 1.5);
+  const bub = g.append("g");
+  bub.append("circle").attr("cx", 118, 128).attr("cx", 118).attr("cy", 128).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  bub.append("circle").attr("cx", 138).attr("cy", 110).attr("r", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  bub.append("ellipse").attr("cx", 252).attr("cy", 96).attr("rx", 104).attr("ry", 62)
+    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
+  bub.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
+  for (let i = 0; i < 8; i++) {
+    const x = 186 + (i % 4) * 44, y = 76 + Math.floor(i / 4) * 42;
+    const p = g.append("g").attr("opacity", 0);
+    p.append("circle").attr("cx", x).attr("cy", y).attr("r", 11)
+      .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+    p.append("circle").attr("cx", x - 4).attr("cy", y - 2).attr("r", 1.6).attr("fill", INK);
+    p.append("circle").attr("cx", x + 4).attr("cy", y - 2).attr("r", 1.6).attr("fill", INK);
+    p.append("path").attr("d", `M ${x - 4} ${y + 4} Q ${x} ${y + 7} ${x + 4} ${y + 4}`)
+      .attr("stroke", INK).attr("stroke-width", 1.5).attr("fill", "none");
+    p.transition().delay(400 + i * 110).duration(250).attr("opacity", 1);
+  }
+});
+st(3, ["the stamp is shredded into 8 strips of pure", "static. stack ALL 8: the stamp re-forms.", "any 7? still just static. try it —"], g => {
+  const seal = drawSeal(g, 200, 60, 1.7);
+  const strips = [];
+  for (let i = 0; i < 8; i++) {
+    const x = 52 + (i % 4) * 66, y = 118 + Math.floor(i / 4) * 26;
+    const s = drawStrip(g, 200, 60, i).attr("opacity", 0);
+    s.transition().delay(300 + i * 90).duration(450)
+      .attr("opacity", 1).attr("transform", `translate(${x},${y})`);
+    strips.push([s, x, y]);
+  }
+  seal.transition().delay(300).duration(600).attr("opacity", 0.25);
+  // stack them -> the seal solidifies; pull one out -> static again
+  strips.forEach(([s]) => s.transition().delay(1700).duration(600)
+    .attr("transform", "translate(200,178)"));
+  seal.transition().delay(2300).duration(400).attr("opacity", 1);
+  strips[5][0].transition().delay(3300).duration(600)
+    .attr("transform", "translate(338,178)");
+  seal.transition().delay(3900).duration(400).attr("opacity", 0.25);
+  label(g, 200, 205, "stack of 7 = nothing", 10.5).attr("opacity", 0)
+    .transition().delay(4100).duration(300).attr("opacity", 1);
+});
+st(3, ["each strip is sealed in an envelope and glued", "to the certificate. then a coin NOBODY controls", "(a hash) picks 7 of 8 envelopes to rip open"], g => {
+  // coin flip
+  const coin = g.append("g").attr("transform", "translate(200,46)");
+  const face = coin.append("g");
+  face.append("circle").attr("r", 15).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  face.append("text").attr("y", 5).attr("text-anchor", "middle").attr("font-size", 13)
+    .attr("font-weight", 800).attr("fill", INK).text("#");
+  face.transition().duration(900).ease(d3.easeCubicInOut)
+    .attrTween("transform", () => t => `scale(1,${Math.cos(t * Math.PI * 4)})`);
+  const envs = [];
+  for (let i = 0; i < 8; i++) {
+    const x = 92 + (i % 4) * 72, y = 104 + Math.floor(i / 4) * 54;
+    envs.push([drawEnvelope(g, x, y, 1.15), x, y]);
+  }
+  envs.forEach(([e, x, y], i) => {
+    if (i === 5) {          // the one that stays sealed
+      drawLockG(g, x, y - 26, 0.6).attr("opacity", 0)
+        .transition().delay(1400).duration(300).attr("opacity", 1);
+    } else {
+      e.select(".flap").transition().delay(1200 + i * 130).duration(300)
+        .attr("transform", "translate(0,-14) scale(1,-0.7)");
+      drawStrip(g, x, y + 2, i, 26, 8).attr("opacity", 0)
+        .transition().delay(1350 + i * 130).duration(250).attr("opacity", 1);
+    }
+  });
+});
+st(3, ["the 7 open strips must tally against the lock", "wall — a lie can only hide in the ONE sealed", "envelope. and the game runs 100s of rounds"], g => {
+  for (let i = 0; i < 7; i++) {
+    const x = 66 + i * 45;
+    drawStrip(g, x, 60, i, 34, 10);
+    const l = drawLockG(g, x, 92, 0.62);
+    openLock(l, 400 + i * 140);
+    drawTick(g, x + 12, 84, 0.6, 600 + i * 140);
+  }
+  label(g, 200, 124, "every opened strip checks out", 10.5);
+  // rounds montage: luck runs out
+  const rowsG = g.append("g");
+  for (let i = 0; i < 30; i++) {
+    const x = 76 + (i % 10) * 28, y = 148 + Math.floor(i / 10) * 22;
+    rowsG.append("rect").attr("x", x - 9).attr("y", y - 8).attr("width", 18).attr("height", 16)
+      .attr("rx", 2).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 1.6);
+    drawTick(rowsG, x, y, 0.5, 900 + i * 70);
+  }
+  label(g, 200, 205, "... x100s of rounds at once — luck runs out", 10.5);
+});
+st(3, ["the owl ends up 100% convinced the stamp is", "real — yet its notebook holds nothing but", "static. that's a ZERO-KNOWLEDGE proof"], g => {
+  drawJudge(g, 96, 140, 1.6);
+  const bub = g.append("g");
+  bub.append("circle").attr("cx", 152).attr("cy", 104).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  bub.append("ellipse").attr("cx", 262).attr("cy", 92).attr("rx", 96).attr("ry", 56)
+    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
+  drawStrip(bub, 232, 74, 3, 40, 11);
+  drawStrip(bub, 292, 74, 6, 40, 11);
+  drawStrip(bub, 262, 100, 9, 40, 11);
+  drawTick(bub, 262, 128, 1.1, 700);
+  label(g, 262, 172, "the owl's entire memory of the proof", 10.5);
+});
+
+/* ---------- chapter 4: the check ---------- */
+st(4, ["the pup mails the certificate. the owl replays", "everything: the coin, the 7 strips, the wall.", "green light — the stamp is real"], g => {
+  drawJudge(g, 322, 140, 1.6);
+  const cert = drawCert(g, 40, 90, 1.2);
+  fly(cert, 40, 90, 250, 96, 1.3);
+  for (let i = 0; i < 3; i++) {
+    const l = drawLockG(g, 92 + i * 44, 176, 0.7);
+    openLock(l, 1300 + i * 160);
+  }
+  drawTick(g, 262, 170, 2.2, 1800);
+});
+st(4, ["the stamper remembers stamping boxes of", "static. the world sees certificates. NOBODY", "can match them up — that's blindness"], g => {
+  drawStamper(g, 200, 92, 1.2);
+  for (let i = 0; i < 5; i++) {
+    drawBox(g, 52 + i * 74, 34, 0.7);
+    drawCert(g, 52 + i * 74, 182, 0.8);
+  }
+  big(g, 200, 152, "?", 30, 0);
+});
+
+/* ---------- chapter 5: so what ---------- */
+st(5, ["drop the fur. this is how you build:", "cash that can't be traced, credentials that", "don't dox you, one-person-one-ticket passes"], g => {
+  // banknote
+  const cash = g.append("g").attr("transform", "translate(90,110)");
+  cash.append("rect").attr("x", -34).attr("y", -20).attr("width", 68).attr("height", 40)
+    .attr("rx", 4).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  cash.append("circle").attr("r", 11).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
+  label(g, 90, 158, "CASH");
+  // ballot
+  const vote = g.append("g").attr("transform", "translate(200,110)");
+  vote.append("rect").attr("x", -26).attr("y", -6).attr("width", 52).attr("height", 34)
+    .attr("rx", 4).attr("fill", INK);
+  vote.append("rect").attr("x", -14).attr("y", -3).attr("width", 28).attr("height", 4).attr("fill", LCD);
+  const paper = vote.append("rect").attr("x", -10).attr("y", -34).attr("width", 20).attr("height", 24)
+    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  paper.transition().delay(500).duration(700).attr("y", -12);
+  label(g, 200, 158, "VOTE");
+  // ticket
+  const pass = g.append("g").attr("transform", "translate(310,110)");
+  pass.append("rect").attr("x", -32).attr("y", -18).attr("width", 64).attr("height", 36)
+    .attr("rx", 5).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  pass.append("line").attr("x1", -8).attr("y1", -18).attr("x2", -8).attr("y2", 18)
+    .attr("stroke", INK).attr("stroke-width", 2).attr("stroke-dasharray", "3 4");
+  drawSeal(pass, 12, 0, 0.8);
+  label(g, 310, 158, "PASS");
+  label(g, 200, 190, "approved — with no trail of who or what for", 11);
+});
+st(5, ["everything you just watched runs for real in", "this repo: pure go, byte-exact vs the reference", "code, even on a bare-metal riscv board"], g => {
+  big(g, W / 2, 66, "THE END (OF CHAPTER 1)", 20);
+  const book = g.append("g").attr("transform", "translate(200,124)").style("cursor", "pointer")
+    .on("click", ev => { ev.stopPropagation(); window.open("https://github.com/maceip/tamayo", "_blank"); });
+  book.append("rect").attr("x", -26).attr("y", -30).attr("width", 52).attr("height", 60)
+    .attr("rx", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 4);
+  book.append("line").attr("x1", -12).attr("y1", -30).attr("x2", -12).attr("y2", 30)
+    .attr("stroke", INK).attr("stroke-width", 3);
+  book.append("text").attr("x", 6).attr("y", 6).attr("text-anchor", "middle")
+    .attr("font-size", 15).attr("font-weight", 800).attr("fill", INK).text("go");
+  g.append("text").attr("x", 200).attr("y", 176).attr("text-anchor", "middle")
+    .attr("font-size", 12).attr("fill", SOFT).attr("font-weight", 700)
+    .text("tap the book → github.com/maceip/tamayo");
+  g.append("text").attr("x", 200).attr("y", 194).attr("text-anchor", "middle")
+    .attr("font-size", 11).attr("fill", SOFT).text("NEXT ▸ starts the movie over");
+});
+
+/* ================================================================
+   chapters + the gen-1 icon rows (3 top, 3 bottom, big — the
+   current chapter is inverted like a real selection; tap to jump)
+   ================================================================ */
+function iconBone(g, c)  { drawBoneIcon(g, c); }
+function drawBoneIcon(g, c) {
+  g.append("rect").attr("x", -8).attr("y", -2.5).attr("width", 16).attr("height", 5).attr("rx", 2.5)
+    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.4);
+  [[-8, -3.5], [-8, 3.5], [8, -3.5], [8, 3.5]].forEach(([x, y]) =>
+    g.append("circle").attr("cx", x).attr("cy", y).attr("r", 3.6)
+      .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.4));
+}
+function iconGear(g, c) {
+  for (let i = 0; i < 8; i++)
+    g.append("rect").attr("x", -1.7).attr("y", -11).attr("width", 3.4).attr("height", 4)
+      .attr("fill", c).attr("transform", `rotate(${i * 45})`);
+  g.append("circle").attr("r", 7.5).attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
+  g.append("circle").attr("r", 2).attr("fill", c);
+}
+function iconBox(g, c) {
+  g.append("rect").attr("x", -9).attr("y", -7).attr("width", 18).attr("height", 14).attr("rx", 2)
+    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
+  g.append("line").attr("x1", -9).attr("y1", -2).attr("x2", 9).attr("y2", -2)
+    .attr("stroke", c).attr("stroke-width", 2);
+  g.append("text").attr("y", 8).attr("text-anchor", "middle").attr("font-size", 9)
+    .attr("font-weight", 800).attr("fill", c).text("?");
+}
+function iconBubble(g, c) {
+  g.append("ellipse").attr("cy", -3).attr("rx", 10).attr("ry", 7.5)
+    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
+  g.append("circle").attr("cx", -7).attr("cy", 7).attr("r", 2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 1.8);
+  g.append("circle").attr("cx", -11).attr("cy", 11).attr("r", 1.2).attr("fill", "none").attr("stroke", c).attr("stroke-width", 1.6);
+}
+function iconMonocle(g, c) {
+  g.append("circle").attr("cx", -2).attr("cy", -2).attr("r", 7.5)
+    .attr("fill", "none").attr("stroke", c).attr("stroke-width", 2.6);
+  g.append("line").attr("x1", 3.5).attr("y1", 3.5).attr("x2", 10).attr("y2", 10)
+    .attr("stroke", c).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
+}
+function iconFlag(g, c) {
+  g.append("line").attr("x1", -7).attr("y1", -11).attr("x2", -7).attr("y2", 11)
+    .attr("stroke", c).attr("stroke-width", 2.6).attr("stroke-linecap", "round");
+  g.append("path").attr("d", "M -7 -10 L 10 -6 L -7 -1 Z").attr("fill", c);
+}
+const CHAPTERS = [
+  { name: "the setup",   icon: iconBone },
+  { name: "the machine", icon: iconGear },
+  { name: "blind stamp", icon: iconBox },
+  { name: "the proof",   icon: iconBubble },
+  { name: "the check",   icon: iconMonocle },
+  { name: "so what",     icon: iconFlag },
+];
+CHAPTERS.forEach(c => { c.start = STATES.findIndex(s => s.ch === CHAPTERS.indexOf(c)); });
+const ICON_XS = [80, 200, 320], ICON_TOP = 22, ICON_BOT = 279;
+function drawChapterIcons(activeCh) {
+  iconbar.selectAll("*").remove();
+  CHAPTERS.forEach((chap, i) => {
+    const x = ICON_XS[i % 3], y = i < 3 ? ICON_TOP : ICON_BOT;
+    const g = iconbar.append("g")
+      .attr("transform", `translate(${x},${y})`)
+      .style("cursor", "pointer")
+      .on("click", ev => {
+        ev.stopPropagation();
+        if (mode === "story") goto(chap.start);
+        else enterStory(chap.start);
+      });
+    // generous invisible hit area so the icons are easy to tap
+    g.append("rect").attr("x", -32).attr("y", -19).attr("width", 64).attr("height", 38)
+      .attr("fill", "transparent");
+    if (i === activeCh) {
+      g.append("rect").attr("x", -26).attr("y", -17).attr("width", 52).attr("height", 34)
+        .attr("rx", 6).attr("fill", INK);
+      chap.icon(g.append("g"), LCD);
+    } else {
+      chap.icon(g.append("g").attr("opacity", activeCh === -1 ? .35 : .55), INK);
+    }
+  });
+}
+
+/* ================================================================
+   the state machine — NEXT/BACK jump states and interrupt whatever
+   is mid-flight; icons jump chapters; HOME zooms back out
+   ================================================================ */
+function goto(i) {
+  cur = Math.max(0, Math.min(STATES.length - 1, i));
+  stopEgg();
+  world.selectAll("*").interrupt().remove();
+  const s = STATES[cur];
+  caption(s.cap);
+  s.fn(scene());
+  drawChapterIcons(s.ch);
+}
+function next() { cur >= STATES.length - 1 ? goto(0) : goto(cur + 1); }
+function back() { cur <= 0 ? exitStory() : goto(cur - 1); }
+
+/* zoom: push the camera in so the lcd nearly fills the window */
+const rigEl    = document.querySelector(".rig");
+const screenEl = document.querySelector(".screen");
+function applyZoom() {
+  rigEl.classList.remove("zooming");
+  rigEl.style.transform = "none";           // measure at rest
+  void rigEl.offsetWidth;
+  const scr = screenEl.getBoundingClientRect();
+  const rig = rigEl.getBoundingClientRect();
+  const s = Math.min(innerWidth * 0.94 / scr.width, innerHeight * 0.72 / scr.height);
+  const cx = scr.left + scr.width / 2, cy = scr.top + scr.height / 2;
+  const dx = innerWidth / 2 - cx;
+  const dy = innerHeight * 0.44 - cy;
+  rigEl.style.transformOrigin = `${cx - rig.left}px ${cy - rig.top}px`;
+  rigEl.classList.add("zooming");
+  rigEl.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+}
+function enterStory(startIdx = 0) {
+  if (mode === "story") { goto(startIdx); return; }
+  mode = "story";
+  document.body.classList.add("zoomed");
+  document.body.style.overflow = "hidden";
+  scrollTo(0, INTRO_VH * innerHeight);
+  applyZoom();
+  refreshButtons();
+  // quick hatch: the egg bursts into the title card
+  stopEgg();
+  const t0 = Date.now();
+  const zoomT = d3.timer(() => {
+    const el = Date.now() - t0;
+    drawEgg(1 + el / 600 * 5, Math.max(0, 1 - el / 600));
+    if (el > 620) {
+      zoomT.stop();
+      world.selectAll("circle.egg").remove();
+      if (mode === "story") goto(startIdx);
+    }
+  });
+}
+function exitStory() {
+  mode = "idle";
+  document.body.classList.remove("zoomed");
+  document.body.style.overflow = "";
+  rigEl.style.transform = "none";           // .zooming animates the return
+  setTimeout(() => { rigEl.classList.remove("zooming"); rigEl.style.transformOrigin = ""; onScroll(); }, 850);
+  startEggIdle();
+}
+
+/* ================================================================
+   buttons — labels follow the mode:
+     idle:  START · START · REPO
+     story: BACK  · NEXT  · HOME
+   every press (real or scroll-driven) dips the button, glows the
+   screen, beeps (after first touch unlocks audio) and vibrates
+   ================================================================ */
+const actions = { A: null, B: null, C: null };
+const lblTarget = {}, lblTimer = {};
 function setButtons(spec) {
   for (const k of ["A", "B", "C"]) {
     const [text, fn] = spec[k];
     actions[k] = fn;
-    BTN[k].attr("title", text.toLowerCase());
     if (lblTarget[k] === text) continue;
     lblTarget[k] = text;
     clearTimeout(lblTimer[k]);
-    const el = LBL[k];
-    el.style("opacity", 0);                       // css transition fades out
-    lblTimer[k] = setTimeout(() => { el.text(text); el.style("opacity", 1); }, 150);
+    const els = document.querySelectorAll(`[data-lbl="${k}"]`);
+    els.forEach(el => el.style.opacity = 0);
+    lblTimer[k] = setTimeout(() => els.forEach(el => { el.textContent = text; el.style.opacity = 1; }), 150);
   }
 }
-const mathLabel = () => mathOn ? "MATH ✓" : "MATH";
-function toggleMath() { setMath(!mathOn); refreshButtons(); }
-function goHome() {
-  playToken++;
-  startEggIdle();
-  // park the page where the egg sits centered, just before the menu band
-  scrollTo({ top: INTRO_VH * innerHeight - 2, behavior: "smooth" });
-}
 function refreshButtons() {
-  if (mode === "menu") {
-    setButtons({ A: ["NEXT ▸", menuCycle],
-                 B: ["PICK",   () => pick(menuSel)],
-                 C: ["HOME",   goHome] });
-  } else if (mode === "story") {
-    setButtons({ A: ["HOME",   goHome],
-                 B: ["REPLAY", () => playStory()],
-                 C: [mathLabel(), toggleMath] });
-  } else { // idle
-    setButtons({ A: ["MENU",   showMenu],
-                 B: ["HATCH",  () => playStory()],
-                 C: [mathLabel(), toggleMath] });
+  if (mode === "story") {
+    setButtons({ A: ["BACK", back], B: ["NEXT ▸", next], C: ["HOME", exitStory] });
+  } else {
+    setButtons({ A: ["START", () => enterStory(0)],
+                 B: ["START", () => enterStory(0)],
+                 C: ["REPO",  () => window.open("https://github.com/maceip/tamayo", "_blank")] });
   }
 }
 
-/* press feedback: visual dip + screen glow + haptic + gen-1 pip */
-const screenEl = document.querySelector(".screen");
 let actx = null;
 function unlockAudio() {
   if (!actx) {
@@ -721,7 +1049,7 @@ addEventListener("pointerdown", unlockAudio);
 addEventListener("keydown", unlockAudio);
 const BEEP_HZ = { A: 660, B: 880, C: 550 };
 function beep(k) {
-  if (!actx || actx.state !== "running") return;   // needs a first touch
+  if (!actx || actx.state !== "running") return;
   const o = actx.createOscillator(), g = actx.createGain();
   o.type = "square"; o.frequency.value = BEEP_HZ[k];
   g.gain.setValueAtTime(0.035, actx.currentTime);
@@ -730,73 +1058,105 @@ function beep(k) {
   o.start(); o.stop(actx.currentTime + 0.07);
 }
 function pressButton(k) {
-  const btn = document.getElementById("btn" + k);
-  btn.classList.add("pressed");
+  document.querySelectorAll(`button[data-key="${k}"]`).forEach(b => b.classList.add("pressed"));
   screenEl.classList.add("lit");
-  setTimeout(() => { btn.classList.remove("pressed"); screenEl.classList.remove("lit"); }, 200);
-  if (navigator.vibrate) navigator.vibrate(18);
+  setTimeout(() => {
+    document.querySelectorAll(`button[data-key="${k}"]`).forEach(b => b.classList.remove("pressed"));
+    screenEl.classList.remove("lit");
+  }, 180);
+  if (navigator.vibrate) navigator.vibrate(15);
   beep(k);
 }
-for (const k of ["A", "B", "C"]) {
-  document.getElementById("btn" + k).addEventListener("click", () => {
-    pressButton(k);
-    if (actions[k]) actions[k]();
-  });
-}
+function virtualPress(k) { pressButton(k); if (actions[k]) actions[k](); }
+document.querySelectorAll("button[data-key]").forEach(b =>
+  b.addEventListener("click", () => virtualPress(b.dataset.key)));
+
+/* tapping the zoomed screen: left third = BACK, the rest = NEXT */
+screenEl.addEventListener("click", ev => {
+  if (mode !== "story") return;
+  const r = screenEl.getBoundingClientRect();
+  virtualPress((ev.clientX - r.left) / r.width < 0.3 ? "A" : "B");
+});
 
 /* ================================================================
-   parallax scroll — three zones, and every zone change is a visible
-   virtual button press (the scroll is just pressing buttons for you):
-     zone 0: egg slides up from the fold (idle)
-     zone 1: the menu screen ("wait — what is this?")
-     zone 2: presses PICK for you → the movie starts and then simply
-             keeps playing (it loops); scroll does nothing further
+   scroll = pressing buttons. the intro is real page scroll (the egg
+   slides up from the fold); once the egg is centered, every ~half
+   wheel-notch presses NEXT (or BACK, scrolling up) for you
    ================================================================ */
-const rigEl  = document.querySelector(".rig");
 const footEl = document.querySelector("footer");
 const hintEl = document.querySelector(".scroll-hint");
-const spaceEl= document.getElementById("scrollspace");
-const INTRO_VH = 0.9;   // scroll distance (in viewports) of the slide-in
-const MENU_VH  = 0.7;   // scroll distance the menu stays on screen
-const TAIL_VH  = 0.5;   // slack after the auto-pick point
-let rigCenter0 = 0;     // rig center y at rest, measured at layout time
-let lastZone   = 0;
+const spaceEl = document.getElementById("scrollspace");
+const INTRO_VH = 0.9;
+const WHEEL_STEP = 55;       // ~half a notch of a classic wheel
+let rigCenter0 = 0, baseS = 1;
 
 function layoutScroll() {
+  if (mode === "story") { applyZoom(); return; }
+  rigEl.classList.remove("zooming");
   rigEl.style.transform = "none";
+  baseS = Math.min(1, innerWidth / 430);
+  rigEl.style.transformOrigin = "50% 0%";
   const r = rigEl.getBoundingClientRect();
   rigCenter0 = r.top + r.height / 2;
-  spaceEl.style.height =
-    innerHeight * (1 + INTRO_VH + MENU_VH + TAIL_VH) + "px";
+  spaceEl.style.height = innerHeight * (1 + INTRO_VH) + "px";
   onScroll();
 }
-const smooth = t => t * t * (3 - 2 * t);
+const smoothstep = t => t * t * (3 - 2 * t);
 function onScroll() {
-  const vh = innerHeight, s1 = INTRO_VH * vh, s2 = s1 + MENU_VH * vh;
-  const t = Math.max(0, Math.min(1, scrollY / s1));
-  rigEl.style.transform = `translateY(${(1 - smooth(t)) * (vh - rigCenter0)}px)`;
+  if (mode === "story") return;
+  const t = Math.max(0, Math.min(1, scrollY / (INTRO_VH * innerHeight)));
+  rigEl.style.transform =
+    `translateY(${(1 - smoothstep(t)) * (innerHeight - rigCenter0)}px) scale(${baseS})`;
   footEl.style.opacity = t;
-  hintEl.style.opacity = t < 1 ? 1 : 0;
-
-  const z = scrollY <= s1 ? 0 : scrollY <= s2 ? 1 : 2;
-  if (z === lastZone) return;
-  const goingDown = z > lastZone;
-  lastZone = z;
-  if (z === 0) {                       // cancelled all the way back out
-    pressButton("C");
-    playToken++;
-    startEggIdle();
-  } else if (z === 1) {                // A opens the menu / C backs out of the movie
-    pressButton(goingDown ? "A" : "C");
-    menuSel = 0;
-    showMenu();
-  } else if (mode !== "story") {       // B picks for you (demo, or math if highlighted)
-    pressButton("B");
-    pick(menuSel === 1 ? 1 : 0);       // never auto-open the repo tab
-  }
+  hintEl.style.opacity = 1;
 }
 addEventListener("scroll", onScroll, { passive: true });
 addEventListener("resize", layoutScroll);
+
+let wheelAcc = 0, lastStep = 0;
+function stepFromDelta(dy) {
+  wheelAcc += dy;
+  const now = performance.now();
+  if (now - lastStep < 130) return;
+  if (wheelAcc >= WHEEL_STEP) {
+    wheelAcc = 0; lastStep = now;
+    virtualPress("B");                       // NEXT (or START from idle)
+  } else if (wheelAcc <= -WHEEL_STEP && mode === "story") {
+    wheelAcc = 0; lastStep = now;
+    virtualPress("A");                       // BACK
+  }
+}
+addEventListener("wheel", e => {
+  if (mode === "story") {
+    e.preventDefault();
+    stepFromDelta(e.deltaY);
+  } else {
+    // only take over once the intro scroll is used up
+    const parked = scrollY >= INTRO_VH * innerHeight - 2;
+    if (parked && e.deltaY > 0) stepFromDelta(e.deltaY);
+    else wheelAcc = 0;
+  }
+}, { passive: false });
+
+let touchY = null;
+addEventListener("touchstart", e => { touchY = e.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", e => {
+  if (touchY === null) return;
+  const dy = touchY - e.touches[0].clientY;
+  if (mode === "story") {
+    e.preventDefault();
+    if (Math.abs(dy) > 42) { stepFromDelta(dy > 0 ? WHEEL_STEP : -WHEEL_STEP); touchY = e.touches[0].clientY; }
+  } else if (scrollY >= INTRO_VH * innerHeight - 2 && dy > 42) {
+    stepFromDelta(WHEEL_STEP); touchY = e.touches[0].clientY;
+  }
+}, { passive: false });
+
+addEventListener("keydown", e => {
+  if (mode !== "story") return;
+  if (["ArrowRight", "ArrowDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); virtualPress("B"); }
+  else if (["ArrowLeft", "ArrowUp"].includes(e.key)) { e.preventDefault(); virtualPress("A"); }
+  else if (e.key === "Escape") virtualPress("C");
+});
 
 /* boot */
 startEggIdle();
