@@ -47,6 +47,7 @@ normative:
 
 informative:
   RFC9576:
+  RFC9577:
   RFC9578:
   FAEST:
     title: "FAEST: Algorithm Specification"
@@ -54,6 +55,9 @@ informative:
   TAMAYO:
     title: "tamayo: pure-Go MAYO / FAEST / PoMFRIT for the TamaGo bare-metal runtime"
     target: https://github.com/maceip/tamayo
+  EATPASS:
+    title: "eat-pass: attestation-gated, unlinkable authorization tokens"
+    target: https://github.com/maceip/eat-pass
 
 --- abstract
 
@@ -242,11 +246,14 @@ contacted, because the blinded target is derived from them:
 3. Construct the JOSE header and payload per {{pvt}} and form the JWS
    signing input `m = ASCII(BASE64URL(header) || "." || BASE64URL(payload))`
    {{RFC7515}}.
-4. Run PoMFRIT `sign_1` on `m` ({{alg}}): generate the proof commitment,
-   derive `h = SHAKE256(m || commitment)` and the uniformly random pad `r`,
-   and compute the blinded target `t = h XOR r`. Retain the prover state.
+4. Generate fresh 32-byte session randomness `r_additional`, bound into the
+   Fiat–Shamir transcript and later carried in the signature value
+   ({{alg}}).
+5. Run PoMFRIT `sign_1` on `m`: generate the proof commitment, derive
+   `h = SHAKE256(m || commitment)` and the uniformly random pad `r`, and
+   compute the blinded target `t = h XOR r`. Retain the prover state.
 
-Steps 1–4 are repeated per token when batching. Prover state (which contains
+Steps 1–5 are repeated per token when batching. Prover state (which contains
 the eventual zero-knowledge witness randomness) MUST be kept secret and MUST
 be discarded if issuance fails.
 
@@ -304,10 +311,11 @@ prover state: verify that `s` is a valid preimage of `t` under the issuer's
 epoch public key, then produce the zero-knowledge proof `pi` of knowledge of
 `(s, r)` such that `P*(s) = h XOR r`, where `P*` is the issuer's public MAYO
 map and `h` is recomputable from `m` by anyone. The proof — not `s`, not
-`r` — is the signature:
+`r` — together with the session randomness forms the signature value:
 
 ~~~
-PVT = BASE64URL(header) "." BASE64URL(payload) "." BASE64URL(pi) "~"
+PVT = BASE64URL(header) "." BASE64URL(payload) "."
+      BASE64URL(r_additional || pi) "~"
 ~~~
 
 The trailing `~` preserves SD-JWT surface compatibility as in EVP Section
@@ -403,10 +411,12 @@ Browser spending policy is normative for the privacy properties:
    `iss` is explicit) and the blind JWK Set; select the key matching `kid`.
 4. Check `epoch` is the issuer's current epoch or the immediately preceding
    one within the acceptance grace period ({{epochs}}).
-5. Expand the compact MAYO public key and run PoMFRIT verification: recompute
-   `h = SHAKE256(m || commitment)` from the JWS signing input and the proof's
-   commitment prefix, and verify the VOLE-in-the-head proof against the
-   expanded public map and `h`. Reject on any length mismatch.
+5. Split the JWS signature value into `r_additional` (first 32 bytes) and
+   `pi`. Expand the compact MAYO public key and run PoMFRIT verification:
+   recompute `h = SHAKE256(m || commitment)` from the JWS signing input and
+   the proof's commitment prefix, and verify the VOLE-in-the-head proof
+   against the expanded public map, `h`, and `r_additional`. Reject on any
+   length mismatch.
 
 Replay across presentations at the same relying party is prevented by the
 KB-JWT nonce exactly as in EVP. There is no double-spend ledger: reuse of a
@@ -434,9 +444,11 @@ unlinkability, not the relying party.
   total token supply of a closed epoch is fixed forever.
 - Blind JWK Sets SHOULD be served with cache lifetimes covering the epoch
   and SHOULD be fetchable without credentials, so relying-party fetches are
-  anonymous and amortized. Issuers SHOULD publish epoch keys in an
+  anonymous and amortized. Issuers MUST publish epoch keys in an
   append-only, publicly auditable log (key transparency) so that a targeted
-  per-user key cannot be served covertly.
+  per-user key cannot be served covertly; browsers and relying parties
+  SHOULD pin the log key and verify inclusion, and SHOULD verify log
+  consistency across key rotations.
 
 # The PoMFRIT-L1 Algorithm {#alg}
 
@@ -452,24 +464,32 @@ mapping used here:
 - `sign_2` (issuer): `s` such that `P*(s) = t`, where `P*` is the whipped
   MAYO public map of the epoch key, via the salt-free MAYO preimage sampler.
 - `sign_3` (holder): a VOLE-in-the-Head proof `pi` of knowledge of `(s, r)`
-  with `P*(s) = h XOR r`. `pi` is the JWS signature value.
+  with `P*(s) = h XOR r`.
 - Verification: recompute `h` from `m` and the commitment prefix of `pi`;
   verify `pi` against the expanded public map. Verification is
-  deterministic, offline, and requires only `m`, `pi`, and the issuer's
-  public key.
+  deterministic, offline, and requires only `m`, the signature value, and
+  the issuer's public key.
 
-The Fiat–Shamir transcript is domain-separated with the fixed context
-string `r_additional = ASCII("PoMFRIT-JWS-v0")`, so that proofs produced for
-this profile verify only in this profile.
+The scheme binds 32 bytes of session randomness `r_additional` into the
+Fiat–Shamir transcript at both proving and verification. The holder
+generates it fresh per token and the JWS signature value carries it as a
+prefix: `signature = r_additional || pi`. Verifiers split the first 32
+bytes off before proof verification. (This matches the authenticator
+encoding of the eat-pass implementation; see Implementation Status.)
 
-Parameter sets (MAYO round-2 instances; sizes in bytes, base64url expansion
-in parentheses):
+The `alg` value "PoMFRIT-L1" denotes the same construction eat-pass calls
+`PoMFRIT-MAYO1-FV1-128` — the MAYO_1 instance with the FV1_128
+VOLE-in-the-Head parameterization of the reference implementation; proof
+bytes interoperate.
 
-| Algorithm  | MAYO set | Issuer JWK `pk` | Blinded target `t` | Issuer reply `s` | Signature `pi` |
-|------------|----------|-----------------|--------------------|------------------|----------------|
-| PoMFRIT-L1 | MAYO_1   | 1420            | 39                 | 430              | 6895 (9194)    |
-| PoMFRIT-L3 | MAYO_3   | 2986            | 54                 | 649              | 15862 (21150)  |
-| PoMFRIT-L5 | MAYO_5   | 5554            | 71                 | 924              | 29615 (39487)  |
+Parameter sets (MAYO round-2 instances; sizes in bytes; the JWS signature
+value is `32 + |pi|`, base64url expansion in parentheses):
+
+| Algorithm  | MAYO set | Issuer JWK `pk` | Blinded target `t` | Issuer reply `s` | Proof `pi` | JWS signature |
+|------------|----------|-----------------|--------------------|------------------|------------|---------------|
+| PoMFRIT-L1 | MAYO_1   | 1420            | 39                 | 430              | 6895       | 6927 (9236)   |
+| PoMFRIT-L3 | MAYO_3   | 2986            | 54                 | 649              | 15862      | 15894 (21192) |
+| PoMFRIT-L5 | MAYO_5   | 5554            | 71                 | 924              | 29615      | 29647 (39530) |
 
 Issuance costs the network 469 bytes per token at L1 (39 up, 430 down,
 excluding HTTP framing); the ~7 KB proof is generated and spent client-side
@@ -625,21 +645,31 @@ reference optimized C++ reports sub-100 ms showings at L1). Sizes in
 {{alg}} are the byte-exact values from that implementation:
 `ProofSize() = 6895 / 15862 / 29615`.
 
-The surrounding token machinery this profile assumes — per-epoch issuer
-keys with secret-key destruction at epoch close, batched issuance into a
-client-side token store spent one at a time, an origin-side replay cache,
-a public per-epoch key directory, and a base64url HTTP header wire format —
-exists as a C++ implementation ("faest-pass") layered on the FAEST
-reference code, using plain (non-blind) FAEST signatures over
-issuer-constructed payloads. It demonstrates the epoch/refill/spend
-lifecycle end to end and is the origin of the key-destruction requirement
-in {{epochs}}; being non-blind, its tokens carry an issuer-assigned index
-and a per-account commitment and are therefore issuer-linkable — precisely
-the property this profile removes.
+The primitive and its surrounding token machinery already run end to end
+in eat-pass {{EATPASS}}, a Rust implementation of PoMFRIT spend tokens on
+Privacy Pass rails: the {{RFC9577}} challenge/redemption HTTP flow with token
+type 0x4550 and algorithm label `PoMFRIT-MAYO1-FV1-128`, batched blind
+issuance into a client-side token store, a mandatory signed append-only
+key-transparency log pinned by both client and origin with
+consistency-checked key rotation, an epoched central double-spend store,
+rate limiting, and fuzzed token parsers. This profile inherits its
+authenticator encoding (`r_additional || pi`) and its key-transparency
+stance. eat-pass differs in the issuance gate and the binding discipline:
+it gates minting on hardware attestation (a FAEST-signed authorization over
+a CVM or mobile EAT) rather than on an authenticated mailbox account, and
+it binds the origin challenge into the blind-signed message at mint time,
+yielding one-time origin-bound tokens — where this profile mints
+origin-agnostic tokens bound at presentation via the KB-JWT, because the
+stable per-origin pseudonym requires reuse. The two gates slot into the
+same primitive. eat-pass's PoMFRIT core links the reference C++/C
+implementation natively (Linux x86_64 only); the pure-Go tamayo
+implementation removes that platform restriction for server and bare-metal
+deployments.
 
 What does not yet exist, and is out of scope here: a browser wallet, the
-issuance endpoint, and the JWS plumbing for the `alg`/`kty` values sketched
-in {{iana}}.
+issuance endpoint on EVP's rails (eat-pass demonstrates the equivalent
+endpoint on HTTP-auth rails), and the JWS plumbing for the `alg`/`kty`
+values sketched in {{iana}}.
 
 # Acknowledgments
 {:numbered="false"}

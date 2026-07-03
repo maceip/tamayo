@@ -8,10 +8,14 @@
   (`typ: pvt+jwt`, `alg: PoMFRIT-L1`, `email` omitted, `mailbox_verified:
   true`, epoch-scoped keys), issuer metadata + endpoint, jose `alg`/`kty`
   registration sketch; every size in the draft verified byte-exact against
-  this repo (t=39, s=430, proof=6895 at l1); epoch key-destruction
-  requirement and implementation-status notes reconciled against the
-  faest-pass c++ token layer (daily issuer / client token store / replay
-  cache on the faest reference)
+  this repo (t=39, s=430, proof=6895 at l1); reconciled against eat-pass
+  (rust pomfrit spend tokens on privacy pass rails, rfc 9577, token type
+  0x4550): per-token `r_additional` carried as a 32-byte prefix of the jws
+  signature value (eat-pass authenticator encoding), key transparency
+  upgraded to MUST, epoch secret-key destruction at epoch close, and an
+  implementation-status section positioning tamayo as eat-pass's pure-go,
+  cgo-free path (its pomfrit core is ffi to the c++ reference, linux
+  x86_64 only)
 - github pages explainer at maceip.github.io/tamayo: a hand-rolled gen-1
   tamagotchi (bigger screen) whose B button hatches a d3-projected 3d egg
   into an auto-playing story of the pomfrit blind signature (pup / stamper /
