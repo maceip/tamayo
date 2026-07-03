@@ -147,23 +147,29 @@
      egg's curve and the square screen, so neither outline has to bend
      to the other (clip-path kills box-shadow, hence the rig wrapper) */
   .frame-rig {
-    position: absolute; inset: 38px 14px auto 14px; height: 310px;
+    /* sized so the burst tips peek only ~15% past the screen edge, like
+       the gen-1 — any bigger and the whole thing reads as a flower */
+    position: absolute; inset: 46px 38px auto 38px; height: 302px;
     filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .4));
   }
   .frame {
     position: absolute; inset: 0;
     background: linear-gradient(170deg, var(--trim-hi) 0%, var(--trim) 55%, var(--trim-lo) 100%);
+    /* gen-1 proportions: the screen covers 13–87% of this box, every
+       valley tucks under it, and only eight irregular tips peek past
+       the edge — 2 top, 2 each side, 2 bottom, like the target photo */
     clip-path: polygon(
-      2% 20%, 13% 12%, 30% 2%, 45% 12%, 62% 0%, 77% 11%,
-      97% 16%, 87% 30%, 100% 48%, 88% 62%, 98% 80%,
-      84% 88%, 64% 100%, 48% 89%, 30% 98%, 14% 87%,
-      0% 64%, 12% 50%, 4% 30%
+      33% 3%, 50% 18%, 67% 5%, 80% 20%,
+      99% 38%, 82% 55%, 96% 72%, 78% 80%,
+      68% 97%, 50% 82%, 32% 95%, 22% 80%,
+      3% 73%, 18% 55%, 1% 37%, 20% 20%
     );
   }
   .screen {
-    position: absolute; inset: 44px 52px;
+    position: absolute; inset: 42px 40px;
     background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
-    border-radius: 14px;
+    border: 5px solid var(--trim-lo);   /* thin bezel rim, like the gen-1 */
+    border-radius: 16px;
     box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45);
     overflow: hidden;
     transition: filter .18s;
