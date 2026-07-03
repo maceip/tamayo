@@ -110,7 +110,7 @@
     display: flex; justify-content: center; gap: 30px;
     font-size: 9px; color: rgba(46, 42, 114, .85); font-weight: 700; letter-spacing: 1px;
   }
-  .btn-labels span { width: 58px; text-align: center; }
+  .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
   .btn-labels span:nth-child(2) { margin-top: 14px; }
 
   footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; }
@@ -134,16 +134,16 @@
       <div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
     <div class="buttons">
-      <button class="btn" id="btnA" title="about pomfrit">A</button>
-      <button class="btn mid" id="btnB" title="hatch / replay">B</button>
-      <button class="btn" id="btnC" title="math for the nerds">C</button>
+      <button class="btn" id="btnA">A</button>
+      <button class="btn mid" id="btnB">B</button>
+      <button class="btn" id="btnC">C</button>
     </div>
-    <div class="btn-labels"><span>ABOUT</span><span>HATCH</span><span>MATH</span></div>
+    <div class="btn-labels"><span id="lblA">ABOUT</span><span id="lblB">HATCH</span><span id="lblC">MATH</span></div>
   </div>
 </div>
 
 <footer>
-  A cycles what-is-this pages · B hatches the egg and plays the whole story · C is for the nerds<br>
+  the labels under the buttons follow the screen you're on — they always do what they say<br>
   <span class="math-hint">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span>
 </footer>
 
@@ -245,10 +245,12 @@ function drawEgg(zoom = 1, opacity = 1) {
 }
 function startEggIdle() {
   stopEgg();
+  mode = "idle";
   eggTimer = d3.timer(() => drawEgg(1, 1));
-  caption(["a wild egg appears", "press  B  to hatch it"]);
+  caption(["a wild egg appears", "press  HATCH"]);
   nerd(["inside: MAYO + FAEST + PoMFRIT, in pure go,",
         "byte-exact vs their references, runs on bare metal"]);
+  refreshButtons();
 }
 function stopEgg() { if (eggTimer) { eggTimer.stop(); eggTimer = null; } }
 
@@ -346,6 +348,7 @@ function label(g, x, y, text) {
 async function playStory() {
   const tok = ++playToken;
   mode = "story";
+  refreshButtons();
   stopEgg();
   world.selectAll("*").remove(); hud.selectAll("*").remove(); nerd([]);
 
@@ -458,7 +461,6 @@ async function playStory() {
 
   /* back to the idle egg */
   world.selectAll("*").remove();
-  mode = "idle";
   startEggIdle();
 }
 
@@ -487,8 +489,13 @@ const ABOUT = [
 ];
 function showAbout() {
   playToken++; stopEgg(); mode = "about";
+  aboutPage = 0;
+  renderAbout();
+  refreshButtons();
+}
+function renderAbout() {
   world.selectAll("*").remove(); hud.selectAll("*").remove();
-  const page = ABOUT[aboutPage % ABOUT.length];
+  const page = ABOUT[aboutPage];
   const g = world.append("g");
   g.append("text").attr("x", W / 2).attr("y", 64).attr("text-anchor", "middle")
     .attr("font-size", 17).attr("fill", INK).attr("font-weight", 800).text(page[0]);
@@ -496,17 +503,60 @@ function showAbout() {
     g.append("text").attr("x", W / 2).attr("y", 100 + i * 22).attr("text-anchor", "middle")
       .attr("font-size", 13.5).attr("fill", INK).text(t));
   g.attr("opacity", 0).transition().duration(300).attr("opacity", 1);
-  caption([`page ${aboutPage % ABOUT.length + 1}/${ABOUT.length} — A: next · B: hatch`]);
+  caption([`page ${aboutPage + 1}/${ABOUT.length}`]);
   nerd(["h = SHAKE256(m‖π₁) · t = h⊕r · s = MAYO⁻¹(t) · π = VOLEitH(s) · BlindVerify(epk,m,π)"]);
-  aboutPage++;
+}
+function aboutStep(d) {
+  aboutPage = (aboutPage + d + ABOUT.length) % ABOUT.length;
+  renderAbout();
 }
 
 /* ================================================================
-   buttons
+   buttons — labels and actions follow the screen you're on:
+     idle:   ABOUT · HATCH  · MATH
+     about:  ‹BACK · NEXT›  · HOME
+     story:  HOME  · REPLAY · MATH
    ================================================================ */
-d3.select("#btnA").on("click", showAbout);
-d3.select("#btnB").on("click", () => playStory());
-d3.select("#btnC").on("click", () => setMath(!mathOn));
+const LBL = { A: d3.select("#lblA"), B: d3.select("#lblB"), C: d3.select("#lblC") };
+const BTN = { A: d3.select("#btnA"), B: d3.select("#btnB"), C: d3.select("#btnC") };
+const actions = { A: null, B: null, C: null };
+
+function setButtons(spec) {
+  for (const k of ["A", "B", "C"]) {
+    const [text, fn] = spec[k];
+    actions[k] = fn;
+    BTN[k].attr("title", text.toLowerCase());
+    const el = LBL[k];
+    if (el.text() === text) continue;
+    el.style("opacity", 0);                       // css transition fades out
+    setTimeout(() => { el.text(text); el.style("opacity", 1); }, 150);
+  }
+}
+const mathLabel = () => mathOn ? "MATH ✓" : "MATH";
+function toggleMath() { setMath(!mathOn); refreshButtons(); }
+function goHome() {
+  playToken++;
+  world.selectAll("*").remove();
+  startEggIdle();
+}
+function refreshButtons() {
+  if (mode === "about") {
+    setButtons({ A: ["‹ BACK", () => aboutStep(-1)],
+                 B: ["NEXT ›", () => aboutStep(+1)],
+                 C: ["HOME",   goHome] });
+  } else if (mode === "story") {
+    setButtons({ A: ["HOME",   goHome],
+                 B: ["REPLAY", () => playStory()],
+                 C: [mathLabel(), toggleMath] });
+  } else { // idle
+    setButtons({ A: ["ABOUT",  showAbout],
+                 B: ["HATCH",  () => playStory()],
+                 C: [mathLabel(), toggleMath] });
+  }
+}
+d3.select("#btnA").on("click", () => actions.A && actions.A());
+d3.select("#btnB").on("click", () => actions.B && actions.B());
+d3.select("#btnC").on("click", () => actions.C && actions.C());
 
 /* boot */
 startEggIdle();
