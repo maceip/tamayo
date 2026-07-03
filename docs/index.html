@@ -32,11 +32,24 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <style>
   :root {
-    --shell-a: #ffd94a;    /* classic gen-1 yellow */
-    --shell-b: #f5b711;
+    /* shell identicon defaults (the classic gen-1 yellow/blue). the head
+       script below overrides every one of these per visitor, derived from
+       a stable random key — same idea as a wallet and its blockie */
+    --shell-a:   #ffd94a;
+    --shell-b:   #f5b711;
+    --shell-hi:  #ffe98f;
+    --shell-deep:rgba(120, 70, 0, .3);
     --trim:    #2e2a72;    /* deep blue trim ring */
+    --trim-hi: #38339c;
+    --trim-lo: #201c58;
     --btn:     #3a35a0;
     --btn-hi:  #5a54d4;
+    --lbl:     rgba(46, 42, 114, .85);
+    --seam-ink:rgba(80, 45, 0, .5);
+    --egg-w: 380px;
+    --egg-h: 470px;
+    --egg-radius: 50% 50% 47% 47% / 56% 56% 44% 44%;
+    --seam-y: 56%;         /* the parting line sits at the widest point */
     --lcd:     #c7d3a0;    /* lcd green */
     --lcd-dim: #b4c18c;
     --ink:     #22301f;    /* lcd pixel ink */
@@ -76,22 +89,54 @@
   .rig.zooming { transition: transform .8s cubic-bezier(.22, .9, .3, 1); }
   .egg-shell {
     position: relative;
-    width: 380px; height: 470px;
+    width: var(--egg-w); height: var(--egg-h);
     background:
-      radial-gradient(220px 200px at 35% 25%, #ffe98f 0%, var(--shell-a) 45%, var(--shell-b) 100%);
-    border-radius: 50% 50% 47% 47% / 56% 56% 44% 44%;
+      radial-gradient(220px 200px at 35% 25%, var(--shell-hi) 0%, var(--shell-a) 45%, var(--shell-b) 100%);
+    border-radius: var(--egg-radius);
     box-shadow:
-      inset -14px -18px 40px rgba(120, 70, 0, .28),
+      inset -14px -18px 40px var(--shell-deep),
       inset 10px 12px 30px rgba(255, 255, 255, .5),
       0 24px 60px rgba(0, 0, 0, .55);
     transform: rotateX(4deg);
+  }
+  /* per-visitor coat (speckles/spots/stripes), painted by the identicon
+     script into an svg that stretches with the shell */
+  .shell-pattern {
+    position: absolute; inset: 0;
+    border-radius: var(--egg-radius);
+    overflow: hidden; pointer-events: none;
+  }
+  .shell-pattern svg { width: 100%; height: 100%; display: block; }
+  /* the beveled parting line where the two case halves meet: a short
+     horizontal groove at each side, strongest at the rim and fading
+     inward — a dark cut with a bright lip under it reads as recessed */
+  .seam {
+    position: absolute; top: var(--seam-y); height: 2.5px;
+    width: 17%; pointer-events: none;
+    border-radius: 2px;
+  }
+  .seam.left  {
+    left: 0;
+    background: linear-gradient(to right, var(--seam-ink) 12%, transparent 92%);
+  }
+  .seam.left::after {
+    content: ""; position: absolute; inset: 2.5px 0 -2px 0; border-radius: 2px;
+    background: linear-gradient(to right, var(--seam-lip, rgba(255,255,255,.5)) 12%, transparent 88%);
+  }
+  .seam.right {
+    right: 0;
+    background: linear-gradient(to left, var(--seam-ink) 12%, transparent 92%);
+  }
+  .seam.right::after {
+    content: ""; position: absolute; inset: 2.5px 0 -2px 0; border-radius: 2px;
+    background: linear-gradient(to left, var(--seam-lip, rgba(255,255,255,.5)) 12%, transparent 88%);
   }
   /* keychain nub + ring, like the original */
   .egg-shell::before {
     content: ""; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
     width: 44px; height: 26px; background: var(--shell-b);
     border-radius: 12px 12px 4px 4px;
-    box-shadow: inset 0 4px 6px rgba(255,255,255,.5), inset 0 -4px 6px rgba(120,70,0,.3);
+    box-shadow: inset 0 4px 6px rgba(255,255,255,.5), inset 0 -4px 6px var(--shell-deep);
   }
   .keyring {
     position: absolute; top: -46px; left: 50%; transform: translateX(-50%);
@@ -107,7 +152,7 @@
   }
   .frame {
     position: absolute; inset: 0;
-    background: linear-gradient(170deg, #38339c 0%, var(--trim) 55%, #201c58 100%);
+    background: linear-gradient(170deg, var(--trim-hi) 0%, var(--trim) 55%, var(--trim-lo) 100%);
     clip-path: polygon(
       2% 20%, 13% 12%, 30% 2%, 45% 12%, 62% 0%, 77% 11%,
       97% 16%, 87% 30%, 100% 48%, 88% 62%, 98% 80%,
@@ -144,7 +189,7 @@
   .btn-labels {
     position: absolute; bottom: 34px; left: 0; right: 0;
     display: flex; justify-content: center; gap: 30px;
-    font-size: 9px; color: rgba(46, 42, 114, .85); font-weight: 700; letter-spacing: 1px;
+    font-size: 9px; color: var(--lbl); font-weight: 700; letter-spacing: 1px;
   }
   .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
   .btn-labels span:nth-child(2) { margin-top: 14px; }
@@ -163,14 +208,146 @@
     margin-top: 5px; font-size: 10px; letter-spacing: 1px; font-weight: 700;
     color: #9aa0c4; transition: opacity .14s;
   }
-  body.zoomed header, body.zoomed footer, body.zoomed .scroll-hint {
+  body.zoomed header, body.zoomed footer, body.zoomed .scroll-hint,
+  body.zoomed .buttons, body.zoomed .btn-labels {
     opacity: 0 !important; pointer-events: none;
   }
+  .buttons, .btn-labels { transition: opacity .3s; }
 
   footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; transition: opacity .35s; }
   footer a { color: #a7b6ff; text-decoration: none; }
   footer .fine { color: #565b78; }
 </style>
+<script>
+"use strict";
+/* ================================================================
+   shell identicon — every browser hatches its own shell, the way an
+   ethereum address gets a blockie. an 8-byte key is minted once and
+   kept in localStorage (?shell=<hex> or ?shell=<name> overrides);
+   the key hashes to one of 16 archetypes — each an exact replica of
+   a real shell from the samples in docs/eggs/ — and then usually
+   mutates it (hue rotation, pattern re-seed, shape jitter) into a
+   one-of-a-kind derivative. ~15% of keys are untouched "mint"
+   originals. this block only sets colors + shape as css vars; the
+   coat patterns are painted by paintShell() in the main script.
+   ================================================================ */
+const SHELL = (() => {
+  /* [h, s, l] triples. shell = case plastic · trim = burst frame ·
+     btn = buttons · pat = palette the coat painter consumes */
+  const ARCH = {
+    tamayo:      { shell: [ 47, 100,  64], trim: [243,  44,  31], btn: [244,  49,  42],
+                   pat: [] },
+    doodle:      { shell: [ 38,  42,  72], trim: [136,  47,  33], btn: [330,  65,  65],
+                   pat: [[330, 70, 60], [187, 65, 55], [351, 75, 52], [55, 80, 60], [136, 45, 40]] },
+    clearblue:   { shell: [222,  68,  46], trim: [222,  70,  38], btn: [ 48,  95,  62], clear: true,
+                   pat: [[222, 70, 25]] },
+    keitai:      { shell: [230,   8,  93], trim: [217,  62,  50], btn: [  8,  72,  54],
+                   pat: [] },
+    clearpurple: { shell: [265,  60,  46], trim: [265,  62,  38], btn: [325,  70,  70], clear: true,
+                   pat: [[265, 62, 25]] },
+    camopink:    { shell: [330,  70,  80], trim: [240,   4,  11], btn: [240,   4,  15],
+                   pat: [[0, 0, 8], [318, 78, 56], [330, 45, 92], [335, 65, 74]] },
+    camogreen:   { shell: [ 84,  35,  35], trim: [240,   4,  11], btn: [240,   4,  15],
+                   pat: [[0, 0, 8], [47, 88, 55], [95, 40, 26], [84, 30, 45]] },
+    kitty:       { shell: [230,   6,  94], trim: [230,   8,  88], btn: [  5,  78,  52],
+                   pat: [[352, 80, 48], [215, 70, 50], [30, 85, 55], [0, 0, 15]] },
+    ocean:       { shell: [193,  55,  35], trim: [345,  60,  72], btn: [345,  62,  68],
+                   pat: [[180, 55, 65], [330, 60, 70], [45, 70, 60], [205, 60, 22]] },
+    stars:       { shell: [240,   6,  10], trim: [352,  65,  46], btn: [352,  68,  50],
+                   pat: [[0, 0, 98], [352, 70, 52]] },
+    toys:        { shell: [270,  30,  84], trim: [310,  70,  42], btn: [187,  50,  63], clear: true,
+                   pat: [[280, 60, 55], [325, 75, 60], [180, 55, 55], [28, 85, 60]] },
+    lime:        { shell: [ 88,  70,  55], trim: [240,   5,  10], btn: [240,   5,  13],
+                   pat: [] },
+    fragblack:   { shell: [240,   5,  11], trim: [240,   4,  92], btn: [240,   4,  95],
+                   pat: [[0, 0, 96]] },
+    fragwhite:   { shell: [240,   4,  93], trim: [240,   3,  86], btn: [240,   5,  12],
+                   pat: [[0, 0, 10]] },
+    devil:       { shell: [250,   8,   9], trim: [262,  55,  47], btn: [ 48,  35,  86],
+                   pat: [[52, 75, 58], [255, 12, 78], [262, 55, 55]] },
+    conan:       { shell: [  4,  75,  50], trim: [  4,  70,  42], btn: [222,  65,  50],
+                   pat: [[0, 0, 98], [222, 65, 55]],
+                   radius: "50% 50% 46% 46% / 61% 61% 39% 39%" },
+  };
+  const NAMES = Object.keys(ARCH);
+
+  let key = null, forced = null;
+  try {
+    const q = new URLSearchParams(location.search).get("shell");
+    if (q && ARCH[q]) { forced = q; key = q; }
+    else if (q && /^[0-9a-f]{16}$/.test(q)) key = q;
+    else {
+      key = localStorage.getItem("tamayo.shell");
+      if (!/^[0-9a-f]{16}$/.test(key || "")) {
+        key = Array.from(crypto.getRandomValues(new Uint8Array(8)),
+                         b => b.toString(16).padStart(2, "0")).join("");
+        localStorage.setItem("tamayo.shell", key);
+      }
+    }
+  } catch { forced = "tamayo"; key = "tamayo"; }  // storage blocked → the classic
+
+  let hsh = 0x811c9dc5;                            // fnv-1a
+  for (const ch of key) { hsh ^= ch.charCodeAt(0); hsh = Math.imul(hsh, 0x01000193) >>> 0; }
+  const mulberry = s => () => {
+    s = s + 0x6d2b79f5 >>> 0;
+    let t = s;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  const rnd  = mulberry(hsh);
+  const name = forced || NAMES[Math.floor(rnd() * NAMES.length)];
+  const A    = ARCH[name];
+  const mint = forced ? true : rnd() < 0.15;
+
+  /* derivative mutation: one hue rotation shared by every chromatic
+     color (achromatic plastic keeps its white/black), plus a little
+     lightness drift — structure and pattern kind never change */
+  const rot   = mint ? 0 : Math.floor(rnd() * 360);
+  const drift = mint ? 0 : Math.round(rnd() * 12 - 6);
+  const mut = ([h, s, l]) =>
+    s < 12 ? [h, s, Math.max(6, Math.min(96, l + drift))]
+           : [(h + rot) % 360, s, Math.max(14, Math.min(88, l + drift))];
+  const shell = mut(A.shell), trim = mut(A.trim), btn = mut(A.btn);
+  const pat   = A.pat.map(mut);
+
+  const H  = (c, a) => a === undefined
+    ? `hsl(${c[0]} ${c[1]}% ${c[2]}%)`
+    : `hsla(${c[0]}, ${c[1]}%, ${c[2]}%, ${a})`;
+  const lite = (c, dl, ds = 0) => [c[0], Math.max(0, c[1] + ds), Math.max(4, Math.min(97, c[2] + dl))];
+  const dark = shell[2] < 40;
+
+  const css = {
+    "--shell-a":    H(shell),
+    "--shell-b":    H(lite(shell, -12)),
+    "--shell-hi":   H(lite(shell, dark ? 10 : 15, -6)),
+    "--shell-deep": H([shell[0], Math.min(70, shell[1] + 15), Math.max(6, shell[2] - 38)], .34),
+    "--trim":       H(trim),
+    "--trim-hi":    H(lite(trim, 7)),
+    "--trim-lo":    H(lite(trim, -8)),
+    "--btn":        H(btn),
+    "--btn-hi":     H(lite(btn, 12)),
+    "--lbl":        dark ? H(lite(shell, 62, -20), .92) : H([trim[0], Math.min(60, trim[1] + 10), 24], .88),
+    "--seam-ink":   H([shell[0], shell[1], Math.max(5, shell[2] - 34)], .55),
+    "--seam-lip":   dark ? "rgba(255,255,255,.14)" : "rgba(255,255,255,.5)",
+  };
+  if (!mint) {
+    css["--egg-w"] = 380 + Math.floor(rnd() * 28 - 14) + "px";
+    css["--egg-h"] = 470 + Math.floor(rnd() * 26 - 6) + "px";
+    css["--seam-y"] = (54 + rnd() * 4).toFixed(1) + "%";
+  }
+  if (A.radius) css["--egg-radius"] = A.radius;
+  for (const [k, v] of Object.entries(css))
+    document.documentElement.style.setProperty(k, v);
+
+  return { key, name, mint, dark,
+           pat: pat.map(c => H(c)),
+           shellCol: H(shell), trimCol: H(trim), btnCol: H(btn),
+           /* coat rng: canonical seed for mints (identical for everyone),
+              key-derived for variants (layout unique per key) */
+           rnd: mulberry(mint ? 0xc0ffee + NAMES.indexOf(name) : (hsh ^ 0x9e3779b9) >>> 0) };
+})();
+</script>
 </head>
 <body>
 
@@ -186,7 +363,8 @@
 <div class="rig">
   <div class="egg-shell">
     <div class="shell-pattern"></div>
-    <div class="seam"></div>
+    <div class="seam left"></div>
+    <div class="seam right"></div>
     <div class="keyring"></div>
     <div class="frame-rig">
       <div class="frame"></div>
@@ -471,10 +649,10 @@ function drawTick(g, x, y, s = 1, delay = 0) {
     .transition().delay(delay).duration(300).attr("stroke-dashoffset", 0);
   return p;
 }
-function drawX(g, x, y, s = 1, delay = 0) {
+function drawX(g, x, y, s = 1, delay = 0, color = INK) {
   [["M -6 -6 L 6 6"], ["M 6 -6 L -6 6"]].forEach(([d]) =>
     g.append("path").attr("transform", `translate(${x},${y}) scale(${s})`)
-      .attr("d", d).attr("stroke", INK).attr("stroke-width", 3.2)
+      .attr("d", d).attr("stroke", color).attr("stroke-width", 3.2)
       .attr("stroke-linecap", "round")
       .attr("opacity", 0).transition().delay(delay).duration(150).attr("opacity", 1));
 }
@@ -577,11 +755,11 @@ st(1, ["forging from outside? the locks share dials —", "turn one, four others
   drawRaccoon(g, 60, 130, 1.4);
   for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
     const l = drawLockG(g, 210 + c * 56, 78 + r * 46, 1);
-    if ((r + c) % 2 === 0) drawX(g, 210 + c * 56, 78 + r * 46 - 24, 0.8, 700 + (r * 3 + c) * 180);
+    if ((r + c) % 2 === 0) drawX(g, 210 + c * 56, 78 + r * 46 + 7, 0.8, 700 + (r * 3 + c) * 180, LCD);
   }
   // wobbling tries counter
-  const counter = g.append("text").attr("x", 200).attr("y", 46).attr("text-anchor", "middle")
-    .attr("font-size", 14).attr("fill", INK).attr("font-weight", 800);
+  const counter = g.append("text").attr("x", 200).attr("y", 55).attr("text-anchor", "middle")
+    .attr("font-size", 13).attr("fill", INK).attr("font-weight", 800);
   counter.transition().duration(4000).ease(d3.easeQuadIn)
     .tween("count", function () {
       const n = d3.interpolateNumber(1, 4.9e12);
@@ -642,11 +820,11 @@ st(2, ["the box travels to the stamper, who turns it", "over, shakes it, holds i
   drawPup(g, 60, 140, 1.2);
   drawStamper(g, 320, 140, 1.5);
   const box = drawBox(g, 60, 90, 1.4);
-  fly(box, 60, 90, 250, 96, 1.5);
-  box.transition().delay(1300).duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(14)")
-     .transition().duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(-14)")
-     .transition().duration(280).attr("transform", "translate(250,96) scale(1.5) rotate(0)");
-  g.append("text").attr("x", 250).attr("y", 52).attr("text-anchor", "middle")
+  fly(box, 60, 90, 236, 96, 1.5);
+  box.transition().delay(1300).duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(14)")
+     .transition().duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(-14)")
+     .transition().duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(0)");
+  g.append("text").attr("x", 236).attr("y", 52).attr("text-anchor", "middle")
     .attr("font-size", 22).attr("fill", INK).attr("font-weight", 800).text("?")
     .attr("opacity", 0).transition().delay(1500).duration(300).attr("opacity", 1);
 });
@@ -701,16 +879,16 @@ st(3, ["new problem: showing the raw stamp would let", "the stamper recognize it
     .transition().delay(500).duration(600).attr("opacity", 1);
   drawEye(g, 255, 34, 1);
 });
-st(3, ["so the pup plays a game entirely inside its", "own head, with 8 imaginary puppet friends.", "(really: 'VOLE in the head')"], g => {
+st(3, ["so the pup plays a game entirely inside its", "own head, with 8 imaginary puppet friends —", "the trick FAEST calls 'VOLE in the head'"], g => {
   drawPup(g, 76, 158, 1.5);
   const bub = g.append("g");
-  bub.append("circle").attr("cx", 118, 128).attr("cx", 118).attr("cy", 128).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  bub.append("circle").attr("cx", 138).attr("cy", 110).attr("r", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  bub.append("ellipse").attr("cx", 252).attr("cy", 96).attr("rx", 104).attr("ry", 62)
+  bub.append("circle").attr("cx", 118).attr("cy", 132).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  bub.append("circle").attr("cx", 138).attr("cy", 116).attr("r", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  bub.append("ellipse").attr("cx", 252).attr("cy", 102).attr("rx", 104).attr("ry", 56)
     .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
   bub.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
   for (let i = 0; i < 8; i++) {
-    const x = 186 + (i % 4) * 44, y = 76 + Math.floor(i / 4) * 42;
+    const x = 186 + (i % 4) * 44, y = 84 + Math.floor(i / 4) * 40;
     const p = g.append("g").attr("opacity", 0);
     p.append("circle").attr("cx", x).attr("cy", y).attr("r", 11)
       .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
@@ -721,30 +899,38 @@ st(3, ["so the pup plays a game entirely inside its", "own head, with 8 imaginar
     p.transition().delay(400 + i * 110).duration(250).attr("opacity", 1);
   }
 });
-st(3, ["the stamp is shredded into 8 strips of pure", "static. stack ALL 8: the stamp re-forms.", "any 7? still just static. try it —"], g => {
-  const seal = drawSeal(g, 200, 60, 1.7);
+st(3, ["the stamp is shredded into 8 strips of pure", "static. stack ALL 8: the stamp re-forms.", "any 7? still just static"], g => {
+  const seal = drawSeal(g, 200, 66, 1.7);
   const strips = [];
   for (let i = 0; i < 8; i++) {
-    const x = 52 + (i % 4) * 66, y = 118 + Math.floor(i / 4) * 26;
-    const s = drawStrip(g, 200, 60, i).attr("opacity", 0);
+    const x = 78 + (i % 4) * 60, y = 108 + Math.floor(i / 4) * 26;
+    const s = drawStrip(g, 200, 66, i).attr("opacity", 0);
     s.transition().delay(300 + i * 90).duration(450)
       .attr("opacity", 1).attr("transform", `translate(${x},${y})`);
-    strips.push([s, x, y]);
+    strips.push(s);
   }
-  seal.transition().delay(300).duration(600).attr("opacity", 0.25);
-  // stack them -> the seal solidifies; pull one out -> static again
-  strips.forEach(([s]) => s.transition().delay(1700).duration(600)
-    .attr("transform", "translate(200,178)"));
-  seal.transition().delay(2300).duration(400).attr("opacity", 1);
-  strips[5][0].transition().delay(3300).duration(600)
-    .attr("transform", "translate(338,178)");
-  seal.transition().delay(3900).duration(400).attr("opacity", 0.25);
-  label(g, 200, 205, "stack of 7 = nothing", 10.5).attr("opacity", 0)
-    .transition().delay(4100).duration(300).attr("opacity", 1);
+  seal.transition().delay(300).duration(600).attr("opacity", 0.2);
+  // stack all 8 -> the seal re-forms next to the stack
+  strips.forEach((s, i) => s.transition().delay(1700).duration(600)
+    .attr("transform", `translate(130,${178 - i * 2.2})`));
+  g.append("text").attr("x", 172).attr("y", 176).attr("text-anchor", "middle")
+    .attr("font-size", 16).attr("font-weight", 800).attr("fill", INK).text("=")
+    .attr("opacity", 0).transition().delay(2400).duration(300).attr("opacity", 1);
+  const stamp2 = drawSeal(g, 208, 170, 0.01);
+  stamp2.transition().delay(2500).duration(350)
+    .attr("transform", "translate(208,170) scale(1.25)");
+  label(g, 130, 203, "8 together", 9.5);
+  // pull one strip out -> static again
+  strips[5].transition().delay(3400).duration(600)
+    .attr("transform", "translate(320,170)");
+  stamp2.transition().delay(4000).duration(400).attr("opacity", 0.15);
+  drawX(g, 208, 170, 1.1, 4300);
+  label(g, 320, 203, "one missing", 9.5).attr("opacity", 0)
+    .transition().delay(4300).duration(300).attr("opacity", 1);
 });
 st(3, ["each strip is sealed in an envelope and glued", "to the certificate. then a coin NOBODY controls", "(a hash) picks 7 of 8 envelopes to rip open"], g => {
   // coin flip
-  const coin = g.append("g").attr("transform", "translate(200,46)");
+  const coin = g.append("g").attr("transform", "translate(200,56)");
   const face = coin.append("g");
   face.append("circle").attr("r", 15).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
   face.append("text").attr("y", 5).attr("text-anchor", "middle").attr("font-size", 13)
@@ -771,21 +957,20 @@ st(3, ["each strip is sealed in an envelope and glued", "to the certificate. the
 st(3, ["the 7 open strips must tally against the lock", "wall — a lie can only hide in the ONE sealed", "envelope. and the game runs 100s of rounds"], g => {
   for (let i = 0; i < 7; i++) {
     const x = 66 + i * 45;
-    drawStrip(g, x, 60, i, 34, 10);
-    const l = drawLockG(g, x, 92, 0.62);
+    drawStrip(g, x, 58, i, 34, 10);
+    const l = drawLockG(g, x, 84, 0.62);
     openLock(l, 400 + i * 140);
-    drawTick(g, x + 12, 84, 0.6, 600 + i * 140);
+    drawTick(g, x + 13, 78, 0.55, 600 + i * 140);
   }
-  label(g, 200, 124, "every opened strip checks out", 10.5);
+  label(g, 200, 116, "every opened strip checks out ...", 10.5);
   // rounds montage: luck runs out
   const rowsG = g.append("g");
   for (let i = 0; i < 30; i++) {
-    const x = 76 + (i % 10) * 28, y = 148 + Math.floor(i / 10) * 22;
+    const x = 76 + (i % 10) * 28, y = 138 + Math.floor(i / 10) * 22;
     rowsG.append("rect").attr("x", x - 9).attr("y", y - 8).attr("width", 18).attr("height", 16)
       .attr("rx", 2).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 1.6);
     drawTick(rowsG, x, y, 0.5, 900 + i * 70);
   }
-  label(g, 200, 205, "... x100s of rounds at once — luck runs out", 10.5);
 });
 st(3, ["the owl ends up 100% convinced the stamp is", "real — yet its notebook holds nothing but", "static. that's a ZERO-KNOWLEDGE proof"], g => {
   drawJudge(g, 96, 140, 1.6);
@@ -848,8 +1033,9 @@ st(5, ["drop the fur. this is how you build:", "cash that can't be traced, crede
   label(g, 200, 190, "approved — with no trail of who or what for", 11);
 });
 st(5, ["everything you just watched runs for real in", "this repo: pure go, byte-exact vs the reference", "code, even on a bare-metal riscv board"], g => {
-  big(g, W / 2, 66, "THE END (OF CHAPTER 1)", 20);
-  const book = g.append("g").attr("transform", "translate(200,124)").style("cursor", "pointer")
+  big(g, W / 2, 62, "THAT WAS POMFRIT", 24);
+  label(g, W / 2, 80, "the one-more-mayo blind signature, whipped fresh", 10.5);
+  const book = g.append("g").attr("transform", "translate(200,128)").style("cursor", "pointer")
     .on("click", ev => { ev.stopPropagation(); window.open("https://github.com/maceip/tamayo", "_blank"); });
   book.append("rect").attr("x", -26).attr("y", -30).attr("width", 52).attr("height", 60)
     .attr("rx", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 4);

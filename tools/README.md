@@ -62,9 +62,9 @@ commit history; the blind-loop dumper additionally links mayo-c
 end-to-end checks for the github pages demo (`docs/index.html`), run against
 headless chrome via puppeteer-core:
 
-- `verify.js` — walks the whole interaction design (scroll zones, gen-1 button
-  semantics, auto-playing looping story, math overlay, press feedback) and
-  asserts 33 behaviors plus a clean console
+- `verify.js` — walks the whole interaction design (intro scroll, zoomed
+  23-state movie, NEXT/BACK stepping via buttons/wheel/keyboard/taps, chapter
+  icon jumps, press feedback) and asserts 36 behaviors plus a clean console
 - `ogshots.js` — renders the live page and captures `docs/og.png` and the
   favicon sources from the actual egg
 
