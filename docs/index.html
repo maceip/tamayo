@@ -3,7 +3,7 @@
      one-more-mayo blind signature. no build step, no framework — one file,
      d3 for the 3d egg + scene transitions.
 
-     the demo is a 23-state movie in 6 chapters. NEXT/BACK step the states
+     the demo is a 27-state movie in 6 chapters. NEXT/BACK step the states
      (clicks interrupt whatever animation is running); scrolling just presses
      the buttons for you (about half a wheel notch = one press). when the
      movie starts the camera zooms in so the lcd nearly fills the window,
@@ -557,6 +557,15 @@ function drawBone(g, x, y, s = 1) {
       .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5));
   return b;
 }
+function drawCoin(g, x, y, s = 1) {
+  const c = g.append("g").attr("class", "coin")
+             .attr("transform", `translate(${x},${y}) scale(${s})`);
+  c.append("circle").attr("r", 15).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
+  c.append("circle").attr("r", 10.5).attr("fill", "none").attr("stroke", INK)
+    .attr("stroke-width", 1.6).attr("stroke-dasharray", "3 3");
+  drawBone(c, 0, 0, 0.42);
+  return c;
+}
 function drawBox(g, x, y, s = 1) {
   const b = g.append("g").attr("class", "box")
              .attr("transform", `translate(${x},${y}) scale(${s})`);
@@ -673,8 +682,8 @@ function big(g, x, y, text, size = 24, tilt = -2) {
     .attr("font-size", size).attr("fill", INK).attr("font-weight", 800)
     .attr("transform", `rotate(${tilt} ${x} ${y})`).text(text);
 }
-function fly(prop, x1, y1, x2, y2, s = 1.4, dur = 1100) {
-  prop.transition().duration(dur).ease(d3.easeCubicInOut)
+function fly(prop, x1, y1, x2, y2, s = 1.4, dur = 1100, delay = 0) {
+  prop.transition().delay(delay).duration(dur).ease(d3.easeCubicInOut)
     .attrTween("transform", () => tt => {
       const x = x1 + (x2 - x1) * tt;
       const y = y1 + (y2 - y1) * tt - Math.sin(Math.PI * tt) * 26;
@@ -695,7 +704,7 @@ function castTrio(g) {
 }
 
 /* ================================================================
-   THE MOVIE — 23 states, 6 chapters. each state draws its whole
+   THE MOVIE — 27 states, 6 chapters. each state draws its whole
    scene from scratch with an entry animation, then holds. NEXT and
    BACK jump between states, interrupting anything mid-flight.
    ================================================================ */
@@ -1039,6 +1048,59 @@ st(5, ["drop the fur. this is how you build:", "cash that can't be traced, crede
   drawSeal(pass, 12, 0, 0.8);
   label(g, 310, 158, "PASS");
   label(g, 200, 190, "approved — with no trail of who or what for", 11);
+});
+/* ---- the payoff, end to end: the coin's whole life ---- */
+st(5, ["let's run CASH end to end. the blind-stamped", "bone IS a coin: the stamp makes it real, the", "blinding means nobody has ever seen it"], g => {
+  drawBone(g, 78, 112, 1.25);         label(g, 78, 152, "BONE");
+  big(g, 140, 120, "+", 24, 0);
+  drawCert(g, 202, 112, 0.95);        label(g, 202, 152, "STAMP CERT");
+  big(g, 264, 120, "=", 24, 0);
+  const coin = drawCoin(g, 328, 112, 0);
+  coin.transition().delay(600).duration(450).ease(d3.easeBackOut)
+    .attr("transform", "translate(328,112) scale(1.9)");
+  label(g, 328, 152, "ONE COIN").attr("opacity", 0)
+    .transition().delay(900).duration(300).attr("opacity", 1);
+  label(g, 200, 186, "minted by the stamper — who never saw it", 11);
+});
+st(5, ["the pup spends it at the raccoon's shop.", "no trust needed: the raccoon presses it on", "the public wall — locks pop, the coin is good"], g => {
+  drawPup(g, 66, 132, 1.1);           label(g, 66, 182, "PUP");
+  drawRaccoon(g, 334, 132, 1.15);     label(g, 334, 182, "SHOP");
+  const coin = drawCoin(g, 120, 116, 1.1);
+  fly(coin, 120, 116, 282, 116, 1.1, 900);
+  for (let i = 0; i < 3; i++) {
+    const l = drawLockG(g, 156 + i * 44, 168, 0.62);
+    openLock(l, 1100 + i * 150);
+  }
+  drawTick(g, 300, 88, 1.6, 1600);
+  // the goods come back: a ball for the pup
+  const ball = g.append("g");
+  ball.append("circle").attr("r", 9).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
+  ball.append("path").attr("d", "M -9 0 Q 0 -7 9 0").attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
+  ball.attr("transform", "translate(282,150) scale(0)");
+  ball.transition().delay(2000).duration(700).ease(d3.easeCubicInOut)
+    .attrTween("transform", () => t =>
+      `translate(${282 - 164 * t},${150 - Math.sin(Math.PI * t) * 30}) scale(${Math.min(1, t * 3)})`);
+});
+st(5, ["the raccoon banks the coin. the stamper", "checks its notes: it only ever stamped", "static — it can't tell whose coin came back"], g => {
+  drawRaccoon(g, 66, 136, 1.15);      label(g, 66, 186, "SHOP");
+  drawStamper(g, 330, 136, 1.15);     label(g, 330, 190, "BANK");
+  for (let i = 0; i < 4; i++) drawBox(g, 96 + i * 70, 62, 0.55);
+  label(g, 200, 92, "everything the bank ever saw", 10);
+  const coin = drawCoin(g, 116, 130, 1.05);
+  fly(coin, 116, 130, 278, 124, 1.05, 900);
+  big(g, 372, 92, "?", 26, 0).attr("opacity", 0)
+    .transition().delay(1300).duration(300).attr("opacity", 1);
+});
+st(5, ["copy the coin, spend it twice? the bank", "keeps every coin it's seen: second try = X.", "and one stamp can never mint two coins"], g => {
+  drawStamper(g, 330, 128, 1.2);      label(g, 330, 184, "BANK");
+  const c1 = drawCoin(g, 74, 92, 1.05);
+  const c2 = drawCoin(g, 74, 164, 1.05);
+  label(g, 74, 124, "the coin", 10);
+  label(g, 74, 196, "the copy", 10);
+  fly(c1, 74, 92, 232, 92, 1.05, 800);
+  drawTick(g, 264, 88, 1.5, 1000);
+  fly(c2, 74, 164, 232, 164, 1.05, 800, 1500);
+  drawX(g, 264, 162, 1.7, 2500);
 });
 st(5, ["everything you just watched runs for real in", "this repo: pure go, byte-exact vs the reference", "code, even on a bare-metal riscv board"], g => {
   big(g, W / 2, 62, "THAT WAS POMFRIT", 24);

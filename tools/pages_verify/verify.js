@@ -1,7 +1,7 @@
 // end-to-end verification of docs/index.html against the intended design:
-//   idle egg intro -> zoomed 23-state movie in 6 chapters
+//   idle egg intro -> zoomed 27-state movie in 6 chapters
 //   NEXT/BACK step states (interrupting animations); scroll = button presses
-//   gen-1 icon rows (3 top / 3 bottom) show + jump chapters
+//   gen-1 icon bands (4 top / 4 bottom: 6 chapters + egg home + book repo)
 const puppeteer = require("puppeteer-core");
 
 let pass = 0, fail = 0;
@@ -42,7 +42,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check("boot: idle mode", s.mode === "idle");
   check("boot: labels START/START/REPO", s.labels.join() === "START,START,REPO", s.labels.join());
   check("boot: 3d egg drawn", s.eggDots > 100, `dots=${s.eggDots}`);
-  check("boot: 6 chapter icons drawn", s.icons === 6, `icons=${s.icons}`);
+  check("boot: 8 icon slots drawn", s.icons === 8, `icons=${s.icons}`);
   const y1 = await page.evaluate(() => document.querySelector(".rig").getBoundingClientRect().top);
   check("boot: egg pushed to the fold", y1 > vh * 0.4, `rigTop=${y1}`);
   const d1 = await page.evaluate(() => document.querySelectorAll("circle.egg")[50].getAttribute("cx"));
@@ -78,8 +78,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(250);
   s = await state();
   check("rapid NEXT x3: interrupts and lands on 4", s.cur === 4);
+  // the active slot is the one carrying the inverted 48px highlight tile
+  // (every slot now contains ink rects — the pixel icons themselves)
   const hl = await page.evaluate(() =>
-    [...document.querySelectorAll("#lcd > g:nth-of-type(3) > g")].findIndex(g => g.querySelector("rect[fill='#22301f']")));
+    [...document.querySelectorAll("#lcd > g:nth-of-type(3) > g")].findIndex(g =>
+      [...g.querySelectorAll("rect")].some(r => r.getAttribute("width") === "48")));
   check("icons: chapter 1 (machine) highlighted", hl === 1, `hl=${hl}`);
   await page.click("#zbtnA");
   await sleep(250);
@@ -117,10 +120,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(250);
   s = await state();
   check("icon tap: jumps to the proof chapter", s.cur === 13, `cur=${s.cur}`);
-  await page.evaluate(() => goto(22));
+  await page.evaluate(() => goto(26));
   await sleep(300);
   s = await state();
-  check("state 22: pomfrit named", /THAT WAS POMFRIT/.test(s.texts));
+  check("state 26: pomfrit named", /THAT WAS POMFRIT/.test(s.texts));
   const repo = await page.evaluate(() => {
     let opened = null;
     const orig = window.open;
@@ -130,7 +133,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return { opened, mode, cur };
   });
   check("repo book: opens github in new tab", repo.opened === "https://github.com/maceip/tamayo", String(repo.opened));
-  check("repo book: stays in the movie", repo.mode === "story" && repo.cur === 22);
+  check("repo book: stays in the movie", repo.mode === "story" && repo.cur === 26);
   await page.click("#zbtnB");
   await sleep(250);
   check("NEXT at the end: wraps to start", (await state()).cur === 0);

@@ -19,6 +19,10 @@
 # compiled reference dumpers (tools/ are sources; binaries are built out-of-tree)
 /tools/*.o
 
+# pages e2e verifier deps (tools/pages_verify)
+node_modules/
+package-lock.json
+
 # Editor / OS
 .DS_Store
 *.swp
