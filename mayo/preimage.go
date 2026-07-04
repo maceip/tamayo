@@ -20,7 +20,7 @@ import (
 // t is attacker-controlled in the blind protocol (the user supplies it), so a
 // wrong-sized t or csk returns nil instead of panicking.
 func (p *Params) SignWithoutHashing(t, csk []byte) []byte {
-	if len(t) < p.MBytes || len(csk) != p.CSKBytes {
+	if len(t) != p.MBytes || len(csk) != p.CSKBytes {
 		return nil
 	}
 	m := p.M
@@ -62,6 +62,7 @@ func (p *Params) SignWithoutHashing(t, csk []byte) []byte {
 	aWidth := ((oo*k + 15) / 16) * 16
 	aScratch := make([]uint64, aWidth*((m+7)/8))
 
+	found := false
 	for ctr := 0; ctr <= 255; ctr++ {
 		tmp[ctrIdx] = byte(ctr)
 		hv := sha3.NewSHAKE256()
@@ -71,32 +72,26 @@ func (p *Params) SignWithoutHashing(t, csk []byte) []byte {
 		for i := 0; i < k; i++ {
 			decode(vAndR[i*vBytes:], vdec[i*v:], v)
 		}
-		for i := range mtmp {
-			mtmp[i] = 0
-		}
-		for i := range vpv {
-			vpv[i] = 0
-		}
+		clear(mtmp)
+		clear(vpv)
 		computeMAndVpv(p, vdec, l, p1, mtmp, vpv, pv)
-		for i := range y {
-			y[i] = 0
-		}
+		clear(y)
 		computeRHS(p, vpv, tDec, y)
-		for i := range aMatrix {
-			aMatrix[i] = 0
-		}
+		clear(aMatrix)
 		computeA(p, mtmp, aScratch, aMatrix)
 		for i := 0; i < m; i++ {
 			aMatrix[(1+i)*aCols-1] = 0
 		}
-		for i := range x {
-			x[i] = 0
-		}
+		clear(x)
 		decode(vAndR[k*vBytes:], x, k*oo)
 
 		if sampleSolution(p, aMatrix, y, x) {
+			found = true
 			break
 		}
+	}
+	if !found {
+		return nil
 	}
 
 	// s[i] = v[i] + O · x[i]; s[i][v:n] = x[i]

@@ -23,6 +23,11 @@
   `.github/workflows/pages.yml`
 - readme: concise security log citing commits, overall length cut by a third
 
+- pomfrit/mayo hardening follow-up: `SignWithoutHashing` now rejects overlong
+  blinded targets exactly as specified, `Sign3`/`Prove2` reject malformed
+  packed inputs without panics, and proof packing uses exact-size buffers
+  instead of nested appends
+
 - security review pass: `field.GF8.Mul` made branch-free (it sits on faest's
   secret witness path via invnorm); verify boundaries (`faest.Verify`,
   `pomfrit.Verify`/`BlindVerify`, `mayo.SignWithoutHashing`) now length-check

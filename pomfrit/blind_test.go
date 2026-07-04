@@ -119,3 +119,49 @@ func TestBlindLoopKAT(t *testing.T) {
 	}
 	t.Logf("verified %d full blind-signature loops byte-exact (t, bsig, proof) + accepting", len(vecs))
 }
+
+func TestBlindSignRejectsMalformedInputs(t *testing.T) {
+	o := MayoOWFL1
+	mp := &mayo.Mayo1
+	seed := make([]byte, mp.SKSeedBytes)
+	cpk, csk, err := mp.CompactKeyGen(seed)
+	if err != nil {
+		t.Fatalf("CompactKeyGen: %v", err)
+	}
+	epk, err := mp.ExpandPK(cpk)
+	if err != nil {
+		t.Fatalf("ExpandPK: %v", err)
+	}
+
+	msg := []byte("malformed boundary")
+	rAdd := make([]byte, 32)
+	target, st, h := o.Sign1(msg, rAdd)
+	bsig := mp.SignWithoutHashing(target, csk)
+	if len(bsig) != o.preimageBytes() {
+		t.Fatalf("preimage len=%d want %d", len(bsig), o.preimageBytes())
+	}
+
+	tests := []struct {
+		name string
+		epk  []byte
+		h    []byte
+		bsig []byte
+		st   MayoProveState
+	}{
+		{"short epk", epk[:len(epk)-1], h, bsig, st},
+		{"short h", epk, h[:len(h)-1], bsig, st},
+		{"short bsig", epk, h, bsig[:len(bsig)-1], st},
+		{"empty state", epk, h, bsig, MayoProveState{}},
+	}
+	for _, tc := range tests {
+		if proof := o.Sign3(tc.epk, tc.h, tc.bsig, tc.st, rAdd); len(proof.Bytes) != 0 {
+			t.Fatalf("%s: produced malformed proof len=%d", tc.name, len(proof.Bytes))
+		}
+	}
+
+	packedPk := make([]byte, o.publicSize())
+	packedSk := make([]byte, o.publicSize()+o.witnessBytes())
+	if proof := o.Prove2(MayoProveState{}, packedPk, packedSk, rAdd); len(proof.Bytes) != 0 {
+		t.Fatalf("Prove2 accepted empty state with proof len=%d", len(proof.Bytes))
+	}
+}

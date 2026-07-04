@@ -71,3 +71,23 @@ func TestSignWithoutHashingKAT(t *testing.T) {
 	}
 	t.Logf("verified %d MAYO preimage (sign_without_hashing) vectors byte-exact", len(vecs))
 }
+
+func TestSignWithoutHashingRejectsMalformedInput(t *testing.T) {
+	for _, p := range []*Params{&Mayo1, &Mayo3, &Mayo5} {
+		seed := make([]byte, p.SKSeedBytes)
+		_, csk, err := p.CompactKeyGen(seed)
+		if err != nil {
+			t.Fatalf("%s: CompactKeyGen: %v", p.Name, err)
+		}
+
+		if got := p.SignWithoutHashing(make([]byte, p.MBytes-1), csk); got != nil {
+			t.Fatalf("%s: accepted short target", p.Name)
+		}
+		if got := p.SignWithoutHashing(make([]byte, p.MBytes+1), csk); got != nil {
+			t.Fatalf("%s: accepted overlong target", p.Name)
+		}
+		if got := p.SignWithoutHashing(make([]byte, p.MBytes), csk[:len(csk)-1]); got != nil {
+			t.Fatalf("%s: accepted short csk", p.Name)
+		}
+	}
+}

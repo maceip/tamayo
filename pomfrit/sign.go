@@ -44,7 +44,8 @@ func (o MayoOWF) expandedPkBytes() int {
 func (o MayoOWF) hBytes() int { return o.P.M / 2 }
 
 // publicSize / secret layout (VOLEMAYO_PUBLIC_SIZE_BYTES etc).
-func (o MayoOWF) publicSize() int { return o.expandedPkBytes() + o.hBytes() }
+func (o MayoOWF) publicSize() int    { return o.expandedPkBytes() + o.hBytes() }
+func (o MayoOWF) preimageBytes() int { return o.witnessBytes() - o.rBytes() }
 
 // voleCheckChallengeBytes = 5*lambda+8; qsChallengeBytes = 3*lambda+8.
 func (o MayoOWF) voleCheckChallengeBytes() int { return 5*o.lam() + 8 }
@@ -134,6 +135,9 @@ func (o MayoOWF) Prove1(rAdditional []byte) MayoProveState {
 // Prove2 runs vole_prove_2 from a prove-1 state, the packed pk (expanded_pk ||
 // h) and packed sk (packed_pk || r || witness_s), returning the full proof.
 func (o MayoOWF) Prove2(st MayoProveState, packedPk, packedSk, rAdditional []byte) MayoProof {
+	if len(packedPk) != o.publicSize() || len(packedSk) != o.publicSize()+o.witnessBytes() || !o.validProveState(st) {
+		return MayoProof{}
+	}
 	f := o.F.field()
 	lam := o.lam()
 	vc := st.VC
@@ -207,6 +211,38 @@ func (o MayoOWF) ProofSize() int {
 		o.qsProofBytes() + o.openSize() + o.lam() + 16
 }
 
+func (o MayoOWF) validProveState(st MayoProveState) bool {
+	lam := o.lam()
+	if len(st.R) != o.rBytes() ||
+		len(st.IVPre) != 16 ||
+		len(st.Chal1) != o.voleCheckChallengeBytes() ||
+		len(st.VC.U) != o.F.colLenBytes() ||
+		len(st.VC.V) != lam*8*o.F.colLenBytes() ||
+		len(st.VC.Commitment) != o.voleCommitSize() ||
+		len(st.VC.Check) != 2*lam ||
+		len(st.VC.Forest) != o.F.Tau ||
+		len(st.VC.HashedLeaves) != o.F.Tau {
+		return false
+	}
+	for i := 0; i < o.F.Tau; i++ {
+		depth := o.F.treeDepth(i)
+		if len(st.VC.Forest[i]) != depth+1 || len(st.VC.HashedLeaves[i]) != (1<<depth)*2*lam {
+			return false
+		}
+		for d := 0; d <= depth; d++ {
+			if len(st.VC.Forest[i][d]) != 1<<d {
+				return false
+			}
+			for _, node := range st.VC.Forest[i][d] {
+				if len(node) != lam {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
 // Sign1 is the blind-signature sign_1: run prove_1, form the blinded message
 // t = h + r with h = SHAKE256(m || proof1), and return t, the carried state,
 // and h. h uses SHAKE256 at every level (reference mayo-c-sys shake256).
@@ -225,8 +261,16 @@ func (o MayoOWF) Sign1(m, rAdditional []byte) (t []byte, st MayoProveState, h []
 // packed_sk = packed_pk || r || bsig, then run prove_2. bsig is the MAYO
 // preimage of t from sign_2 (mayo.SignWithoutHashing).
 func (o MayoOWF) Sign3(epk, h, bsig []byte, st MayoProveState, rAdditional []byte) MayoProof {
-	packedPk := append(append([]byte(nil), epk...), h...)
-	packedSk := append(append(append([]byte(nil), packedPk...), st.R...), bsig...)
+	if len(epk) != o.expandedPkBytes() || len(h) != o.hBytes() || len(bsig) != o.preimageBytes() {
+		return MayoProof{}
+	}
+	packedPk := make([]byte, o.publicSize())
+	copy(packedPk, epk)
+	copy(packedPk[o.expandedPkBytes():], h)
+	packedSk := make([]byte, o.publicSize()+o.witnessBytes())
+	copy(packedSk, packedPk)
+	copy(packedSk[o.publicSize():], st.R)
+	copy(packedSk[o.publicSize()+o.rBytes():], bsig)
 	return o.Prove2(st, packedPk, packedSk, rAdditional)
 }
 
@@ -239,6 +283,8 @@ func (o MayoOWF) BlindVerify(epk, m, proof, rAdditional []byte) bool {
 	}
 	proof1 := proof[:o.proof1Size()]
 	h := shake256Sum(o.hBytes(), m, proof1)
-	packedPk := append(append([]byte(nil), epk...), h...)
+	packedPk := make([]byte, o.publicSize())
+	copy(packedPk, epk)
+	copy(packedPk[o.expandedPkBytes():], h)
 	return o.Verify(packedPk, rAdditional, proof)
 }
