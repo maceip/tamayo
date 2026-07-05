@@ -1,1989 +1,1135 @@
 <!doctype html>
-<!-- tamayo: a hand-rolled gen-1 tamagotchi that explains the pomfrit
-     one-more-mayo blind signature. no build step, no framework — one file,
-     d3 for the 3d egg + scene transitions.
-
-     the demo is a 27-state movie in 6 chapters. NEXT/BACK step the states
-     (clicks interrupt whatever animation is running); scrolling just presses
-     the buttons for you (about half a wheel notch = one press). when the
-     movie starts the camera zooms in so the lcd nearly fills the window,
-     and a fixed A/B/C bar takes over for the physical buttons. the gen-1
-     icon rows (3 top, 3 bottom) are the chapter list — the current chapter
-     is inverted, tap an icon to jump. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>tamayo — pomfrit, explained by an egg</title>
-<meta name="description" content="a gen-1 tamagotchi that performs a post-quantum blind signature — byte-exact, in pure go, even on bare metal">
+<title>Tamayo - limited proof for delegated software</title>
+<meta name="description" content="Tamayo shows how limited cryptographic passes can let legitimate user-approved agents work with services without handing over the master key.">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maceip.github.io/tamayo/">
-<meta property="og:title" content="tamayo — pomfrit, explained by an egg">
-<meta property="og:description" content="a gen-1 tamagotchi that performs a post-quantum blind signature — byte-exact, in pure go, even on bare metal">
+<meta property="og:title" content="Tamayo - limited proof for delegated software">
+<meta property="og:description" content="A smooth visual story for one-use passes, private identity passes, policy-bound email, and Google email verification token compatibility.">
 <meta property="og:image" content="https://maceip.github.io/tamayo/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="tamayo — pomfrit, explained by an egg">
-<meta name="twitter:description" content="a gen-1 tamagotchi that performs a post-quantum blind signature — byte-exact, in pure go, even on bare metal">
+<meta name="twitter:title" content="Tamayo - limited proof for delegated software">
+<meta name="twitter:description" content="A visual story for proving enough, without turning every agent request into account takeover risk.">
 <meta name="twitter:image" content="https://maceip.github.io/tamayo/og.png">
-<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <style>
   :root {
-    /* shell identicon defaults (the classic gen-1 yellow/blue). the head
-       script below overrides every one of these per visitor, derived from
-       a stable random key — same idea as a wallet and its blockie */
-    --shell-a:   #ffd94a;
-    --shell-b:   #f5b711;
-    --shell-hi:  #ffe98f;
-    --shell-deep:rgba(120, 70, 0, .3);
-    --trim:    #2e2a72;    /* deep blue trim ring */
-    --trim-hi: #38339c;
-    --trim-lo: #201c58;
-    --btn:     #3a35a0;
-    --btn-hi:  #5a54d4;
-    --lbl:     rgba(46, 42, 114, .85);
-    --seam-ink:rgba(80, 45, 0, .5);
-    --egg-w: 398px;
-    --egg-h: 430px;
-    --egg-radius: 50% 50% 48% 48% / 53% 53% 47% 47%;
-    --seam-y: 56%;         /* the parting line sits at the widest point */
-    --lcd:     #c7d3a0;    /* lcd green */
-    --lcd-dim: #b4c18c;
-    --ink:     #22301f;    /* lcd pixel ink */
+    color-scheme: light;
+    --ink: #161615;
+    --muted: #5d5f63;
+    --paper: #f7f8f5;
+    --panel: #ffffff;
+    --line: #d8ddd6;
+    --dark: #111315;
+    --dark-soft: #1c2225;
+    --green: #31c48d;
+    --pink: #df57c6;
+    --blue: #2878ff;
+    --gold: #f2b84b;
+    --red: #f05b57;
+    --shadow: 0 22px 80px rgba(17, 19, 21, .16);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
-    background: radial-gradient(1200px 800px at 50% 20%, #1b1e2e 0%, #0d0f18 70%) fixed #0d0f18;
-    color: #cfd3e8;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.5;
   }
-  /* parallax intro: the page scrolls, the stage stays pinned; js slides the
-     egg up from the fold. once centered, scrolling presses buttons instead */
-  .stage {
-    position: sticky; top: 0; height: 100vh;
-    display: flex; flex-direction: column; align-items: center;
-    overflow: hidden;
-  }
-  .scroll-hint {
-    position: fixed; bottom: 16px; left: 50%;
-    font-size: 12px; letter-spacing: 3px; color: #cfd3e8;
-    background: rgba(13, 15, 24, .78); border-radius: 14px;
-    padding: 7px 16px;
-    pointer-events: none; transition: opacity .35s;
-    animation: hintbob 1.6s ease-in-out infinite;
-  }
-  @keyframes hintbob {
-    0%, 100% { transform: translate(-50%, 0); }
-    50%      { transform: translate(-50%, 9px); }
-  }
-  header { text-align: center; margin: 28px 12px 6px; transition: opacity .4s; }
-  header h1 { font-size: 20px; letter-spacing: 3px; color: #eceef8; font-weight: 600; }
-  header p  { font-size: 12px; color: #8b90ad; margin-top: 6px; }
-  header a  { color: #a7b6ff; text-decoration: none; }
+  button, input { font: inherit; }
+  a { color: inherit; }
 
-  /* ---------------- the device ---------------- */
-  .rig { perspective: 900px; margin: 18px 0 8px; will-change: transform; }
-  .rig.zooming { transition: transform .8s cubic-bezier(.22, .9, .3, 1); }
-  .egg-shell {
-      position: relative;
-      width: var(--egg-w); height: var(--egg-h);
-      background:
-        radial-gradient(170px 150px at 36% 17%, rgba(255,255,255,.55), transparent 60%),
-        radial-gradient(360px 320px at 48% 40%, var(--shell-hi) 0%, var(--shell-a) 46%, var(--shell-b) 100%);
-      border-radius: var(--egg-radius);
-      box-shadow:
-        inset -18px -22px 44px var(--shell-deep),
-        inset 12px 14px 32px rgba(255, 255, 255, .46),
-        inset 0 -3px 0 rgba(0, 0, 0, .08),
-        0 24px 60px rgba(0, 0, 0, .55);
-      transform: rotateX(4deg);
-  }
-  /* per-visitor coat (speckles/spots/stripes), painted by the identicon
-     script into an svg that stretches with the shell */
-  .shell-pattern {
-    position: absolute; inset: 0;
-    border-radius: var(--egg-radius);
-    overflow: hidden; pointer-events: none;
-  }
-  .shell-pattern svg { width: 100%; height: 100%; display: block; }
-  /* the beveled parting line where the two case halves meet: a short
-     horizontal groove at each side, strongest at the rim and fading
-     inward — a dark cut with a bright lip under it reads as recessed */
-  .seam {
-    position: absolute; top: var(--seam-y); height: 2.5px;
-    width: 17%; pointer-events: none;
-    border-radius: 2px;
-  }
-  .seam.left  {
+  .site-nav {
+    position: fixed;
+    top: 0;
     left: 0;
-    background: linear-gradient(to right, var(--seam-ink) 12%, transparent 92%);
-  }
-  .seam.left::after {
-    content: ""; position: absolute; inset: 2.5px 0 -2px 0; border-radius: 2px;
-    background: linear-gradient(to right, var(--seam-lip, rgba(255,255,255,.5)) 12%, transparent 88%);
-  }
-  .seam.right {
     right: 0;
-    background: linear-gradient(to left, var(--seam-ink) 12%, transparent 92%);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px clamp(16px, 4vw, 46px);
+    color: #f7f8f5;
+    mix-blend-mode: difference;
+    pointer-events: none;
   }
-  .seam.right::after {
-    content: ""; position: absolute; inset: 2.5px 0 -2px 0; border-radius: 2px;
-    background: linear-gradient(to left, var(--seam-lip, rgba(255,255,255,.5)) 12%, transparent 88%);
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
   }
-  /* keychain nub + ring, like the original */
-  .egg-shell::before {
-    content: ""; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
-    width: 44px; height: 26px; background: var(--shell-b);
-    border-radius: 12px 12px 4px 4px;
-    box-shadow: inset 0 4px 6px rgba(255,255,255,.5), inset 0 -4px 6px var(--shell-deep);
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #ffffff 0 12%, transparent 13%),
+      conic-gradient(from 20deg, var(--green), var(--pink), var(--gold), var(--blue), var(--green));
+    box-shadow: 0 0 0 2px rgba(255,255,255,.22);
   }
-  .keyring {
-    position: absolute; top: -46px; left: 50%; transform: translateX(-50%);
-    width: 40px; height: 40px; border: 6px solid #b9bdd6; border-radius: 50%;
-    box-shadow: inset 0 0 4px rgba(0,0,0,.4);
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    pointer-events: auto;
   }
-  /* the gen-1 "weird shape" frame: a jagged burst mediates between the
-     egg's curve and the square screen, so neither outline has to bend
-     to the other (clip-path kills box-shadow, hence the rig wrapper) */
-  .frame-rig {
-      /* compact gen-1 style frame: the jagged plastic hugs the screen
-         instead of becoming the whole object. */
-      position: absolute; inset: 62px 46px auto 46px; height: 274px;
-      filter: drop-shadow(0 7px 9px rgba(0, 0, 0, .46));
+  .nav-links a {
+    text-decoration: none;
+    opacity: .86;
   }
-  .frame {
-    position: absolute; inset: 0;
-    background: linear-gradient(170deg, var(--trim-hi) 0%, var(--trim) 55%, var(--trim-lo) 100%);
-      /* gen-1 proportions: irregular tips peek outside a tight LCD bezel. */
-      clip-path: polygon(
-        33% 2%, 49% 14%, 65% 3%, 78% 17%,
-        95% 33%, 84% 49%, 98% 65%, 82% 77%,
-        68% 96%, 50% 85%, 32% 96%, 19% 77%,
-        3% 67%, 16% 50%, 4% 33%, 22% 17%
-      );
-    }
-    .screen {
-      position: absolute; inset: 38px 31px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.18), transparent 20%),
-        linear-gradient(160deg, var(--lcd) 58%, var(--lcd-dim));
-      border: 7px solid var(--trim-lo);
-      border-radius: 13px;
-      box-shadow:
-        0 2px 0 rgba(255,255,255,.12),
-        inset 0 3px 10px rgba(30, 40, 20, .48);
+
+  .hero {
+    position: relative;
+    min-height: 88svh;
+    display: grid;
+    place-items: center;
     overflow: hidden;
-    transition: filter .18s;
+    padding: 86px clamp(18px, 5vw, 72px) 70px;
+    color: #f7f8f5;
+    background:
+      radial-gradient(900px 520px at 78% 24%, rgba(49, 196, 141, .28), transparent 62%),
+      radial-gradient(680px 500px at 16% 72%, rgba(223, 87, 198, .22), transparent 64%),
+      linear-gradient(135deg, #101214 0%, #20282a 58%, #121416 100%);
   }
-  .screen.lit { filter: brightness(1.16) saturate(1.1); }  /* button-press glow */
-  .screen svg { width: 100%; height: 100%; display: block; }
-
-  .buttons {
-      position: absolute; bottom: 48px; left: 0; right: 0;
-      display: flex; justify-content: center; gap: 42px;
-    }
-    .btn {
-      width: 50px; height: 50px; border-radius: 50%;
-    border: none; cursor: pointer;
-    background: radial-gradient(20px 20px at 35% 30%, var(--btn-hi), var(--btn) 70%);
-    box-shadow: inset 0 -4px 6px rgba(0,0,0,.45), inset 0 3px 4px rgba(255,255,255,.35),
-                0 5px 10px rgba(0,0,0,.35);
-    color: var(--btn-ink, #dfe2ff); font-family: inherit; font-size: 13px; font-weight: 700;
+  .hero-scene {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .94;
   }
-  .btn:active,
-  .btn.pressed { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); filter: brightness(1.25); }
-  .btn.mid { margin-top: 16px; }  /* middle button sits lower, like the original */
-    .btn-labels {
-      position: absolute; bottom: 28px; left: 0; right: 0;
-      display: flex; justify-content: center; gap: 38px;
-    font-size: 9px; color: var(--lbl); font-weight: 700; letter-spacing: 1px;
+  .hero-line {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(247,248,245,.42), transparent);
+    transform-origin: left center;
+    animation: pulseLine 4.4s ease-in-out infinite;
   }
-  .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
-  .btn-labels span:nth-child(2) { margin-top: 14px; }
-
-  /* fixed A/B/C bar for the zoomed-in movie (the physical buttons scroll
-     out of frame when the camera pushes into the screen) */
-  #zoomctl {
-    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 30px; z-index: 6;
-    opacity: 0; pointer-events: none; transition: opacity .4s;
+  .hero-line.one { width: 44vw; left: 14vw; top: 32%; transform: rotate(12deg); }
+  .hero-line.two { width: 50vw; right: 8vw; top: 52%; transform: rotate(-10deg); animation-delay: .8s; }
+  .hero-line.three { width: 38vw; left: 26vw; bottom: 20%; transform: rotate(-4deg); animation-delay: 1.5s; }
+  @keyframes pulseLine {
+    0%, 100% { opacity: .18; }
+    50% { opacity: .7; }
   }
-  body.zoomed #zoomctl { opacity: 1; pointer-events: auto; }
-  #zoomctl .ctl { text-align: center; }
-  #zoomctl .btn { width: 46px; height: 46px; font-size: 12px; }
-  #zoomctl .ctl-label {
-    margin-top: 5px; font-size: 10px; letter-spacing: 1px; font-weight: 700;
-    color: #9aa0c4; transition: opacity .14s;
+  .floating-card {
+    position: absolute;
+    min-width: 142px;
+    padding: 12px 14px;
+    border: 1px solid rgba(247, 248, 245, .22);
+    border-radius: 8px;
+    background: rgba(247, 248, 245, .08);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 50px rgba(0,0,0,.18);
+    animation: floatCard 7s ease-in-out infinite;
   }
-  body.zoomed header, body.zoomed footer, body.zoomed .scroll-hint,
-  body.zoomed .buttons, body.zoomed .btn-labels {
-    opacity: 0 !important; pointer-events: none;
+  .floating-card strong {
+    display: block;
+    font-size: 13px;
+    color: #ffffff;
   }
-  .buttons, .btn-labels { transition: opacity .3s; }
-
-  footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; transition: opacity .35s; }
-    footer a { color: #a7b6ff; text-decoration: none; }
-    footer .fine { color: #565b78; }
-
-    .catalogue {
-      min-height: 100vh;
-      padding: clamp(34px, 8vw, 88px) 18px clamp(48px, 9vw, 96px);
-      background:
-        radial-gradient(780px 460px at 78% 18%, rgba(131, 216, 149, .2), transparent 66%),
-        radial-gradient(620px 520px at 14% 78%, rgba(224, 118, 222, .16), transparent 64%),
-        linear-gradient(180deg, #0d0f18 0%, #151928 58%, #10131d 100%);
-      color: #eef2df;
-    }
-    .catalogue-inner {
-      width: min(1120px, 100%);
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: minmax(280px, .82fr) minmax(320px, 1fr);
-      gap: clamp(24px, 5vw, 64px);
-      align-items: center;
-    }
-    .catalogue-kicker {
-      font-size: 12px;
-      letter-spacing: 3px;
-      color: #9ed6a9;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-    .catalogue h2 {
-      font-size: clamp(28px, 5vw, 56px);
-      line-height: 1;
-      letter-spacing: 0;
-      max-width: 680px;
-      color: #fbfde8;
-    }
-    .catalogue-lede {
-      margin: 18px 0 26px;
-      max-width: 640px;
-      color: #c4cbae;
-      font-size: clamp(15px, 2vw, 18px);
-      line-height: 1.65;
-    }
-    .token-list {
-      list-style: none;
-      display: grid;
-      gap: 10px;
-    }
-    .token-list li {
-      border-left: 4px solid rgba(199, 211, 160, .22);
-      padding: 12px 14px 13px 16px;
-      background: rgba(255, 255, 255, .035);
-      border-radius: 0 8px 8px 0;
-      transition: background .28s, border-color .28s, transform .28s;
-    }
-    .token-list li.active {
-      border-color: #d66adf;
-      background: rgba(214, 106, 223, .13);
-      transform: translateX(4px);
-    }
-    .token-list strong {
-      display: block;
-      color: #fbfde8;
-      font-size: 14px;
-      margin-bottom: 4px;
-    }
-    .token-list span {
-      display: block;
-      color: #b7bea5;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-    .token-stage {
-      position: relative;
-      border: 1px solid rgba(199, 211, 160, .22);
-      border-radius: 8px;
-      background:
-        linear-gradient(180deg, rgba(199, 211, 160, .13), rgba(199, 211, 160, .04)),
-        #111720;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 22px 70px rgba(0,0,0,.42);
-      overflow: hidden;
-    }
-    .token-stage::before {
-      content: "";
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(199, 211, 160, .055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(199, 211, 160, .045) 1px, transparent 1px);
-      background-size: 24px 24px;
-      pointer-events: none;
-    }
-    #tokenLoop {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 16 / 11;
-      display: block;
-    }
-    @media (max-width: 860px) {
-      .catalogue-inner { grid-template-columns: 1fr; }
-    }
-  </style>
-<script>
-"use strict";
-/* ================================================================
-   shell identicon — every browser hatches its own shell, the way an
-   ethereum address gets a blockie. an 8-byte key is minted once and
-   kept in localStorage (?shell=<hex> or ?shell=<name> overrides);
-   the key hashes to one of 16 archetypes — each an exact replica of
-   a real shell from the samples in docs/eggs/ — and then usually
-   mutates it (hue rotation, pattern re-seed, shape jitter) into a
-   one-of-a-kind derivative. ~15% of keys are untouched "mint"
-   originals. this block only sets colors + shape as css vars; the
-   coat patterns are painted by paintShell() in the main script.
-   ================================================================ */
-const SHELL = (() => {
-  /* [h, s, l] triples. shell = case plastic · trim = burst frame ·
-     btn = buttons · pat = palette the coat painter consumes */
-  const ARCH = {
-    tamayo:      { shell: [ 47, 100,  64], trim: [243,  44,  31], btn: [244,  49,  42],
-                   pat: [] },
-    doodle:      { shell: [ 38,  42,  72], trim: [136,  47,  33], btn: [330,  65,  65],
-                   pat: [[330, 70, 60], [187, 65, 55], [351, 75, 52], [55, 80, 60], [136, 45, 40]] },
-    clearblue:   { shell: [222,  68,  46], trim: [222,  70,  38], btn: [ 48,  95,  62], clear: true,
-                   pat: [[222, 70, 25]] },
-    keitai:      { shell: [230,   8,  93], trim: [217,  62,  50], btn: [  8,  72,  54],
-                   pat: [] },
-    clearpurple: { shell: [265,  60,  46], trim: [265,  62,  38], btn: [325,  70,  70], clear: true,
-                   pat: [[265, 62, 25]] },
-    camopink:    { shell: [330,  70,  80], trim: [240,   4,  11], btn: [240,   4,  15],
-                   pat: [[0, 0, 8], [318, 78, 56], [330, 45, 92], [335, 65, 74]] },
-    camogreen:   { shell: [ 84,  35,  35], trim: [240,   4,  11], btn: [240,   4,  15],
-                   pat: [[0, 0, 8], [47, 88, 55], [95, 40, 26], [84, 30, 45]] },
-    kitty:       { shell: [230,   6,  94], trim: [230,   8,  88], btn: [  5,  78,  52],
-                   pat: [[352, 80, 48], [215, 70, 50], [30, 85, 55], [0, 0, 15]] },
-    ocean:       { shell: [193,  55,  35], trim: [345,  60,  72], btn: [345,  62,  68],
-                   pat: [[180, 55, 65], [330, 60, 70], [45, 70, 60], [205, 60, 22]] },
-    stars:       { shell: [240,   6,  10], trim: [352,  65,  46], btn: [352,  68,  50],
-                   pat: [[0, 0, 98], [352, 70, 52]] },
-    toys:        { shell: [270,  30,  84], trim: [310,  70,  42], btn: [187,  50,  63], clear: true,
-                   pat: [[280, 60, 55], [325, 75, 60], [180, 55, 55], [28, 85, 60]] },
-    lime:        { shell: [ 88,  70,  55], trim: [240,   5,  10], btn: [240,   5,  13],
-                   pat: [] },
-    fragblack:   { shell: [240,   5,  11], trim: [240,   4,  92], btn: [240,   4,  95],
-                   pat: [[0, 0, 96]] },
-    fragwhite:   { shell: [240,   4,  93], trim: [240,   3,  86], btn: [240,   5,  12],
-                   pat: [[0, 0, 10]] },
-    devil:       { shell: [250,   8,   9], trim: [262,  55,  47], btn: [ 48,  35,  86],
-                   pat: [[52, 75, 58], [255, 12, 78], [262, 55, 55]] },
-    conan:       { shell: [  4,  75,  50], trim: [  4,  70,  42], btn: [222,  65,  50],
-                   pat: [[0, 0, 98], [222, 65, 55]],
-                   radius: "50% 50% 46% 46% / 61% 61% 39% 39%" },
-  };
-  const NAMES = Object.keys(ARCH);
-
-    let key = null, forced = null, forcedWear = null;
-    try {
-      const params = new URLSearchParams(location.search);
-      const q = params.get("shell");
-      const w = params.get("wear");
-      if (w === "1" || w === "true") forcedWear = true;
-      else if (w === "0" || w === "false") forcedWear = false;
-      if (q && ARCH[q]) { forced = q; key = q; }
-      else if (q && /^[0-9a-f]{16}$/.test(q)) key = q;
-    else {
-      key = localStorage.getItem("tamayo.shell");
-      if (!/^[0-9a-f]{16}$/.test(key || "")) {
-        key = Array.from(crypto.getRandomValues(new Uint8Array(8)),
-                         b => b.toString(16).padStart(2, "0")).join("");
-        localStorage.setItem("tamayo.shell", key);
-      }
-    }
-  } catch { forced = "tamayo"; key = "tamayo"; }  // storage blocked → the classic
-
-  let hsh = 0x811c9dc5;                            // fnv-1a
-  for (const ch of key) { hsh ^= ch.charCodeAt(0); hsh = Math.imul(hsh, 0x01000193) >>> 0; }
-  const mulberry = s => () => {
-    s = s + 0x6d2b79f5 >>> 0;
-    let t = s;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-  const rnd  = mulberry(hsh);
-    const name = forced || NAMES[Math.floor(rnd() * NAMES.length)];
-    const A    = ARCH[name];
-    const mint = forced ? true : rnd() < 0.15;
-    const wear = forcedWear === null ? (!mint && rnd() < 0.28) : forcedWear;
-    const wearLevel = wear ? .45 + rnd() * .55 : 0;
-
-  /* derivative mutation: one hue rotation shared by every chromatic
-     color (achromatic plastic keeps its white/black), plus a little
-     lightness drift — structure and pattern kind never change */
-  const rot   = mint ? 0 : Math.floor(rnd() * 360);
-  const drift = mint ? 0 : Math.round(rnd() * 12 - 6);
-  const mut = ([h, s, l]) =>
-    s < 12 ? [h, s, Math.max(6, Math.min(96, l + drift))]
-           : [(h + rot) % 360, s, Math.max(14, Math.min(88, l + drift))];
-  const shell = mut(A.shell), trim = mut(A.trim), btn = mut(A.btn);
-  const pat   = A.pat.map(mut);
-
-  const H  = (c, a) => a === undefined
-    ? `hsl(${c[0]} ${c[1]}% ${c[2]}%)`
-    : `hsla(${c[0]}, ${c[1]}%, ${c[2]}%, ${a})`;
-  const lite = (c, dl, ds = 0) => [c[0], Math.max(0, c[1] + ds), Math.max(4, Math.min(97, c[2] + dl))];
-  const dark = shell[2] < 52;
-
-  const css = {
-    "--shell-a":    H(shell),
-    "--shell-b":    H(lite(shell, -12)),
-    "--shell-hi":   H(lite(shell, dark ? 10 : 15, -6)),
-    "--shell-deep": H([shell[0], Math.min(70, shell[1] + 15), Math.max(6, shell[2] - 38)], .34),
-    "--trim":       H(trim),
-    "--trim-hi":    H(lite(trim, 7)),
-    "--trim-lo":    H(lite(trim, -8)),
-    "--btn":        H(btn),
-    "--btn-hi":     H(lite(btn, 12)),
-    "--btn-ink":    btn[2] >= 60 ? H([btn[0], Math.min(60, btn[1] + 10), 16], .9) : "#eef0ff",
-    "--lbl":        dark ? H(lite(shell, 62, -20), .92) : H([trim[0], Math.min(60, trim[1] + 10), 24], .88),
-    "--seam-ink":   H([shell[0], shell[1], Math.max(5, shell[2] - 34)], .55),
-    "--seam-lip":   dark ? "rgba(255,255,255,.14)" : "rgba(255,255,255,.5)",
-  };
-  if (!mint) {
-    css["--egg-w"] = 380 + Math.floor(rnd() * 28 - 14) + "px";
-    css["--egg-h"] = 470 + Math.floor(rnd() * 26 - 6) + "px";
-    css["--seam-y"] = (54 + rnd() * 4).toFixed(1) + "%";
+  .floating-card span {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: rgba(247,248,245,.72);
   }
-  if (A.radius) css["--egg-radius"] = A.radius;
-  for (const [k, v] of Object.entries(css))
-    document.documentElement.style.setProperty(k, v);
+  .floating-card.paypal { top: 18%; right: 6%; border-color: rgba(40, 120, 255, .48); }
+  .floating-card.linkedin { bottom: 17%; left: 3%; border-color: rgba(49, 196, 141, .44); animation-delay: 1.1s; }
+  .floating-card.device { top: 29%; left: 3%; border-color: rgba(242, 184, 75, .44); animation-delay: 2s; }
+  .floating-card.prompt { right: 6%; bottom: 30%; border-color: rgba(240, 91, 87, .5); animation-delay: 2.7s; }
+  @keyframes floatCard {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .hero-copy {
+    position: relative;
+    z-index: 2;
+    width: min(980px, 100%);
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 18px;
+    color: rgba(247,248,245,.78);
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 7px rgba(49, 196, 141, .18);
+  }
+  h1 {
+    margin: 0;
+    max-width: 880px;
+    font-size: clamp(46px, 9vw, 112px);
+    line-height: .92;
+    color: #ffffff;
+  }
+  .hero-copy p {
+    max-width: 680px;
+    margin: 24px 0 0;
+    color: rgba(247,248,245,.82);
+    font-size: clamp(18px, 2.2vw, 24px);
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+  .button {
+    border: 0;
+    border-radius: 999px;
+    padding: 13px 18px;
+    background: #ffffff;
+    color: #111315;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.22);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.28); }
+  .button.secondary {
+    background: rgba(247,248,245,.1);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(247,248,245,.24);
+  }
 
-    return { key, name, mint, dark, wear, wearLevel,
-             pat: pat.map(c => H(c)),
-           shellCol: H(shell), trimCol: H(trim), btnCol: H(btn),
-           /* coat rng: canonical seed for mints (identical for everyone),
-              key-derived for variants (layout unique per key) */
-           rnd: mulberry(mint ? 0xc0ffee + NAMES.indexOf(name) : (hsh ^ 0x9e3779b9) >>> 0) };
-})();
-</script>
+  .section {
+    padding: clamp(58px, 10vw, 120px) clamp(18px, 5vw, 72px);
+  }
+  .section.dark {
+    background:
+      radial-gradient(760px 460px at 12% 18%, rgba(40, 120, 255, .16), transparent 64%),
+      radial-gradient(720px 460px at 86% 78%, rgba(49, 196, 141, .18), transparent 62%),
+      #111315;
+    color: #f7f8f5;
+  }
+  .section-head {
+    width: min(1040px, 100%);
+    margin: 0 auto clamp(28px, 5vw, 54px);
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: clamp(32px, 5vw, 64px);
+    line-height: 1;
+  }
+  .section-head p {
+    max-width: 760px;
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: clamp(17px, 2vw, 20px);
+  }
+  .dark .section-head p { color: rgba(247,248,245,.7); }
+
+  .story-grid {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(320px, 1.05fr) minmax(300px, .82fr);
+    gap: clamp(24px, 5vw, 58px);
+    align-items: center;
+  }
+  .scene-board {
+    position: relative;
+    min-height: 620px;
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+      #15191b;
+    border: 1px solid rgba(247,248,245,.14);
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,.28);
+  }
+  .scene-board::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(247,248,245,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(247,248,245,.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: .7;
+  }
+  .actor, .service, .device-node, .agent-node, .token-chip, .prompt-bubble, .risk-note, .proof-panel {
+    position: absolute;
+    z-index: 2;
+    transition: transform .55s cubic-bezier(.2,.8,.2,1), opacity .4s ease, filter .4s ease;
+  }
+  .actor {
+    left: 50%;
+    top: 47%;
+    width: 132px;
+    height: 132px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 35% 30%, #ffffff 0 11%, transparent 12%),
+      linear-gradient(145deg, var(--green), #185c40);
+    box-shadow: 0 0 0 12px rgba(49,196,141,.14), 0 20px 60px rgba(0,0,0,.32);
+    font-weight: 900;
+    color: #07100d;
+  }
+  .agent-node {
+    left: 50%;
+    top: 72%;
+    transform: translate(-50%, -50%);
+    width: 108px;
+    height: 84px;
+    border-radius: 22px;
+    display: grid;
+    place-items: center;
+    background: #f7f8f5;
+    color: #111315;
+    font-weight: 900;
+    box-shadow: var(--shadow);
+  }
+  .agent-node::before {
+    content: "";
+    position: absolute;
+    width: 40px;
+    height: 16px;
+    border-radius: 10px 10px 0 0;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f7f8f5;
+  }
+  .service {
+    width: 150px;
+    min-height: 86px;
+    padding: 14px;
+    border-radius: 8px;
+    background: rgba(247,248,245,.08);
+    border: 1px solid rgba(247,248,245,.18);
+    color: #f7f8f5;
+  }
+  .service strong, .device-node strong, .prompt-bubble strong {
+    display: block;
+    font-size: 13px;
+  }
+  .service span, .device-node span, .prompt-bubble span, .risk-note span {
+    display: block;
+    margin-top: 4px;
+    color: rgba(247,248,245,.65);
+    font-size: 12px;
+  }
+  .service.paypal { left: 8%; top: 14%; border-color: rgba(40,120,255,.42); }
+  .service.linkedin { right: 8%; top: 14%; border-color: rgba(49,196,141,.42); }
+  .device-node {
+    width: 108px;
+    min-height: 72px;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(247,248,245,.08);
+    border: 1px solid rgba(242,184,75,.36);
+    color: #f7f8f5;
+    opacity: .46;
+  }
+  .device-node.laptop { left: 15%; top: 50%; }
+  .device-node.phone { right: 14%; top: 50%; }
+  .device-node.tablet { left: 20%; bottom: 13%; }
+  .device-node.cloud { right: 18%; bottom: 13%; }
+  .prompt-bubble {
+    width: 164px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(240, 91, 87, .12);
+    border: 1px solid rgba(240, 91, 87, .42);
+    color: #ffffff;
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .prompt-bubble.one { left: 8%; top: 33%; }
+  .prompt-bubble.two { right: 9%; top: 35%; }
+  .prompt-bubble.three { left: 11%; bottom: 28%; }
+  .prompt-bubble.four { right: 10%; bottom: 29%; }
+  .risk-note {
+    left: 50%;
+    top: 12%;
+    width: min(420px, 80%);
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.18);
+    color: #ffffff;
+    transform: translate(-50%, -12px);
+    opacity: 0;
+  }
+  .risk-note strong {
+    display: block;
+    font-size: 14px;
+  }
+  .token-chip {
+    left: 50%;
+    top: 60%;
+    transform: translate(-50%, -50%) scale(.72);
+    width: 220px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111315;
+    opacity: 0;
+    box-shadow: var(--shadow);
+  }
+  .token-chip strong {
+    display: block;
+    font-size: 15px;
+  }
+  .token-chip span {
+    display: block;
+    margin-top: 5px;
+    color: #555b60;
+    font-size: 13px;
+  }
+  .proof-panel {
+    left: 50%;
+    bottom: 32px;
+    width: min(520px, calc(100% - 42px));
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    transform: translateX(-50%) translateY(18px);
+    opacity: 0;
+  }
+  .proof-panel div {
+    min-height: 86px;
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(255,255,255,.09);
+    border: 1px solid rgba(255,255,255,.14);
+  }
+  .proof-panel b {
+    display: block;
+    font-size: 13px;
+  }
+  .proof-panel span {
+    display: block;
+    margin-top: 6px;
+    color: rgba(247,248,245,.65);
+    font-size: 12px;
+  }
+  .route-svg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+  }
+  .route-svg path {
+    fill: none;
+    stroke: rgba(247,248,245,.16);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke .4s ease, opacity .4s ease, stroke-dashoffset 1s ease;
+  }
+  .route-svg path.good { stroke: var(--green); opacity: 0; stroke-dasharray: 8 12; animation: dash 2.8s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -80; } }
+
+  .scene-board[data-scene="device-cloud"] .device-node,
+  .scene-board[data-scene="prompt-flood"] .device-node,
+  .scene-board[data-scene="service-risk"] .device-node,
+  .scene-board[data-scene="bad-lanes"] .device-node,
+  .scene-board[data-scene="third-lane"] .device-node,
+  .scene-board[data-scene="slow-proof"] .device-node,
+  .scene-board[data-scene="blind"] .device-node,
+  .scene-board[data-scene="zk"] .device-node,
+  .scene-board[data-scene="tokens"] .device-node {
+    opacity: 1;
+  }
+  .scene-board[data-scene="prompt-flood"] .prompt-bubble,
+  .scene-board[data-scene="bad-lanes"] .prompt-bubble {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .scene-board[data-scene="service-risk"] .risk-note,
+  .scene-board[data-scene="bad-lanes"] .risk-note {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .scene-board[data-scene="third-lane"] .token-chip,
+  .scene-board[data-scene="slow-proof"] .token-chip,
+  .scene-board[data-scene="blind"] .token-chip,
+  .scene-board[data-scene="zk"] .token-chip,
+  .scene-board[data-scene="tokens"] .token-chip {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .scene-board[data-scene="slow-proof"] .proof-panel,
+  .scene-board[data-scene="blind"] .proof-panel,
+  .scene-board[data-scene="zk"] .proof-panel,
+  .scene-board[data-scene="tokens"] .proof-panel {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .scene-board[data-scene="third-lane"] path.good,
+  .scene-board[data-scene="slow-proof"] path.good,
+  .scene-board[data-scene="blind"] path.good,
+  .scene-board[data-scene="zk"] path.good,
+  .scene-board[data-scene="tokens"] path.good {
+    opacity: .9;
+  }
+  .scene-board[data-scene="bad-lanes"] .agent-node {
+    filter: grayscale(.8) brightness(.7);
+  }
+
+  .story-copy {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .step-count {
+    color: var(--green);
+    font-weight: 900;
+    font-size: 14px;
+  }
+  .story-copy h3 {
+    margin: 12px 0 0;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.05;
+  }
+  .story-copy p {
+    margin: 18px 0 0;
+    color: rgba(247,248,245,.74);
+    font-size: clamp(16px, 1.8vw, 19px);
+  }
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+  }
+  .tag {
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: rgba(247,248,245,.08);
+    color: rgba(247,248,245,.78);
+    border: 1px solid rgba(247,248,245,.12);
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .story-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+  }
+  .icon-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(247,248,245,.18);
+    background: rgba(247,248,245,.08);
+    color: #ffffff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background .18s ease, transform .18s ease;
+  }
+  .icon-button:hover { background: rgba(247,248,245,.16); transform: translateY(-1px); }
+  .play-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(247,248,245,.18);
+    padding: 0 14px;
+    background: rgba(247,248,245,.08);
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 800;
+  }
+  .dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 22px;
+  }
+  .dot {
+    width: 26px;
+    height: 8px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(247,248,245,.2);
+    cursor: pointer;
+  }
+  .dot.active { background: var(--green); }
+
+  .token-layout {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: .9fr 1.1fr;
+    gap: clamp(24px, 5vw, 58px);
+    align-items: start;
+  }
+  .token-buttons {
+    display: grid;
+    gap: 10px;
+  }
+  .token-button {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    background: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+  }
+  .token-button:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(17,19,21,.1); }
+  .token-button.active { border-color: var(--blue); box-shadow: 0 16px 42px rgba(40,120,255,.15); }
+  .token-button strong {
+    display: block;
+    font-size: 17px;
+  }
+  .token-button span {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+  }
+  .token-detail {
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .token-visual {
+    min-height: 260px;
+    position: relative;
+    background:
+      radial-gradient(260px 160px at 22% 18%, rgba(49,196,141,.22), transparent 62%),
+      radial-gradient(260px 180px at 84% 78%, rgba(223,87,198,.16), transparent 64%),
+      #111315;
+  }
+  .mini-pass {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(300px, 72%);
+    padding: 18px;
+    border-radius: 8px;
+    background: #f7f8f5;
+    color: #111315;
+    box-shadow: 0 30px 90px rgba(0,0,0,.32);
+  }
+  .mini-pass b {
+    display: block;
+    font-size: 20px;
+  }
+  .mini-pass span {
+    display: block;
+    margin-top: 7px;
+    color: #5d5f63;
+  }
+  .token-facts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+  }
+  .fact {
+    padding: 18px;
+    background: #ffffff;
+  }
+  .fact b {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .fact span {
+    display: block;
+    margin-top: 8px;
+    font-weight: 800;
+  }
+
+  .principles {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .principle {
+    border-radius: 8px;
+    padding: 22px;
+    background: rgba(247,248,245,.08);
+    border: 1px solid rgba(247,248,245,.14);
+  }
+  .principle b {
+    display: block;
+    font-size: 18px;
+  }
+  .principle p {
+    color: rgba(247,248,245,.72);
+    margin: 10px 0 0;
+  }
+
+  .footer {
+    padding: 36px clamp(18px, 5vw, 72px);
+    background: #090a0b;
+    color: rgba(247,248,245,.72);
+  }
+  .footer-inner {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .footer a { color: #ffffff; text-decoration: none; font-weight: 800; }
+
+  @media (max-width: 920px) {
+    .site-nav { position: absolute; mix-blend-mode: normal; }
+    .nav-links { display: none; }
+    .hero { min-height: 92svh; align-items: end; }
+    .floating-card { display: none; }
+    .story-grid, .token-layout, .principles { grid-template-columns: 1fr; }
+    .scene-board { min-height: 560px; }
+    .story-copy { justify-content: flex-start; }
+    .token-facts { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 921px) and (max-width: 1300px) {
+    .floating-card.device,
+    .floating-card.linkedin { display: none; }
+  }
+  @media (max-width: 560px) {
+    .hero { padding-inline: 18px; }
+    .hero-actions { align-items: stretch; }
+    .button { width: 100%; text-align: center; }
+    .scene-board { min-height: 430px; }
+    .actor { width: 104px; height: 104px; }
+    .agent-node { width: 92px; height: 70px; }
+    .service { width: 126px; padding: 11px; }
+    .device-node { width: 94px; min-height: 66px; }
+    .prompt-bubble { width: 134px; }
+    .prompt-bubble strong, .service strong, .device-node strong { font-size: 12px; }
+    .prompt-bubble span, .service span, .device-node span { font-size: 11px; }
+    .proof-panel { grid-template-columns: 1fr; bottom: 14px; }
+    .proof-panel div { min-height: 58px; }
+    .section { padding-inline: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: .01ms !important;
+    }
+  }
+</style>
 </head>
 <body>
+<nav class="site-nav" aria-label="Main">
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Tamayo</span></div>
+  <div class="nav-links">
+    <a href="#movie">Story</a>
+    <a href="#passes">Passes</a>
+    <a href="#crypto">Crypto</a>
+    <a href="https://github.com/maceip/tamayo">GitHub</a>
+  </div>
+</nav>
 
-<div id="scrollspace">
-<div class="stage">
-
-<header>
-  <h1>TAMAYO</h1>
-  <p>the pomfrit one-more-mayo blind signature, explained by an egg ·
-     <a href="https://github.com/maceip/tamayo">github.com/maceip/tamayo</a></p>
+<header class="hero">
+  <div class="hero-scene" aria-hidden="true">
+    <div class="hero-line one"></div>
+    <div class="hero-line two"></div>
+    <div class="hero-line three"></div>
+    <div class="floating-card paypal"><strong>PayPal task</strong><span>move my own money</span></div>
+    <div class="floating-card linkedin"><strong>LinkedIn task</strong><span>message real contacts</span></div>
+    <div class="floating-card device"><strong>device cloud</strong><span>phone, laptop, tablet, agent</span></div>
+    <div class="floating-card prompt"><strong>security prompt</strong><span>prove it again</span></div>
+  </div>
+  <div class="hero-copy">
+    <div class="eyebrow">limited proof for delegated software</div>
+    <h1>Let the agent through without handing over the master key.</h1>
+    <p>
+      Tamayo turns checked facts into narrow passes: enough evidence for a service to trust a legitimate user-approved action, without making every request a tracking handle or account takeover risk.
+    </p>
+    <div class="hero-actions">
+      <a class="button" href="#movie">Watch the story</a>
+      <a class="button secondary" href="#passes">Open the pass catalogue</a>
+    </div>
+  </div>
 </header>
 
-<div class="rig">
-  <div class="egg-shell">
-    <div class="shell-pattern"></div>
-    <div class="seam left"></div>
-    <div class="seam right"></div>
-    <div class="keyring"></div>
-    <div class="frame-rig">
-      <div class="frame"></div>
-      <div class="screen"><svg id="lcd" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg></div>
-    </div>
-    <div class="buttons">
-      <button class="btn" id="btnA" data-key="A">A</button>
-      <button class="btn mid" id="btnB" data-key="B">B</button>
-      <button class="btn" id="btnC" data-key="C">C</button>
-    </div>
-    <div class="btn-labels">
-      <span id="lblA" data-lbl="A">START</span>
-      <span id="lblB" data-lbl="B">START</span>
-      <span id="lblC" data-lbl="C">REPO</span>
-    </div>
-  </div>
-</div>
-
-<footer>
-  scroll or press: NEXT and BACK step the movie, one scene per half wheel-notch<br>
-  <span class="fine">everything on screen really happens, byte-exact, in the go packages of this repo — even on bare metal</span><br>
-  <span class="fine">shell <span id="shellid"></span> — hatched from a key this browser keeps, like a wallet and its blockie</span>
-</footer>
-
-</div><!-- .stage -->
-</div><!-- #scrollspace -->
-
-<section class="catalogue" id="token-catalogue" aria-labelledby="token-catalogue-title">
-  <div class="catalogue-inner">
-    <div>
-      <div class="catalogue-kicker">token catalogue</div>
-      <h2 id="token-catalogue-title">four ways to prove enough, and no more</h2>
-      <p class="catalogue-lede">
-        The crypto packages stay low level, but the token service now exposes
-        four rows product runtimes can wrap: one-use access, private continuity,
-        policy-bound email, and Google email verification token compatibility.
+<main>
+  <section class="section dark" id="movie">
+    <div class="section-head">
+      <h2>The modern internet sees help and calls it danger.</h2>
+      <p>
+        Money networks and reputation networks have good reasons to be suspicious. Users still need a way to delegate ordinary tasks without tripping every alarm.
       </p>
-      <ol class="token-list" id="tokenList">
-        <li>
-          <strong>Burn token</strong>
-          <span>Anonymous one-use pass. The verifier learns that this request was allowed once, then burns the token.</span>
-        </li>
-        <li>
-          <strong>Private identity token</strong>
-          <span>Same visitor for one relying party, no email shown. The repeated name only works for that site.</span>
-        </li>
-        <li>
-          <strong>Policy-bound email token</strong>
-          <span>Email address is shown, and issuance can require a trusted runtime measurement.</span>
-        </li>
-        <li>
-          <strong>Google email verification token</strong>
-          <span>Email address only, using the Google-compatible format for interop and regression tests.</span>
-        </li>
-      </ol>
     </div>
-    <div class="token-stage" aria-label="Looping animation of token issuer, holder, and verifier flow">
-      <svg id="tokenLoop" viewBox="0 0 640 440" role="img" aria-labelledby="tokenLoopTitle tokenLoopDesc">
-        <title id="tokenLoopTitle">Token catalogue loop</title>
-        <desc id="tokenLoopDesc">A looping diagram cycles through the four token rows and shows what each verifier learns.</desc>
-      </svg>
+
+    <div class="story-grid">
+      <div class="scene-board" id="sceneBoard" data-scene="normal-task" aria-label="Interactive story scene">
+        <svg class="route-svg" viewBox="0 0 720 620" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M360 292 C230 220 160 180 112 154"></path>
+          <path d="M360 292 C494 220 564 180 610 154"></path>
+          <path d="M360 448 C360 388 360 344 360 292"></path>
+          <path class="good" d="M360 448 C260 390 190 280 112 154"></path>
+          <path class="good" d="M360 448 C464 390 536 280 610 154"></path>
+        </svg>
+        <div class="service paypal"><strong>PayPal</strong><span>money movement, fraud, regulation</span></div>
+        <div class="service linkedin"><strong>LinkedIn</strong><span>identity, reputation, spam risk</span></div>
+        <div class="actor">user</div>
+        <div class="agent-node">agent</div>
+        <div class="device-node laptop"><strong>laptop</strong><span>new session</span></div>
+        <div class="device-node phone"><strong>phone</strong><span>push prompt</span></div>
+        <div class="device-node tablet"><strong>tablet</strong><span>email code</span></div>
+        <div class="device-node cloud"><strong>cloud browser</strong><span>agent run</span></div>
+        <div class="prompt-bubble one"><strong>SMS code</strong><span>sent to old phone</span></div>
+        <div class="prompt-bubble two"><strong>passkey sheet</strong><span>is this the site?</span></div>
+        <div class="prompt-bubble three"><strong>automation detected</strong><span>try again later</span></div>
+        <div class="prompt-bubble four"><strong>account restricted</strong><span>contact support</span></div>
+        <div class="risk-note"><strong>From the service side, this could be real or dangerous.</strong><span>Delegation, malware, scraping, stolen cookies, and bot farms can look too similar.</span></div>
+        <div class="token-chip"><strong>limited pass</strong><span id="scenePassText">this one action is allowed</span></div>
+        <div class="proof-panel" aria-hidden="true">
+          <div><b>issuer</b><span>checks the condition once</span></div>
+          <div><b>holder</b><span>keeps the narrow pass</span></div>
+          <div><b>verifier</b><span>learns only the needed fact</span></div>
+        </div>
+      </div>
+
+      <div class="story-copy">
+        <div class="step-count" id="stepCount">1 / 9</div>
+        <h3 id="stepTitle">One normal task.</h3>
+        <p id="stepBody">A user asks an agent to do something boring and legitimate: check a balance, move their own money, download a receipt, or message real contacts.</p>
+        <div class="tag-row" id="stepTags"></div>
+        <div class="story-controls">
+          <button class="icon-button" id="prevStep" type="button" aria-label="Previous story step">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="icon-button" id="nextStep" type="button" aria-label="Next story step">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="play-button" id="playStory" type="button" aria-pressed="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path id="playIcon" d="M8 5v14l11-7z" fill="currentColor"/></svg>
+            <span id="playLabel">Auto playing</span>
+          </button>
+        </div>
+        <div class="dots" id="stepDots" aria-label="Story steps"></div>
+      </div>
     </div>
+  </section>
+
+  <section class="section" id="passes">
+    <div class="section-head">
+      <h2>Four passes, four different promises.</h2>
+      <p>
+        The important question is not the token name. It is what the verifier learns, what stays hidden, and where the service can use policy before issuing a pass.
+      </p>
+    </div>
+
+    <div class="token-layout">
+      <div class="token-buttons" id="tokenButtons"></div>
+      <div class="token-detail" aria-live="polite">
+        <div class="token-visual">
+          <div class="mini-pass">
+            <b id="tokenTitle">One-use pass</b>
+            <span id="tokenPlain">Let this request through once.</span>
+          </div>
+        </div>
+        <div class="token-facts">
+          <div class="fact"><b>Verifier learns</b><span id="tokenLearns">allowed once</span></div>
+          <div class="fact"><b>Stays hidden</b><span id="tokenHidden">stable identity</span></div>
+          <div class="fact"><b>Best mental model</b><span id="tokenModel">drink ticket</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section dark" id="crypto">
+    <div class="section-head">
+      <h2>The technical part answers the question the story creates.</h2>
+      <p>
+        Why not just give the agent a password? Why does this not become another tracking ID? Why would a hard-mode service trust the pass at all?
+      </p>
+    </div>
+    <div class="principles">
+      <div class="principle">
+        <b>Blind issuance</b>
+        <p>The issuer can approve a sealed pass without learning the final pass that a verifier will later see.</p>
+      </div>
+      <div class="principle">
+        <b>Zero knowledge</b>
+        <p>The holder can prove the pass is valid without dumping the extra facts that were checked along the way.</p>
+      </div>
+      <div class="principle">
+        <b>Policy before minting</b>
+        <p>A service can require email evidence, runtime measurement, or another rule before a pass is issued.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>Tamayo is a Go, cgo-free crypto and token-profile library for limited proofs.</span>
+    <a href="https://github.com/maceip/tamayo">View the repository</a>
   </div>
-</section>
-
-<div class="scroll-hint">▼ scroll</div>
-
-<div id="zoomctl">
-  <div class="ctl"><button class="btn" id="zbtnA" data-key="A">A</button><div class="ctl-label" data-lbl="A">BACK</div></div>
-  <div class="ctl"><button class="btn" id="zbtnB" data-key="B">B</button><div class="ctl-label" data-lbl="B">NEXT</div></div>
-  <div class="ctl"><button class="btn" id="zbtnC" data-key="C">C</button><div class="ctl-label" data-lbl="C">HOME</div></div>
-</div>
+</footer>
 
 <script>
 "use strict";
-/* ================================================================
-   lcd stage
-   ================================================================ */
-const svg  = d3.select("#lcd");
-const INK  = "#22301f", SOFT = "#4a5a44", LCD = "#c7d3a0";
-const W = 400, H = 300;
 
-const world   = svg.append("g");   // scene layer
-const hud     = svg.append("g");   // captions
-const iconbar = svg.append("g");   // gen-1 icon bands (4 top, 4 bottom)
-
-let mode = "idle";                 // idle | story
-let cur  = 0;                      // current state index
-
-/* deterministic rng so noise patterns hold still between frames */
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0; a = a + 0x6D2B79F5 | 0;
-    let t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-
-function initTokenCatalogue() {
-  const rows = [
-    {
-      name: "Burn token",
-      plain: "anonymous one-use pass",
-      learns: "verifier learns: allowed once",
-      left: "ask without identity",
-      right: "used once, then gone",
-      foot: "issuer does not see the final token",
-      accent: "#d66adf",
-    },
-    {
-      name: "Private identity token",
-      plain: "repeat visitor, no email",
-      learns: "verifier learns: same visitor at this site",
-      left: "same holder returns",
-      right: "no email revealed",
-      foot: "reusable only for that relying party",
-      accent: "#83d895",
-    },
-    {
-      name: "Policy-bound email token",
-      plain: "email plus policy check",
-      learns: "verifier learns: address and issuance context",
-      left: "trusted runtime can be required",
-      right: "email address shown",
-      foot: "policy is checked before issuance",
-      accent: "#f3d268",
-    },
-    {
-      name: "Google email verification token",
-      plain: "Google-compatible email token",
-      learns: "verifier learns: verified email address",
-      left: "standard email proof",
-      right: "email address shown",
-      foot: "separate from private-token policy",
-      accent: "#7db8ff",
-    },
-  ];
-  const list = Array.from(document.querySelectorAll("#tokenList li"));
-  const stage = d3.select("#tokenLoop");
-  if (!list.length || stage.empty()) return;
-
-  const drawNode = (g, x, y, title, sub, accent) => {
-    const node = g.append("g").attr("transform", `translate(${x},${y})`);
-    node.append("rect")
-      .attr("x", -76).attr("y", -32).attr("width", 152).attr("height", 64)
-      .attr("rx", 8)
-      .attr("fill", "rgba(12,16,22,.88)")
-      .attr("stroke", accent)
-      .attr("stroke-width", 2);
-    node.append("text")
-      .attr("text-anchor", "middle").attr("y", -5)
-      .attr("fill", "#fbfde8").attr("font-size", 16).attr("font-weight", 700)
-      .text(title);
-    node.append("text")
-      .attr("text-anchor", "middle").attr("y", 16)
-      .attr("fill", "#b7bea5").attr("font-size", 11)
-      .text(sub);
-  };
-
-  const draw = idx => {
-    const row = rows[idx];
-    list.forEach((el, i) => el.classList.toggle("active", i === idx));
-    stage.selectAll("g.token-frame").interrupt().remove();
-
-    const g = stage.append("g").attr("class", "token-frame");
-    g.append("rect")
-      .attr("x", 22).attr("y", 22).attr("width", 596).attr("height", 396)
-      .attr("rx", 8)
-      .attr("fill", "rgba(199,211,160,.045)")
-      .attr("stroke", "rgba(199,211,160,.18)");
-
-    g.append("text")
-      .attr("x", 320).attr("y", 64).attr("text-anchor", "middle")
-      .attr("fill", row.accent).attr("font-size", 24).attr("font-weight", 800)
-      .text(row.name);
-    g.append("text")
-      .attr("x", 320).attr("y", 92).attr("text-anchor", "middle")
-      .attr("fill", "#fbfde8").attr("font-size", 16)
-      .text(row.plain);
-
-    drawNode(g, 110, 220, "issuer", row.left, row.accent);
-    drawNode(g, 320, 158, "holder", "receives token", row.accent);
-    drawNode(g, 530, 220, "verifier", row.right, row.accent);
-
-    const path = g.append("path")
-      .attr("d", "M 188 212 C 238 112 402 112 452 212")
-      .attr("fill", "none")
-      .attr("stroke", row.accent)
-      .attr("stroke-width", 4)
-      .attr("stroke-linecap", "round")
-      .attr("opacity", .84);
-    g.append("path")
-      .attr("d", "M 452 212 l -18 -5 l 11 15 Z")
-      .attr("fill", row.accent)
-      .attr("opacity", .88);
-
-    const dot = g.append("circle")
-      .attr("r", 9)
-      .attr("fill", "#fbfde8")
-      .attr("stroke", row.accent)
-      .attr("stroke-width", 4);
-    const pathNode = path.node();
-    const len = pathNode.getTotalLength();
-    dot.transition().duration(2300).ease(d3.easeCubicInOut)
-      .attrTween("transform", () => t => {
-        const p = pathNode.getPointAtLength(t * len);
-        return `translate(${p.x},${p.y})`;
-      });
-
-    g.append("text")
-      .attr("x", 320).attr("y", 314).attr("text-anchor", "middle")
-      .attr("fill", "#fbfde8").attr("font-size", 18).attr("font-weight", 700)
-      .text(row.learns);
-    g.append("text")
-      .attr("x", 320).attr("y", 346).attr("text-anchor", "middle")
-      .attr("fill", "#b7bea5").attr("font-size", 14)
-      .text(row.foot);
-  };
-
-  let idx = 0;
-  draw(idx);
-  setInterval(() => { idx = (idx + 1) % rows.length; draw(idx); }, 3200);
-}
-
-/* caption: up to 3 lines under the scene, above the bottom icon row */
-function caption(lines) {
-  hud.selectAll("*").interrupt().remove();
-  const arr = Array.isArray(lines) ? lines : [lines];
-  arr.forEach((t, i) => {
-    hud.append("text")
-      .attr("x", W / 2).attr("y", 218 + i * 15)
-      .attr("text-anchor", "middle")
-      .attr("font-size", 12.5).attr("font-family", "inherit")
-      .attr("fill", INK).attr("font-weight", 700)
-      .text(t)
-      .attr("opacity", 0).transition().duration(300).attr("opacity", 1);
-  });
-}
-
-/* ================================================================
-   the 3d egg — real points in R^3, hand rotation matrix, hand
-   perspective divide, rendered with d3. the repo's namesake.
-   ================================================================ */
-const eggPts = [];
-for (let i = 0; i <= 14; i++) {
-  const v = i / 14 * Math.PI;
-  const r = Math.sin(v) * (1 + 0.25 * Math.cos(v));
-  const y = -Math.cos(v) * (1 + 0.08 * Math.cos(v));
-  const n = i === 0 || i === 14 ? 1 : 18;
-  for (let j = 0; j < n; j++) {
-    const u = j / n * 2 * Math.PI;
-    eggPts.push([r * Math.cos(u), y, r * Math.sin(u)]);
-  }
-}
-let eggTimer = null;
-function drawEgg(zoom = 1, opacity = 1) {
-  const t = Date.now() / 1600;
-  const cy = Math.cos(t), sy = Math.sin(t);
-  const cam = 4.2;
-  const proj = eggPts.map(([x, y, z]) => {
-    const rx = x * cy + z * sy;
-    const rz = -x * sy + z * cy;
-    const d  = cam / (cam - rz * 0.9);
-    return [W / 2 + rx * 62 * d * zoom, 140 + y * 62 * d * zoom, d];
-  });
-  const sel = world.selectAll("circle.egg").data(proj);
-  sel.enter().append("circle").attr("class", "egg")
-    .merge(sel)
-    .attr("cx", p => p[0]).attr("cy", p => p[1])
-    .attr("r",  p => 1.1 + p[2] * 1.4)
-    .attr("fill", INK)
-    .attr("opacity", p => opacity * (0.25 + 0.55 * (p[2] - 0.7)));
-  sel.exit().remove();
-}
-function startEggIdle() {
-  stopEgg();
-  mode = "idle";
-  world.selectAll("*").interrupt().remove();
-  eggTimer = d3.timer(() => drawEgg(1, 1));
-  caption(["a mysterious egg appears", "scroll (or press START) to hatch it"]);
-  drawChapterIcons(-1);
-  refreshButtons();
-}
-function stopEgg() { if (eggTimer) { eggTimer.stop(); eggTimer = null; } }
-
-/* ================================================================
-   cast + props — chunky 1-bit glyphs a golden retriever can read
-   ================================================================ */
-function drawPup(g, x, y, s = 1) {
-  const p = g.append("g").attr("class", "pup")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  p.append("ellipse").attr("cx", -22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);
-  p.append("ellipse").attr("cx",  22).attr("cy", -6).attr("rx", 9).attr("ry", 16).attr("fill", INK);
-  p.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  p.append("circle").attr("cx", -8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);
-  p.append("circle").attr("cx",  8).attr("cy", -4).attr("r", 2.6).attr("fill", INK);
-  p.append("ellipse").attr("cy", 9).attr("rx", 10).attr("ry", 7).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  p.append("circle").attr("cy", 6).attr("r", 3).attr("fill", INK);
-  p.append("path").attr("d", "M -4 12 Q 0 16 4 12").attr("stroke", INK).attr("stroke-width", 2).attr("fill", "none");
-  return p;
-}
-function drawStamper(g, x, y, s = 1) {
-  const m = g.append("g").attr("class", "stamper")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  m.append("rect").attr("x", -30).attr("y", -20).attr("width", 60).attr("height", 44)
-    .attr("rx", 6).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  m.append("rect").attr("x", -10).attr("y", -38).attr("width", 20).attr("height", 20).attr("fill", INK);
-  m.append("rect").attr("x", -18).attr("y", -42).attr("width", 36).attr("height", 8).attr("rx", 3).attr("fill", INK);
-  m.append("circle").attr("cx", -12).attr("cy", 0).attr("r", 3).attr("fill", INK);
-  m.append("circle").attr("cx",  12).attr("cy", 0).attr("r", 3).attr("fill", INK);
-  m.append("rect").attr("x", -8).attr("y", 10).attr("width", 16).attr("height", 3).attr("fill", INK);
-  return m;
-}
-function drawJudge(g, x, y, s = 1) {
-  const o = g.append("g").attr("class", "judge")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  o.append("path").attr("d", "M -20 -22 L -12 -10 L -26 -12 Z").attr("fill", INK);
-  o.append("path").attr("d", "M 20 -22 L 12 -10 L 26 -12 Z").attr("fill", INK);
-  o.append("circle").attr("r", 24).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 7).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
-  o.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
-  o.append("circle").attr("cx", 9).attr("cy", -3).attr("r", 2.4).attr("fill", INK);
-  o.append("path").attr("d", "M -4 8 L 0 13 L 4 8 Z").attr("fill", INK);
-  return o;
-}
-function drawRaccoon(g, x, y, s = 1) {
-  const r = g.append("g").attr("class", "raccoon")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  r.append("path").attr("d", "M -22 -14 L -10 -24 L -8 -10 Z").attr("fill", INK);
-  r.append("path").attr("d", "M 22 -14 L 10 -24 L 8 -10 Z").attr("fill", INK);
-  r.append("circle").attr("r", 22).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  r.append("path").attr("d", "M -22 -6 Q 0 -14 22 -6 L 22 4 Q 0 -2 -22 4 Z").attr("fill", INK); // bandit mask
-  r.append("circle").attr("cx", -9).attr("cy", -3).attr("r", 2.6).attr("fill", LCD);
-  r.append("circle").attr("cx",  9).attr("cy", -3).attr("r", 2.6).attr("fill", LCD);
-  r.append("circle").attr("cy", 10).attr("r", 3).attr("fill", INK);
-  return r;
-}
-function drawBone(g, x, y, s = 1) {
-  const b = g.append("g").attr("class", "bone")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  b.append("rect").attr("x", -14).attr("y", -4).attr("width", 28).attr("height", 8).attr("rx", 4)
-    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  [[-14, -5], [-14, 5], [14, -5], [14, 5]].forEach(([cx, cy]) =>
-    b.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 5.5)
-      .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5));
-  return b;
-}
-function drawCoin(g, x, y, s = 1) {
-  const c = g.append("g").attr("class", "coin")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  c.append("circle").attr("r", 15).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  c.append("circle").attr("r", 10.5).attr("fill", "none").attr("stroke", INK)
-    .attr("stroke-width", 1.6).attr("stroke-dasharray", "3 3");
-  drawBone(c, 0, 0, 0.42);
-  return c;
-}
-function drawBox(g, x, y, s = 1) {
-  const b = g.append("g").attr("class", "box")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  b.append("rect").attr("x", -20).attr("y", -16).attr("width", 40).attr("height", 32)
-    .attr("rx", 4).attr("fill", INK);
-  b.append("line").attr("x1", -20).attr("y1", -6).attr("x2", 20).attr("y2", -6)
-    .attr("stroke", LCD).attr("stroke-width", 2);
-  const rnd = rng(7);
-  for (let i = 0; i < 12; i++)
-    b.append("circle").attr("cx", -14 + rnd() * 28).attr("cy", 0 + rnd() * 12)
-      .attr("r", 1.4).attr("fill", LCD);
-  return b;
-}
-function drawSeal(g, x, y, s = 1) {
-  const c = g.append("g").attr("class", "seal")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  c.append("circle").attr("r", 10).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  c.append("path").attr("d", "M -4 0 L -1 4 L 5 -4").attr("stroke", INK)
-    .attr("stroke-width", 2.5).attr("fill", "none");
-  return c;
-}
-function drawCert(g, x, y, s = 1) {
-  const c = g.append("g").attr("class", "cert")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  c.append("rect").attr("x", -16).attr("y", -20).attr("width", 32).attr("height", 40)
-    .attr("rx", 3).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  for (let i = 0; i < 4; i++)
-    c.append("line").attr("x1", -10).attr("y1", -12 + i * 7).attr("x2", 10).attr("y2", -12 + i * 7)
-      .attr("stroke", INK).attr("stroke-width", 2);
-  c.append("circle").attr("cx", 6).attr("cy", 13).attr("r", 5).attr("fill", INK);
-  return c;
-}
-function drawEye(g, x, y, s = 1) {
-  const e = g.append("g").attr("transform", `translate(${x},${y}) scale(${s})`);
-  e.append("path").attr("d", "M -16 0 Q 0 -14 16 0 Q 0 14 -16 0 Z")
-    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  e.append("circle").attr("r", 4.5).attr("fill", INK);
-  return e;
-}
-function drawLockG(g, x, y, s = 1) {   // padlock with an openable shackle
-  const l = g.append("g").attr("class", "lock")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  l.append("path").attr("class", "sh")
-    .attr("d", "M -6 0 L -6 -5 A 6 6 0 0 1 6 -5 L 6 0")
-    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
-  l.append("rect").attr("x", -9).attr("y", 0).attr("width", 18).attr("height", 14)
-    .attr("rx", 2).attr("fill", INK);
-  l.append("circle").attr("cy", 6).attr("r", 2).attr("fill", LCD);
-  return l;
-}
-function openLock(l, delay = 0) {      // shackle swings up-left
-  l.select(".sh").transition().delay(delay).duration(240)
-    .attr("transform", "translate(-5,-4) rotate(-38)");
-}
-function drawGear(g, x, y, r, solid) { // solid = vinegar, outline = oil
-  const outer = g.append("g").attr("transform", `translate(${x},${y})`);
-  const inner = outer.append("g").attr("class", "gear");
-  for (let i = 0; i < 8; i++)
-    inner.append("rect").attr("x", -2.6).attr("y", -r - 5).attr("width", 5.2).attr("height", 7)
-      .attr("fill", INK).attr("transform", `rotate(${i * 45})`);
-  inner.append("circle").attr("r", r)
-    .attr("fill", solid ? INK : LCD).attr("stroke", INK).attr("stroke-width", 3);
-  inner.append("circle").attr("r", 3.4).attr("fill", solid ? LCD : INK);
-  return inner;                        // rotate this
-}
-function spinGear(gear, deg, delay = 0, dur = 700) {
-  gear.transition().delay(delay).duration(dur).ease(d3.easeCubicInOut)
-    .attrTween("transform", () => t => `rotate(${deg * t})`);
-}
-function drawStrip(g, x, y, seed, w = 46, h = 12) {
-  const s = g.append("g").attr("class", "strip")
-             .attr("transform", `translate(${x},${y})`);
-  s.append("rect").attr("x", -w / 2).attr("y", -h / 2).attr("width", w).attr("height", h)
-    .attr("rx", 2).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2);
-  const rnd = rng(seed * 1000 + 13);
-  for (let i = 0; i < 14; i++)
-    s.append("circle").attr("cx", (rnd() - .5) * (w - 8)).attr("cy", (rnd() - .5) * (h - 5))
-      .attr("r", 1.5).attr("fill", INK);
-  return s;
-}
-function drawEnvelope(g, x, y, s = 1) {
-  const e = g.append("g").attr("class", "env")
-             .attr("transform", `translate(${x},${y}) scale(${s})`);
-  e.append("rect").attr("x", -16).attr("y", -11).attr("width", 32).attr("height", 22)
-    .attr("rx", 2).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  e.append("path").attr("class", "flap").attr("d", "M -16 -11 L 0 2 L 16 -11")
-    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
-  return e;
-}
-function drawTick(g, x, y, s = 1, delay = 0) {
-  const p = g.append("path")
-    .attr("transform", `translate(${x},${y}) scale(${s})`)
-    .attr("d", "M -7 0 L -2 6 L 9 -7")
-    .attr("stroke", INK).attr("stroke-width", 3.5).attr("fill", "none")
-    .attr("stroke-linecap", "round");
-  const len = p.node().getTotalLength();
-  p.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
-    .transition().delay(delay).duration(300).attr("stroke-dashoffset", 0);
-  return p;
-}
-function drawX(g, x, y, s = 1, delay = 0, color = INK) {
-  [["M -6 -6 L 6 6"], ["M 6 -6 L -6 6"]].forEach(([d]) =>
-    g.append("path").attr("transform", `translate(${x},${y}) scale(${s})`)
-      .attr("d", d).attr("stroke", color).attr("stroke-width", 3.2)
-      .attr("stroke-linecap", "round")
-      .attr("opacity", 0).transition().delay(delay).duration(150).attr("opacity", 1));
-}
-function label(g, x, y, text, size = 11) {
-  return g.append("text").attr("x", x).attr("y", y).attr("text-anchor", "middle")
-    .attr("font-size", size).attr("fill", SOFT).attr("font-weight", 700).text(text);
-}
-function big(g, x, y, text, size = 24, tilt = -2) {
-  return g.append("text").attr("x", x).attr("y", y).attr("text-anchor", "middle")
-    .attr("font-size", size).attr("fill", INK).attr("font-weight", 800)
-    .attr("transform", `rotate(${tilt} ${x} ${y})`).text(text);
-}
-function fly(prop, x1, y1, x2, y2, s = 1.4, dur = 1100, delay = 0) {
-  prop.transition().delay(delay).duration(dur).ease(d3.easeCubicInOut)
-    .attrTween("transform", () => tt => {
-      const x = x1 + (x2 - x1) * tt;
-      const y = y1 + (y2 - y1) * tt - Math.sin(Math.PI * tt) * 26;
-      return `translate(${x},${y}) scale(${s * (1 + 0.25 * Math.sin(Math.PI * tt))})`;
-    });
-}
-
-/* a fade-in wrapper every scene draws into */
-function scene() {
-  const g = world.append("g");
-  g.attr("opacity", 0).transition().duration(250).attr("opacity", 1);
-  return g;
-}
-function castTrio(g) {
-  drawPup(g, 66, 140, 1.15);      label(g, 66, 192, "PUP");
-  drawStamper(g, 200, 144, 1.15); label(g, 200, 196, "STAMPER");
-  drawJudge(g, 334, 140, 1.15);   label(g, 334, 192, "OWL");
-}
-
-/* ================================================================
-   THE MOVIE — 27 states, 6 chapters. each state draws its whole
-   scene from scratch with an entry animation, then holds. NEXT and
-   BACK jump between states, interrupting anything mid-flight.
-   ================================================================ */
-const STATES = [];
-const st = (ch, cap, fn) => STATES.push({ ch, cap, fn });
-
-/* ---------- chapter 0: the setup (why) ---------- */
-st(0, ["press NEXT ▸ (or keep scrolling)"], g => {
-  big(g, W / 2, 78, "WAIT — WHAT IS THIS?", 27);
-  ["a virtual pet performing a", "POST-QUANTUM BLIND SIGNATURE", "for real — byte-exact — as you watch"]
-    .forEach((t, i) => g.append("text").attr("x", W / 2).attr("y", 116 + i * 20)
-      .attr("text-anchor", "middle").attr("font-size", i === 1 ? 16 : 13.5)
-      .attr("fill", INK).attr("font-weight", i === 1 ? 800 : 400).text(t));
-  g.append("text").attr("x", W / 2).attr("y", 182).attr("text-anchor", "middle")
-    .attr("font-size", 12).attr("fill", SOFT).text("6 chapters — the icons are the chapters, tap to jump")
-    .attr("opacity", 0).transition().delay(400).duration(400).attr("opacity", 1);
-});
-st(0, ["this is the pup. it has a bone (a message)", "that it needs stamped as APPROVED"], g => {
-  drawPup(g, 140, 130, 1.9);
-  drawBone(g, 262, 118, 0.3).attr("opacity", 0)
-    .transition().duration(500)
-    .attr("opacity", 1).attr("transform", "translate(262,118) scale(2)");
-});
-st(0, ["this is the stamper. its stamp makes things", "official — but it's nosy: it reads", "everything it stamps, and it keeps notes"], g => {
-  drawStamper(g, 140, 135, 1.8);
-  const eye = drawEye(g, 262, 90, 1.4);
-  eye.attr("opacity", 0).transition().delay(300).duration(400).attr("opacity", 1);
-  drawBone(g, 262, 145, 1.5);
-  g.append("line").attr("x1", 190).attr("y1", 120).attr("x2", 240).attr("y2", 138)
-    .attr("stroke", SOFT).attr("stroke-width", 2).attr("stroke-dasharray", "2 5")
-    .attr("opacity", 0).transition().delay(500).duration(300).attr("opacity", 1);
-});
-st(0, ["the goal: a REAL stamp the owl can check —", "without the stamper ever seeing the bone.", "that's called a blind signature"], g => {
-  castTrio(g);
-  const eye = drawEye(g, 200, 84, 1.1);
-  g.append("line").attr("x1", 186).attr("y1", 72).attr("x2", 214).attr("y2", 96)
-    .attr("stroke", INK).attr("stroke-width", 3.5).attr("stroke-linecap", "round")
-    .attr("opacity", 0).transition().delay(600).duration(250).attr("opacity", 1);
-  drawSeal(g, 334, 88, 1.2);
-  drawTick(g, 356, 78, 0.9, 800);
-});
-
-/* ---------- chapter 1: the stamp machine (mayo) ---------- */
-st(1, ["a stamp is not rubber. it's the one answer", "that opens EVERY lock on this wall at once.", "the wall is public — everyone has a copy"], g => {
-  drawStamper(g, 70, 140, 1.35);
-  const panel = g.append("g");
-  panel.append("rect").attr("x", 150).attr("y", 52).attr("width", 226).attr("height", 148)
-    .attr("rx", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
-    const l = drawLockG(panel, 182 + c * 54, 78 + r * 46, 1);
-    l.attr("opacity", 0).transition().delay((r * 4 + c) * 60).duration(200).attr("opacity", 1);
-  }
-});
-st(1, ["checking is instant: press an answer against", "the wall, watch every lock pop open.", "that's ALL the owl will ever have to do"], g => {
-  const locks = [];
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++)
-    locks.push(drawLockG(g, 116 + c * 56, 78 + r * 46, 1.05));
-  const key = drawSeal(g, 30, 40, 1.4);
-  key.transition().duration(1600).ease(d3.easeLinear)
-    .attr("transform", "translate(370,40) scale(1.4)");
-  locks.forEach((l, i) => openLock(l, 300 + (i % 4) * 350));
-  drawTick(g, 358, 180, 1.6, 1900);
-});
-st(1, ["forging from outside? the locks share dials —", "turn one, four others move. you'd finish long", "after the sun burns out. quantum? still no"], g => {
-  drawRaccoon(g, 60, 130, 1.4);
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-    const l = drawLockG(g, 210 + c * 56, 78 + r * 46, 1);
-    if ((r + c) % 2 === 0) drawX(g, 210 + c * 56, 78 + r * 46 + 7, 0.8, 700 + (r * 3 + c) * 180, LCD);
-  }
-  // wobbling tries counter
-  const counter = g.append("text").attr("x", 200).attr("y", 55).attr("text-anchor", "middle")
-    .attr("font-size", 13).attr("fill", INK).attr("font-weight", 800);
-  counter.transition().duration(4000).ease(d3.easeQuadIn)
-    .tween("count", function () {
-      const n = d3.interpolateNumber(1, 4.9e12);
-      return t => { this.textContent = "tries: " + d3.format(",.0f")(n(t)); };
-    });
-  // the sun gives up
-  const sun = g.append("g").attr("transform", "translate(64,52)");
-  sun.append("circle").attr("r", 12).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
-  for (let i = 0; i < 8; i++)
-    sun.append("line").attr("x1", 0).attr("y1", -17).attr("x2", 0).attr("y2", -23)
-      .attr("stroke", INK).attr("stroke-width", 3).attr("transform", `rotate(${i * 45})`)
-      .transition().delay(1500 + i * 250).duration(600).attr("opacity", 0.12);
-});
-st(1, ["the machine's secret: its gears come in two", "kinds. VINEGAR gears mesh with everything;", "OIL gears NEVER touch each other"], g => {
-  // oil gears (outline) only ever mesh with vinegar gears (solid)
-  drawGear(g, 116, 100, 18, false);
-  drawGear(g, 284, 100, 18, false);
-  drawGear(g, 200, 168, 16, false);
-  const v1 = drawGear(g, 200, 100, 20, true);
-  const v2 = drawGear(g, 152, 140, 14, true);
-  const v3 = drawGear(g, 248, 140, 14, true);
-  [v1, v2, v3].forEach((v, i) => spinGear(v, 90, 300 + i * 120, 900));
-  label(g, 200, 52, "VINEGAR = solid (public randomness)");
-  label(g, 200, 200, "OIL = outline (the secret ones)");
-});
-st(1, ["spin the vinegar gears ANYWHERE, freeze them.", "now every oil gear turns freely — one crank,", "every lock opens. oil + vinegar = MAYO"], g => {
-  const o1 = drawGear(g, 116, 96, 18, false);
-  const o2 = drawGear(g, 284, 96, 18, false);
-  const o3 = drawGear(g, 200, 160, 16, false);
-  const v1 = drawGear(g, 200, 96, 20, true);
-  const v2 = drawGear(g, 152, 134, 14, true);
-  const v3 = drawGear(g, 248, 134, 14, true);
-  const rnd = rng(42);
-  [v1, v2, v3].forEach((v, i) => spinGear(v, 120 + rnd() * 240, i * 150, 800));
-  [[200, 96], [152, 134], [248, 134]].forEach(([x, y], i) =>
-    drawLockG(g, x + 14, y - 16, 0.55).attr("opacity", 0)
-      .transition().delay(1100 + i * 100).duration(200).attr("opacity", 1));
-  [o1, o2, o3].forEach((o, i) => spinGear(o, 180, 1500 + i * 350, 500));
-  const row = g.append("g");
-  for (let i = 0; i < 5; i++) {
-    const l = drawLockG(row, 128 + i * 36, 196, 0.7);
-    openLock(l, 2700 + i * 120);
-  }
-});
-
-/* ---------- chapter 2: the blind stamp ---------- */
-st(2, ["the pup seals the bone in a box lined with", "carbon paper. from outside: pure static.", "even the label is random noise"], g => {
-  drawPup(g, 82, 130, 1.5);
-  const bone = drawBone(g, 200, 90, 1.6);
-  const box = drawBox(g, 282, 130, 0.01);
-  bone.transition().delay(400).duration(600)
-    .attr("transform", "translate(282,130) scale(0.2)").attr("opacity", 0);
-  box.transition().delay(500).duration(600)
-    .attr("transform", "translate(282,130) scale(1.9)");
-  label(g, 282, 176, "??? — nothing to read", 10.5);
-});
-st(2, ["the box travels to the stamper, who turns it", "over, shakes it, holds it to the light...", "static. it stamps anyway — that's the deal"], g => {
-  drawPup(g, 60, 140, 1.2);
-  drawStamper(g, 320, 140, 1.5);
-  const box = drawBox(g, 60, 90, 1.4);
-  fly(box, 60, 90, 236, 96, 1.5);
-  box.transition().delay(1300).duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(14)")
-     .transition().duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(-14)")
-     .transition().duration(280).attr("transform", "translate(236,96) scale(1.5) rotate(0)");
-  g.append("text").attr("x", 236).attr("y", 52).attr("text-anchor", "middle")
-    .attr("font-size", 22).attr("fill", INK).attr("font-weight", 800).text("?")
-    .attr("opacity", 0).transition().delay(1500).duration(300).attr("opacity", 1);
-});
-st(2, ["STAMP — right through the closed lid.", "the carbon paper prints the mark onto the", "bone inside. the stamper never saw it"], g => {
-  drawStamper(g, 200, 148, 1.6);
-  drawBox(g, 200, 84, 1.6);
-  const y0 = 148;
-  g.select(".stamper")
-    .transition().delay(300).duration(180).attr("transform", `translate(200,${y0 - 16}) scale(1.6)`)
-    .transition().duration(160).attr("transform", `translate(200,${y0}) scale(1.6)`)
-    .transition().duration(180).attr("transform", `translate(200,${y0 - 16}) scale(1.6)`)
-    .transition().duration(160).attr("transform", `translate(200,${y0}) scale(1.6)`);
-  drawSeal(g, 246, 62, 0.01).transition().delay(1000).duration(350)
-    .attr("transform", "translate(246,62) scale(1.5)");
-  for (let i = 0; i < 6; i++)
-    g.append("line")
-      .attr("x1", 200 + (i - 2.5) * 14).attr("y1", 108).attr("x2", 200 + (i - 2.5) * 14).attr("y2", 118)
-      .attr("stroke", INK).attr("stroke-width", 2).attr("opacity", 0)
-      .transition().delay(1100 + i * 60).duration(200).attr("opacity", .7);
-});
-st(2, ["back home the pup opens the box:", "a REAL stamp, on a bone the stamper", "never laid eyes on"], g => {
-  drawPup(g, 96, 130, 1.6);
-  const lid = g.append("rect").attr("x", 226).attr("y", 96).attr("width", 76).attr("height", 12)
-    .attr("rx", 3).attr("fill", INK);
-  g.append("rect").attr("x", 226).attr("y", 112).attr("width", 76).attr("height", 48)
-    .attr("rx", 4).attr("fill", INK);
-  lid.transition().delay(400).duration(500)
-    .attr("transform", "translate(-8,-42) rotate(-18 264 102)");
-  const bone = drawBone(g, 264, 130, 0.4).attr("opacity", 0);
-  bone.transition().delay(800).duration(500)
-    .attr("opacity", 1).attr("transform", "translate(264,72) scale(1.8)");
-  drawSeal(g, 292, 58, 0.01).transition().delay(1300).duration(300)
-    .attr("transform", "translate(292,58) scale(1.1)");
-  const rnd = rng(5);
-  for (let i = 0; i < 8; i++)
-    g.append("circle").attr("cx", 264 + (rnd() - .5) * 100).attr("cy", 80 + (rnd() - .5) * 60)
-      .attr("r", 2).attr("fill", INK).attr("opacity", 0)
-      .transition().delay(900 + i * 80).duration(500).attr("opacity", .8)
-      .transition().duration(400).attr("opacity", 0);
-});
-
-/* ---------- chapter 3: the proof (vole-in-the-head) ---------- */
-st(3, ["new problem: showing the raw stamp would let", "the stamper recognize its own press and trace", "it back. the stamp must stay HIDDEN"], g => {
-  drawPup(g, 84, 136, 1.5);
-  drawBone(g, 160, 84, 1.4);
-  drawSeal(g, 186, 66, 0.9);
-  drawStamper(g, 318, 136, 1.4);
-  drawCert(g, 318, 66, 0.9);   // the stamper's ledger
-  g.append("path").attr("d", "M 196 74 Q 255 40 300 60")
-    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5)
-    .attr("stroke-dasharray", "3 6").attr("opacity", 0)
-    .transition().delay(500).duration(600).attr("opacity", 1);
-  drawEye(g, 255, 34, 1);
-});
-st(3, ["so the pup plays a game entirely inside its", "own head, with 8 imaginary puppet friends —", "the trick FAEST calls 'VOLE in the head'"], g => {
-  drawPup(g, 76, 158, 1.5);
-  const bub = g.append("g");
-  bub.append("circle").attr("cx", 118).attr("cy", 132).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  bub.append("circle").attr("cx", 138).attr("cy", 116).attr("r", 8).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  bub.append("ellipse").attr("cx", 252).attr("cy", 102).attr("rx", 104).attr("ry", 56)
-    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
-  bub.attr("opacity", 0).transition().duration(500).attr("opacity", 1);
-  for (let i = 0; i < 8; i++) {
-    const x = 186 + (i % 4) * 44, y = 84 + Math.floor(i / 4) * 40;
-    const p = g.append("g").attr("opacity", 0);
-    p.append("circle").attr("cx", x).attr("cy", y).attr("r", 11)
-      .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-    p.append("circle").attr("cx", x - 4).attr("cy", y - 2).attr("r", 1.6).attr("fill", INK);
-    p.append("circle").attr("cx", x + 4).attr("cy", y - 2).attr("r", 1.6).attr("fill", INK);
-    p.append("path").attr("d", `M ${x - 4} ${y + 4} Q ${x} ${y + 7} ${x + 4} ${y + 4}`)
-      .attr("stroke", INK).attr("stroke-width", 1.5).attr("fill", "none");
-    p.transition().delay(400 + i * 110).duration(250).attr("opacity", 1);
-  }
-});
-st(3, ["the stamp is shredded into 8 strips of pure", "static. stack ALL 8: the stamp re-forms.", "any 7? still just static"], g => {
-  const seal = drawSeal(g, 200, 66, 1.7);
-  const strips = [];
-  for (let i = 0; i < 8; i++) {
-    const x = 78 + (i % 4) * 60, y = 108 + Math.floor(i / 4) * 26;
-    const s = drawStrip(g, 200, 66, i).attr("opacity", 0);
-    s.transition().delay(300 + i * 90).duration(450)
-      .attr("opacity", 1).attr("transform", `translate(${x},${y})`);
-    strips.push(s);
-  }
-  seal.transition().delay(300).duration(600).attr("opacity", 0.2);
-  // stack all 8 -> the seal re-forms next to the stack
-  strips.forEach((s, i) => s.transition().delay(1700).duration(600)
-    .attr("transform", `translate(130,${178 - i * 2.2})`));
-  g.append("text").attr("x", 172).attr("y", 176).attr("text-anchor", "middle")
-    .attr("font-size", 16).attr("font-weight", 800).attr("fill", INK).text("=")
-    .attr("opacity", 0).transition().delay(2400).duration(300).attr("opacity", 1);
-  const stamp2 = drawSeal(g, 208, 170, 0.01);
-  stamp2.transition().delay(2500).duration(350)
-    .attr("transform", "translate(208,170) scale(1.25)");
-  label(g, 130, 203, "8 together", 9.5);
-  // pull one strip out -> static again
-  strips[5].transition().delay(3400).duration(600)
-    .attr("transform", "translate(320,170)");
-  stamp2.transition().delay(4000).duration(400).attr("opacity", 0.15);
-  drawX(g, 208, 170, 1.1, 4300);
-  label(g, 320, 203, "one missing", 9.5).attr("opacity", 0)
-    .transition().delay(4300).duration(300).attr("opacity", 1);
-});
-st(3, ["each strip is sealed in an envelope and glued", "to the certificate. then a coin NOBODY controls", "(a hash) picks 7 of 8 envelopes to rip open"], g => {
-  // coin flip
-  const coin = g.append("g").attr("transform", "translate(200,56)");
-  const face = coin.append("g");
-  face.append("circle").attr("r", 15).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  face.append("text").attr("y", 5).attr("text-anchor", "middle").attr("font-size", 13)
-    .attr("font-weight", 800).attr("fill", INK).text("#");
-  face.transition().duration(900).ease(d3.easeCubicInOut)
-    .attrTween("transform", () => t => `scale(1,${Math.cos(t * Math.PI * 4)})`);
-  const envs = [];
-  for (let i = 0; i < 8; i++) {
-    const x = 92 + (i % 4) * 72, y = 104 + Math.floor(i / 4) * 54;
-    envs.push([drawEnvelope(g, x, y, 1.15), x, y]);
-  }
-  envs.forEach(([e, x, y], i) => {
-    if (i === 5) {          // the one that stays sealed
-      drawLockG(g, x, y - 26, 0.6).attr("opacity", 0)
-        .transition().delay(1400).duration(300).attr("opacity", 1);
-    } else {
-      e.select(".flap").transition().delay(1200 + i * 130).duration(300)
-        .attr("transform", "translate(0,-14) scale(1,-0.7)");
-      drawStrip(g, x, y + 2, i, 26, 8).attr("opacity", 0)
-        .transition().delay(1350 + i * 130).duration(250).attr("opacity", 1);
-    }
-  });
-});
-st(3, ["the 7 open strips must tally against the lock", "wall — a lie can only hide in the ONE sealed", "envelope. and the game runs 100s of rounds"], g => {
-  for (let i = 0; i < 7; i++) {
-    const x = 66 + i * 45;
-    drawStrip(g, x, 58, i, 34, 10);
-    const l = drawLockG(g, x, 84, 0.62);
-    openLock(l, 400 + i * 140);
-    drawTick(g, x + 13, 78, 0.55, 600 + i * 140);
-  }
-  label(g, 200, 116, "every opened strip checks out ...", 10.5);
-  // rounds montage: luck runs out
-  const rowsG = g.append("g");
-  for (let i = 0; i < 30; i++) {
-    const x = 76 + (i % 10) * 28, y = 138 + Math.floor(i / 10) * 22;
-    rowsG.append("rect").attr("x", x - 9).attr("y", y - 8).attr("width", 18).attr("height", 16)
-      .attr("rx", 2).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 1.6);
-    drawTick(rowsG, x, y, 0.5, 900 + i * 70);
-  }
-});
-st(3, ["the owl ends up 100% convinced the stamp is", "real — yet its notebook holds nothing but", "static. that's a ZERO-KNOWLEDGE proof"], g => {
-  drawJudge(g, 96, 140, 1.6);
-  const bub = g.append("g");
-  bub.append("circle").attr("cx", 152).attr("cy", 104).attr("r", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  bub.append("ellipse").attr("cx", 262).attr("cy", 92).attr("rx", 96).attr("ry", 56)
-    .attr("fill", "none").attr("stroke", INK).attr("stroke-width", 3);
-  drawStrip(bub, 232, 74, 3, 40, 11);
-  drawStrip(bub, 292, 74, 6, 40, 11);
-  drawStrip(bub, 262, 100, 9, 40, 11);
-  drawTick(bub, 262, 128, 1.1, 700);
-  label(g, 262, 172, "the owl's entire memory of the proof", 10.5);
-});
-
-/* ---------- chapter 4: the check ---------- */
-st(4, ["the pup mails the certificate. the owl replays", "everything: the coin, the 7 strips, the wall.", "green light — the stamp is real"], g => {
-  drawJudge(g, 322, 140, 1.6);
-  const cert = drawCert(g, 40, 90, 1.2);
-  fly(cert, 40, 90, 250, 96, 1.3);
-  for (let i = 0; i < 3; i++) {
-    const l = drawLockG(g, 92 + i * 44, 176, 0.7);
-    openLock(l, 1300 + i * 160);
-  }
-  drawTick(g, 262, 170, 2.2, 1800);
-});
-st(4, ["the stamper remembers stamping boxes of", "static. the world sees certificates. NOBODY", "can match them up — that's blindness"], g => {
-  drawStamper(g, 200, 92, 1.2);
-  for (let i = 0; i < 5; i++) {
-    drawBox(g, 52 + i * 74, 34, 0.7);
-    drawCert(g, 52 + i * 74, 182, 0.8);
-  }
-  big(g, 200, 152, "?", 30, 0);
-});
-
-/* ---------- chapter 5: so what ---------- */
-st(5, ["drop the fur. this is how you build:", "cash that can't be traced, credentials that", "don't dox you, one-person-one-ticket passes"], g => {
-  // banknote
-  const cash = g.append("g").attr("transform", "translate(90,110)");
-  cash.append("rect").attr("x", -34).attr("y", -20).attr("width", 68).attr("height", 40)
-    .attr("rx", 4).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  cash.append("circle").attr("r", 11).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2.5);
-  label(g, 90, 158, "CASH");
-  // ballot
-  const vote = g.append("g").attr("transform", "translate(200,110)");
-  vote.append("rect").attr("x", -26).attr("y", -6).attr("width", 52).attr("height", 34)
-    .attr("rx", 4).attr("fill", INK);
-  vote.append("rect").attr("x", -14).attr("y", -3).attr("width", 28).attr("height", 4).attr("fill", LCD);
-  const paper = vote.append("rect").attr("x", -10).attr("y", -34).attr("width", 20).attr("height", 24)
-    .attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  paper.transition().delay(500).duration(700).attr("y", -12);
-  label(g, 200, 158, "VOTE");
-  // ticket
-  const pass = g.append("g").attr("transform", "translate(310,110)");
-  pass.append("rect").attr("x", -32).attr("y", -18).attr("width", 64).attr("height", 36)
-    .attr("rx", 5).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 3);
-  pass.append("line").attr("x1", -8).attr("y1", -18).attr("x2", -8).attr("y2", 18)
-    .attr("stroke", INK).attr("stroke-width", 2).attr("stroke-dasharray", "3 4");
-  drawSeal(pass, 12, 0, 0.8);
-  label(g, 310, 158, "PASS");
-  label(g, 200, 190, "approved — with no trail of who or what for", 11);
-});
-/* ---- the payoff, end to end: the coin's whole life ---- */
-st(5, ["let's run CASH end to end. the blind-stamped", "bone IS a coin: the stamp makes it real, the", "blinding means nobody has ever seen it"], g => {
-  drawBone(g, 78, 112, 1.25);         label(g, 78, 152, "BONE");
-  big(g, 140, 120, "+", 24, 0);
-  drawCert(g, 202, 112, 0.95);        label(g, 202, 152, "STAMP CERT");
-  big(g, 264, 120, "=", 24, 0);
-  const coin = drawCoin(g, 328, 112, 0);
-  coin.transition().delay(600).duration(450).ease(d3.easeBackOut)
-    .attr("transform", "translate(328,112) scale(1.9)");
-  label(g, 328, 152, "ONE COIN").attr("opacity", 0)
-    .transition().delay(900).duration(300).attr("opacity", 1);
-  label(g, 200, 186, "minted by the stamper — who never saw it", 11);
-});
-st(5, ["the pup spends it at the raccoon's shop.", "no trust needed: the raccoon presses it on", "the public wall — locks pop, the coin is good"], g => {
-  drawPup(g, 66, 132, 1.1);           label(g, 66, 182, "PUP");
-  drawRaccoon(g, 334, 132, 1.15);     label(g, 334, 182, "SHOP");
-  const coin = drawCoin(g, 120, 116, 1.1);
-  fly(coin, 120, 116, 282, 116, 1.1, 900);
-  for (let i = 0; i < 3; i++) {
-    const l = drawLockG(g, 156 + i * 44, 168, 0.62);
-    openLock(l, 1100 + i * 150);
-  }
-  drawTick(g, 300, 88, 1.6, 1600);
-  // the goods come back: a ball for the pup
-  const ball = g.append("g");
-  ball.append("circle").attr("r", 9).attr("fill", LCD).attr("stroke", INK).attr("stroke-width", 2.5);
-  ball.append("path").attr("d", "M -9 0 Q 0 -7 9 0").attr("fill", "none").attr("stroke", INK).attr("stroke-width", 2);
-  ball.attr("transform", "translate(282,150) scale(0)");
-  ball.transition().delay(2000).duration(700).ease(d3.easeCubicInOut)
-    .attrTween("transform", () => t =>
-      `translate(${282 - 164 * t},${150 - Math.sin(Math.PI * t) * 30}) scale(${Math.min(1, t * 3)})`);
-});
-st(5, ["the raccoon banks the coin. the stamper", "checks its notes: it only ever stamped", "static — it can't tell whose coin came back"], g => {
-  drawRaccoon(g, 66, 136, 1.15);      label(g, 66, 186, "SHOP");
-  drawStamper(g, 330, 136, 1.15);     label(g, 330, 190, "BANK");
-  for (let i = 0; i < 4; i++) drawBox(g, 96 + i * 70, 62, 0.55);
-  label(g, 200, 92, "everything the bank ever saw", 10);
-  const coin = drawCoin(g, 116, 130, 1.05);
-  fly(coin, 116, 130, 278, 124, 1.05, 900);
-  big(g, 372, 92, "?", 26, 0).attr("opacity", 0)
-    .transition().delay(1300).duration(300).attr("opacity", 1);
-});
-st(5, ["copy the coin, spend it twice? the bank", "keeps every coin it's seen: second try = X.", "and one stamp can never mint two coins"], g => {
-  drawStamper(g, 330, 128, 1.2);      label(g, 330, 184, "BANK");
-  const c1 = drawCoin(g, 74, 92, 1.05);
-  const c2 = drawCoin(g, 74, 164, 1.05);
-  label(g, 74, 124, "the coin", 10);
-  label(g, 74, 196, "the copy", 10);
-  fly(c1, 74, 92, 232, 92, 1.05, 800);
-  drawTick(g, 264, 88, 1.5, 1000);
-  fly(c2, 74, 164, 232, 164, 1.05, 800, 1500);
-  drawX(g, 264, 162, 1.7, 2500);
-});
-st(5, ["everything you just watched runs for real in", "this repo: pure go, byte-exact vs the reference", "code, even on a bare-metal riscv board"], g => {
-  big(g, W / 2, 62, "THAT WAS POMFRIT", 24);
-  label(g, W / 2, 80, "the one-more-mayo blind signature, whipped fresh", 10.5);
-  const book = g.append("g").attr("transform", "translate(200,128)").style("cursor", "pointer")
-    .on("click", ev => { ev.stopPropagation(); window.open("https://github.com/maceip/tamayo", "_blank"); });
-  book.append("rect").attr("x", -26).attr("y", -30).attr("width", 52).attr("height", 60)
-    .attr("rx", 5).attr("fill", "none").attr("stroke", INK).attr("stroke-width", 4);
-  book.append("line").attr("x1", -12).attr("y1", -30).attr("x2", -12).attr("y2", 30)
-    .attr("stroke", INK).attr("stroke-width", 3);
-  book.append("text").attr("x", 6).attr("y", 6).attr("text-anchor", "middle")
-    .attr("font-size", 15).attr("font-weight", 800).attr("fill", INK).text("go");
-  g.append("text").attr("x", 200).attr("y", 176).attr("text-anchor", "middle")
-    .attr("font-size", 12).attr("fill", SOFT).attr("font-weight", 700)
-    .text("tap the book → github.com/maceip/tamayo");
-  g.append("text").attr("x", 200).attr("y", 194).attr("text-anchor", "middle")
-    .attr("font-size", 11).attr("fill", SOFT).text("NEXT ▸ starts the movie over");
-});
-
-/* ================================================================
-   chapters + the gen-1 icon rows — laid out like the original lcd:
-   two tinted bands pinned to the top and bottom edges, four chunky
-   1-bit pixel icons per band. the current chapter inverts, exactly
-   like the device's selection highlight; tap an icon to jump.
-   slots: top = chapters 0-3 · bottom = chapters 4-5, egg (home),
-   book (repo)
-   ================================================================ */
-const PX = {
-  bone: [
-    ".###......###.",
-    "#####....#####",
-    "#####....#####",
-    ".############.",
-    ".############.",
-    "#####....#####",
-    "#####....#####",
-    ".###......###."],
-  gear: [
-    "....####....",
-    ".##.####.##.",
-    ".##########.",
-    "####....####",
-    "###..##..###",
-    "###..##..###",
-    "####....####",
-    ".##########.",
-    ".##.####.##.",
-    "....####...."],
-  box: [
-    "############",
-    "#..........#",
-    "#...####...#",
-    "#..##..##..#",
-    "#......##..#",
-    "#.....##...#",
-    "#....##....#",
-    "#..........#",
-    "#....##....#",
-    "#..........#",
-    "############"],
-  bubble: [
-    "..########..",
-    ".##......##.",
-    "##..#.#.#.##",
-    "##........##",
-    ".##......##.",
-    "..########..",
-    "....##......",
-    "...##.......",
-    "...#........"],
-  lens: [
-    "..######....",
-    ".##....##...",
-    "##......##..",
-    "##......##..",
-    "##......##..",
-    ".##....##...",
-    "..######.#..",
-    ".......####.",
-    "........####",
-    ".........###"],
-  flag: [
-    "##.........",
-    "###########",
-    "###########",
-    "###########",
-    "###########",
-    "##.........",
-    "##.........",
-    "##.........",
-    "##........."],
-  egg: [
-    "...####...",
-    "..######..",
-    ".########.",
-    ".###.####.",
-    "##########",
-    "####.#####",
-    "##########",
-    ".########.",
-    "..######.."],
-  book: [
-    "############",
-    "#..#.......#",
-    "#..#..###..#",
-    "#..#.......#",
-    "#..#..###..#",
-    "#..#.......#",
-    "#..#..###..#",
-    "#..#.......#",
-    "############"],
-};
-function pxIcon(g, rows, c, cell = 3) {
-  const h = rows.length, w = rows[0].length;
-  rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; x++)
-      if (row[x] === "#")
-        g.append("rect")
-          .attr("x", (x - w / 2) * cell).attr("y", (y - h / 2) * cell)
-          .attr("width", cell + .2).attr("height", cell + .2)
-          .attr("fill", c);
-  });
-}
-const CHAPTERS = [
-  { name: "the setup",   px: PX.bone },
-  { name: "the machine", px: PX.gear },
-  { name: "blind stamp", px: PX.box },
-  { name: "the proof",   px: PX.bubble },
-  { name: "the check",   px: PX.lens },
-  { name: "so what",     px: PX.flag },
+const steps = [
+  {
+    scene: "normal-task",
+    title: "One normal task.",
+    body: "A user asks an agent to do something boring and legitimate: check a balance, move their own money, download a receipt, or message real contacts.",
+    tags: ["PayPal transfer", "LinkedIn outreach", "real user"],
+    pass: "this one action is allowed",
+  },
+  {
+    scene: "device-cloud",
+    title: "The user is not one device.",
+    body: "They are a laptop, a phone, an old phone, a tablet, a browser profile, and now an agent session. One task can light up the whole cloud.",
+    tags: ["phone", "laptop", "tablet", "cloud browser"],
+    pass: "one human, many surfaces",
+  },
+  {
+    scene: "prompt-flood",
+    title: "Every device becomes a tiny emergency.",
+    body: "Codes, passkey sheets, email links, suspicious activity warnings, and delayed SMS prompts turn a normal task into a pile of friction.",
+    tags: ["login code", "passkey prompt", "new device", "support risk"],
+    pass: "the task is still legitimate",
+  },
+  {
+    scene: "service-risk",
+    title: "The service is not being irrational.",
+    body: "To PayPal or LinkedIn, a helpful agent can resemble malware, a scraper, a stolen session, or a bot farm. Blocking too much is bad, but guessing wrong is worse.",
+    tags: ["fraud", "regulation", "spam", "scraping"],
+    pass: "the service needs better evidence",
+  },
+  {
+    scene: "bad-lanes",
+    title: "Today the choices are too blunt.",
+    body: "Hand over the master key, accept a giant scope, drive a browser that gets blocked, or send the user back through another challenge loop.",
+    tags: ["password handoff", "broad OAuth", "blocked automation"],
+    pass: "too much access or too little trust",
+  },
+  {
+    scene: "third-lane",
+    title: "Tamayo is the third lane.",
+    body: "A trusted check becomes a limited pass. The agent can present that pass, and the service can verify the narrow fact it actually needs.",
+    tags: ["limited proof", "delegated action", "less linkage"],
+    pass: "enough proof to proceed",
+  },
+  {
+    scene: "slow-proof",
+    title: "Slow down: issuer, holder, verifier.",
+    body: "The issuer checks a condition. The holder receives a pass. The verifier learns one controlled fact, not the whole backstory.",
+    tags: ["issuer", "holder", "verifier"],
+    pass: "one checked fact",
+  },
+  {
+    scene: "blind",
+    title: "Blind issuance prevents the pass from becoming a receipt.",
+    body: "The issuer can approve without recognizing the final token later. That is the part that keeps private passes from turning into tracking handles.",
+    tags: ["blind signature", "issuer cannot link", "private pass"],
+    pass: "approved, but not linkable",
+  },
+  {
+    scene: "zk",
+    title: "Zero knowledge keeps the proof narrow.",
+    body: "The holder can prove validity without revealing extra facts. The result is not fewer prompts by magic. It is better evidence.",
+    tags: ["validity proof", "narrow disclosure", "service trust"],
+    pass: "prove enough, no more",
+  },
 ];
-CHAPTERS.forEach(c => { c.start = STATES.findIndex(s => s.ch === CHAPTERS.indexOf(c)); });
-/* the two extra gen-1 slots: egg = home, book = repo */
-const ICON_SLOTS = [
-  ...CHAPTERS.map((c, i) => ({ px: c.px, act: () => mode === "story" ? goto(c.start) : enterStory(c.start), ch: i })),
-  { px: PX.egg,  act: () => { if (mode === "story") exitStory(); }, ch: -2 },
-  { px: PX.book, act: () => window.open("https://github.com/maceip/tamayo", "_blank"), ch: -2 },
+
+const tokens = [
+  {
+    name: "One-use pass",
+    plain: "Let this request through once.",
+    learns: "allowed once",
+    hidden: "stable identity",
+    model: "drink ticket",
+    button: "Burn token",
+    summary: "Anonymous one-use access. Spend it and it is done.",
+  },
+  {
+    name: "Return pass",
+    plain: "Remember me here, not everywhere.",
+    learns: "same visitor at this site",
+    hidden: "email and cross-site identity",
+    model: "venue wristband",
+    button: "Private identity token",
+    summary: "A relying-party-bound pseudonym for continuity without an email address.",
+  },
+  {
+    name: "Email plus policy pass",
+    plain: "Show my email when the service really needs it.",
+    learns: "email and issuance context",
+    hidden: "unneeded account history",
+    model: "checked badge",
+    button: "Policy-bound email token",
+    summary: "Address-bearing email proof where issuance can require policy or runtime evidence.",
+  },
+  {
+    name: "Google-compatible email pass",
+    plain: "Speak the existing email-token language too.",
+    learns: "verified email address",
+    hidden: "private-token machinery",
+    model: "email receipt",
+    button: "Google email verification token",
+    summary: "A compatibility rail for the Google email verification token format.",
+  },
 ];
-const ICON_XS = [56, 152, 248, 344], ICON_TOP = 23, ICON_BOT = 277, BAND_H = 40;
-function drawChapterIcons(activeCh) {
-  iconbar.selectAll("*").remove();
-  /* the tinted bands the icons live in, edge to edge like the gen-1 —
-     opaque, so scene sprites slide underneath like art printed on the glass */
-  [0, H - BAND_H].forEach(y => {
-    iconbar.append("rect").attr("x", 0).attr("y", y).attr("width", W).attr("height", BAND_H)
-      .attr("fill", LCD);
-    iconbar.append("rect").attr("x", 0).attr("y", y).attr("width", W).attr("height", BAND_H)
-      .attr("fill", INK).attr("opacity", .08);
+
+let stepIndex = 0;
+let tokenIndex = 0;
+let playing = true;
+let timer = null;
+
+const board = document.getElementById("sceneBoard");
+const stepCount = document.getElementById("stepCount");
+const stepTitle = document.getElementById("stepTitle");
+const stepBody = document.getElementById("stepBody");
+const stepTags = document.getElementById("stepTags");
+const stepDots = document.getElementById("stepDots");
+const scenePassText = document.getElementById("scenePassText");
+const playStory = document.getElementById("playStory");
+const playLabel = document.getElementById("playLabel");
+const playIcon = document.getElementById("playIcon");
+const tokenButtons = document.getElementById("tokenButtons");
+
+function setStep(index, userAction = false) {
+  stepIndex = (index + steps.length) % steps.length;
+  const step = steps[stepIndex];
+  board.dataset.scene = step.scene;
+  stepCount.textContent = `${stepIndex + 1} / ${steps.length}`;
+  stepTitle.textContent = step.title;
+  stepBody.textContent = step.body;
+  scenePassText.textContent = step.pass;
+  stepTags.replaceChildren(...step.tags.map(text => {
+    const span = document.createElement("span");
+    span.className = "tag";
+    span.textContent = text;
+    return span;
+  }));
+  [...stepDots.children].forEach((dot, i) => {
+    dot.classList.toggle("active", i === stepIndex);
+    dot.setAttribute("aria-current", i === stepIndex ? "step" : "false");
   });
-  [BAND_H - .75, H - BAND_H + .75].forEach(y =>
-    iconbar.append("line").attr("x1", 0).attr("x2", W).attr("y1", y).attr("y2", y)
-      .attr("stroke", INK).attr("stroke-width", 1.5).attr("opacity", .18));
-  ICON_SLOTS.forEach((slot, i) => {
-    const x = ICON_XS[i % 4], y = i < 4 ? ICON_TOP : ICON_BOT;
-    const g = iconbar.append("g")
-      .attr("transform", `translate(${x},${y})`)
-      .style("cursor", "pointer")
-      .on("click", ev => { ev.stopPropagation(); slot.act(); });
-    // generous invisible hit area so the icons are easy to tap
-    g.append("rect").attr("x", -42).attr("y", -20).attr("width", 84).attr("height", 40)
-      .attr("fill", "transparent");
-    if (slot.ch === activeCh) {
-      g.append("rect").attr("x", -24).attr("y", -18).attr("width", 48).attr("height", 36)
-        .attr("rx", 5).attr("fill", INK);
-      pxIcon(g.append("g"), slot.px, LCD);
-    } else {
-      pxIcon(g.append("g").attr("opacity", activeCh === -1 ? .6 : .78), slot.px, INK);
-    }
+  if (userAction) pauseAuto();
+  syncState();
+}
+
+function buildDots() {
+  stepDots.replaceChildren(...steps.map((_, i) => {
+    const dot = document.createElement("button");
+    dot.className = "dot";
+    dot.type = "button";
+    dot.setAttribute("aria-label", `Go to story step ${i + 1}`);
+    dot.addEventListener("click", () => setStep(i, true));
+    return dot;
+  }));
+}
+
+function setToken(index) {
+  tokenIndex = (index + tokens.length) % tokens.length;
+  const token = tokens[tokenIndex];
+  document.getElementById("tokenTitle").textContent = token.name;
+  document.getElementById("tokenPlain").textContent = token.plain;
+  document.getElementById("tokenLearns").textContent = token.learns;
+  document.getElementById("tokenHidden").textContent = token.hidden;
+  document.getElementById("tokenModel").textContent = token.model;
+  [...tokenButtons.children].forEach((button, i) => {
+    button.classList.toggle("active", i === tokenIndex);
+    button.setAttribute("aria-pressed", i === tokenIndex ? "true" : "false");
   });
+  syncState();
 }
 
-/* ================================================================
-   the state machine — NEXT/BACK jump states and interrupt whatever
-   is mid-flight; icons jump chapters; HOME zooms back out
-   ================================================================ */
-function goto(i) {
-  cur = Math.max(0, Math.min(STATES.length - 1, i));
-  stopEgg();
-  world.selectAll("*").interrupt().remove();
-  const s = STATES[cur];
-  caption(s.cap);
-  s.fn(scene());
-  drawChapterIcons(s.ch);
-}
-function next() { cur >= STATES.length - 1 ? goto(0) : goto(cur + 1); }
-function back() { cur <= 0 ? exitStory() : goto(cur - 1); }
-
-/* zoom: push the camera in so the lcd nearly fills the window */
-const rigEl    = document.querySelector(".rig");
-const screenEl = document.querySelector(".screen");
-function applyZoom() {
-  rigEl.classList.remove("zooming");
-  rigEl.style.transform = "none";           // measure at rest
-  void rigEl.offsetWidth;
-  const scr = screenEl.getBoundingClientRect();
-  const rig = rigEl.getBoundingClientRect();
-  const s = Math.min(innerWidth * 0.94 / scr.width, innerHeight * 0.72 / scr.height);
-  const cx = scr.left + scr.width / 2, cy = scr.top + scr.height / 2;
-  const dx = innerWidth / 2 - cx;
-  const dy = innerHeight * 0.44 - cy;
-  rigEl.style.transformOrigin = `${cx - rig.left}px ${cy - rig.top}px`;
-  rigEl.classList.add("zooming");
-  rigEl.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
-}
-function enterStory(startIdx = 0) {
-  if (mode === "story") { goto(startIdx); return; }
-  mode = "story";
-  document.body.classList.add("zoomed");
-  document.body.style.overflow = "hidden";
-  scrollTo(0, INTRO_VH * innerHeight);
-  applyZoom();
-  refreshButtons();
-  // quick hatch: the egg bursts into the title card
-  stopEgg();
-  const t0 = Date.now();
-  const zoomT = d3.timer(() => {
-    const el = Date.now() - t0;
-    drawEgg(1 + el / 600 * 5, Math.max(0, 1 - el / 600));
-    if (el > 620) {
-      zoomT.stop();
-      world.selectAll("circle.egg").remove();
-      if (mode === "story") goto(startIdx);
-    }
-  });
-}
-function exitStory() {
-  mode = "idle";
-  document.body.classList.remove("zoomed");
-  document.body.style.overflow = "";
-  rigEl.style.transform = "none";           // .zooming animates the return
-  setTimeout(() => { rigEl.classList.remove("zooming"); rigEl.style.transformOrigin = ""; onScroll(); }, 850);
-  startEggIdle();
+function buildTokenButtons() {
+  tokenButtons.replaceChildren(...tokens.map((token, i) => {
+    const button = document.createElement("button");
+    button.className = "token-button";
+    button.type = "button";
+    button.innerHTML = `<strong>${token.button}</strong><span>${token.summary}</span>`;
+    button.addEventListener("click", () => setToken(i));
+    return button;
+  }));
 }
 
-/* ================================================================
-   buttons — labels follow the mode:
-     idle:  START · START · REPO
-     story: BACK  · NEXT  · HOME
-   every press (real or scroll-driven) dips the button, glows the
-   screen, beeps (after first touch unlocks audio) and vibrates
-   ================================================================ */
-const actions = { A: null, B: null, C: null };
-const lblTarget = {}, lblTimer = {};
-function setButtons(spec) {
-  for (const k of ["A", "B", "C"]) {
-    const [text, fn] = spec[k];
-    actions[k] = fn;
-    if (lblTarget[k] === text) continue;
-    lblTarget[k] = text;
-    clearTimeout(lblTimer[k]);
-    const els = document.querySelectorAll(`[data-lbl="${k}"]`);
-    els.forEach(el => el.style.opacity = 0);
-    lblTimer[k] = setTimeout(() => els.forEach(el => { el.textContent = text; el.style.opacity = 1; }), 150);
-  }
-}
-function refreshButtons() {
-  if (mode === "story") {
-    setButtons({ A: ["BACK", back], B: ["NEXT ▸", next], C: ["HOME", exitStory] });
-  } else {
-    setButtons({ A: ["START", () => enterStory(0)],
-                 B: ["START", () => enterStory(0)],
-                 C: ["REPO",  () => window.open("https://github.com/maceip/tamayo", "_blank")] });
-  }
+function scheduleAuto() {
+  clearInterval(timer);
+  if (!playing) return;
+  timer = setInterval(() => setStep(stepIndex + 1), 4800);
 }
 
-let actx = null;
-function unlockAudio() {
-  if (!actx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) actx = new AC();
-  }
-  if (actx && actx.state === "suspended") actx.resume();
+function pauseAuto() {
+  playing = false;
+  clearInterval(timer);
+  playStory.setAttribute("aria-pressed", "false");
+  playLabel.textContent = "Play story";
+  playIcon.setAttribute("d", "M8 5v14l11-7z");
+  syncState();
 }
-addEventListener("pointerdown", unlockAudio);
-addEventListener("keydown", unlockAudio);
-const BEEP_HZ = { A: 660, B: 880, C: 550 };
-function beep(k) {
-  if (!actx || actx.state !== "running") return;
-  const o = actx.createOscillator(), g = actx.createGain();
-  o.type = "square"; o.frequency.value = BEEP_HZ[k];
-  g.gain.setValueAtTime(0.035, actx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.07);
-  o.connect(g); g.connect(actx.destination);
-  o.start(); o.stop(actx.currentTime + 0.07);
-}
-function pressButton(k) {
-  document.querySelectorAll(`button[data-key="${k}"]`).forEach(b => b.classList.add("pressed"));
-  screenEl.classList.add("lit");
-  setTimeout(() => {
-    document.querySelectorAll(`button[data-key="${k}"]`).forEach(b => b.classList.remove("pressed"));
-    screenEl.classList.remove("lit");
-  }, 180);
-  if (navigator.vibrate) navigator.vibrate(15);
-  beep(k);
-}
-function virtualPress(k) { pressButton(k); if (actions[k]) actions[k](); }
-document.querySelectorAll("button[data-key]").forEach(b =>
-  b.addEventListener("click", () => virtualPress(b.dataset.key)));
 
-/* tapping the zoomed screen: left third = BACK, the rest = NEXT */
-screenEl.addEventListener("click", ev => {
-  if (mode !== "story") return;
-  const r = screenEl.getBoundingClientRect();
-  virtualPress((ev.clientX - r.left) / r.width < 0.3 ? "A" : "B");
+function toggleAuto() {
+  playing = !playing;
+  playStory.setAttribute("aria-pressed", playing ? "true" : "false");
+  playLabel.textContent = playing ? "Auto playing" : "Play story";
+  playIcon.setAttribute("d", playing ? "M7 5h4v14H7zm6 0h4v14h-4z" : "M8 5v14l11-7z");
+  scheduleAuto();
+  syncState();
+}
+
+function syncState() {
+  window.__tamayoSiteState = {
+    stepIndex,
+    tokenIndex,
+    playing,
+    scene: steps[stepIndex].scene,
+    token: tokens[tokenIndex].button,
+  };
+}
+
+buildDots();
+buildTokenButtons();
+setStep(0);
+setToken(0);
+playIcon.setAttribute("d", "M7 5h4v14H7zm6 0h4v14h-4z");
+scheduleAuto();
+
+document.getElementById("prevStep").addEventListener("click", () => setStep(stepIndex - 1, true));
+document.getElementById("nextStep").addEventListener("click", () => setStep(stepIndex + 1, true));
+playStory.addEventListener("click", toggleAuto);
+
+window.addEventListener("keydown", event => {
+  if (event.key === "ArrowRight") setStep(stepIndex + 1, true);
+  if (event.key === "ArrowLeft") setStep(stepIndex - 1, true);
 });
-
-/* ================================================================
-   scroll = pressing buttons. the intro is real page scroll (the egg
-   slides up from the fold); once the egg is centered, every ~half
-   wheel-notch presses NEXT (or BACK, scrolling up) for you
-   ================================================================ */
-const footEl = document.querySelector("footer");
-const hintEl = document.querySelector(".scroll-hint");
-const spaceEl = document.getElementById("scrollspace");
-const INTRO_VH = 0.9;
-const WHEEL_STEP = 55;       // ~half a notch of a classic wheel
-let rigCenter0 = 0, baseS = 1;
-
-function layoutScroll() {
-  if (mode === "story") { applyZoom(); return; }
-  rigEl.classList.remove("zooming");
-  rigEl.style.transform = "none";
-  baseS = Math.min(1, innerWidth / 430);
-  rigEl.style.transformOrigin = "50% 0%";
-  const r = rigEl.getBoundingClientRect();
-  rigCenter0 = r.top + r.height / 2;
-  spaceEl.style.height = innerHeight * (1 + INTRO_VH) + "px";
-  onScroll();
-}
-const smoothstep = t => t * t * (3 - 2 * t);
-function onScroll() {
-  if (mode === "story") return;
-  const t = Math.max(0, Math.min(1, scrollY / (INTRO_VH * innerHeight)));
-  rigEl.style.transform =
-    `translateY(${(1 - smoothstep(t)) * (innerHeight - rigCenter0)}px) scale(${baseS})`;
-  footEl.style.opacity = t;
-  hintEl.style.opacity = t < .98 ? 1 : 0;
-}
-addEventListener("scroll", onScroll, { passive: true });
-addEventListener("resize", layoutScroll);
-
-let wheelAcc = 0, lastStep = 0;
-function stepFromDelta(dy) {
-  wheelAcc += dy;
-  const now = performance.now();
-  if (now - lastStep < 130) return;
-  if (wheelAcc >= WHEEL_STEP) {
-    wheelAcc = 0; lastStep = now;
-    virtualPress("B");                       // NEXT (or START from idle)
-  } else if (wheelAcc <= -WHEEL_STEP && mode === "story") {
-    wheelAcc = 0; lastStep = now;
-    virtualPress("A");                       // BACK
-  }
-}
-addEventListener("wheel", e => {
-  if (mode === "story") {
-    e.preventDefault();
-    stepFromDelta(e.deltaY);
-  } else {
-    // only take over once the intro scroll is used up
-    const parked = scrollY >= INTRO_VH * innerHeight - 2;
-    if (parked && e.deltaY > 0) stepFromDelta(e.deltaY);
-    else wheelAcc = 0;
-  }
-}, { passive: false });
-
-let touchY = null;
-addEventListener("touchstart", e => { touchY = e.touches[0].clientY; }, { passive: true });
-addEventListener("touchmove", e => {
-  if (touchY === null) return;
-  const dy = touchY - e.touches[0].clientY;
-  if (mode === "story") {
-    e.preventDefault();
-    if (Math.abs(dy) > 42) { stepFromDelta(dy > 0 ? WHEEL_STEP : -WHEEL_STEP); touchY = e.touches[0].clientY; }
-  } else if (scrollY >= INTRO_VH * innerHeight - 2 && dy > 42) {
-    stepFromDelta(WHEEL_STEP); touchY = e.touches[0].clientY;
-  }
-}, { passive: false });
-
-addEventListener("keydown", e => {
-  if (mode !== "story") return;
-  if (["ArrowRight", "ArrowDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); virtualPress("B"); }
-  else if (["ArrowLeft", "ArrowUp"].includes(e.key)) { e.preventDefault(); virtualPress("A"); }
-  else if (e.key === "Escape") virtualPress("C");
-});
-
-/* ================================================================
-   the coat — paints SHELL's archetype artwork (see head script) into
-   .shell-pattern. mints draw with a canonical rng, so every mint of
-   an archetype is identical; variants re-seed layout from the key.
-   art covers the whole shell and simply runs under the frame, the
-   same way the printed cases do.
-   ================================================================ */
-function paintShell() {
-  const R = SHELL.rnd, P = SHELL.pat;
-  const pc = i => P[i % Math.max(1, P.length)];
-  const rr = (a, b) => a + R() * (b - a);
-  const g = d3.select(".shell-pattern").append("svg")
-    .attr("viewBox", "0 0 380 470").attr("preserveAspectRatio", "none")
-    .append("g");
-
-  const starPts = (x, y, r) => {
-    const p = [];
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * .45 : r;
-      p.push((x + Math.cos(a) * rad).toFixed(1) + "," + (y + Math.sin(a) * rad).toFixed(1));
-    }
-    return p.join(" ");
-  };
-  const star = (x, y, r, col, fill = true) => g.append("polygon")
-    .attr("points", starPts(x, y, r))
-    .attr("fill", fill ? col : "none")
-    .attr("stroke", col).attr("stroke-width", fill ? 0 : 2.4)
-    .attr("stroke-linejoin", "round")
-    .attr("transform", `rotate(${rr(-30, 30)} ${x} ${y})`);
-  const heart = (x, y, s, col) => g.append("path")
-    .attr("d", "M0 3 C-7 -6 -18 1 -9 10 L0 17 L9 10 C18 1 7 -6 0 3 Z")
-    .attr("fill", col)
-    .attr("transform", `translate(${x},${y}) scale(${s}) rotate(${rr(-25, 25)})`);
-  const blob = (x, y, r, col, stretch = 1.5) => {
-    const n = 7, pts = [];
-    for (let i = 0; i < n; i++) {
-      const a = i / n * 2 * Math.PI;
-      pts.push((x + Math.cos(a) * r * rr(.5, 1.2) * stretch).toFixed(1) + " " +
-               (y + Math.sin(a) * r * rr(.5, 1.2)).toFixed(1));
-    }
-    g.append("path").attr("d", "M" + pts.join(" L") + " Z")
-      .attr("fill", col).attr("stroke", col)
-      .attr("stroke-width", r * .9).attr("stroke-linejoin", "round");
-  };
-  const specks = (n, col, rmin, rmax, omin, omax) => {
-    for (let i = 0; i < n; i++)
-      g.append("circle").attr("cx", rr(8, 372)).attr("cy", rr(8, 462))
-        .attr("r", rr(rmin, rmax)).attr("fill", col).attr("opacity", rr(omin, omax));
-  };
-  const squiggle = (x, y, col) => g.append("path")
-    .attr("d", `M ${x} ${y} q 7 -9 14 0 t 14 0 t 14 0`)
-    .attr("fill", "none").attr("stroke", col).attr("stroke-width", 2.6)
-    .attr("stroke-linecap", "round")
-    .attr("transform", `rotate(${rr(-30, 30)} ${x} ${y})`);
-  const gloss = () => {   // translucent-case shine
-    g.append("path").attr("d", "M 60 88 Q 92 40 168 26 Q 108 66 92 118 Z")
-      .attr("fill", "#fff").attr("opacity", .2);
-    g.append("path").attr("d", "M 320 350 Q 344 300 342 236 Q 360 320 338 372 Z")
-      .attr("fill", "#fff").attr("opacity", .13);
-    g.append("ellipse").attr("cx", 190).attr("cy", 238).attr("rx", 158).attr("ry", 202)
-      .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 9).attr("opacity", .3);
-  };
-  const camo = () => {
-    for (let i = 0; i < 17; i++)
-      blob(rr(-10, 390), rr(-10, 480), rr(24, 44), pc(i));
-  };
-    const ring = (n, fn) => {   // n spots around the shell rim
-      for (let i = 0; i < n; i++) {
-        const a = i / n * 2 * Math.PI + rr(-.14, .14);
-        fn(190 + Math.cos(a) * rr(140, 168), 238 + Math.sin(a) * rr(168, 205) * .95, i);
-      }
-    };
-    const wear = () => {
-      const dark = "rgba(32,28,22,.38)";
-      const deep = "rgba(16,14,12,.28)";
-      const light = "rgba(255,255,255,.32)";
-      const zones = [
-        [28, 54, 142, 116],
-        [246, 48, 354, 128],
-        [18, 166, 88, 328],
-        [294, 170, 366, 330],
-        [82, 356, 304, 438],
-      ];
-      const pick = () => {
-        const z = zones[Math.floor(R() * zones.length)];
-        return [rr(z[0], z[2]), rr(z[1], z[3])];
-      };
-      const scratch = (x, y, len, a) => {
-        const dx = Math.cos(a) * len, dy = Math.sin(a) * len;
-        g.append("line")
-          .attr("x1", x - dx / 2).attr("y1", y - dy / 2)
-          .attr("x2", x + dx / 2).attr("y2", y + dy / 2)
-          .attr("stroke", dark).attr("stroke-width", rr(1.1, 2.3))
-          .attr("stroke-linecap", "round").attr("opacity", rr(.46, .86));
-        g.append("line")
-          .attr("x1", x - dx / 2 + 1.4).attr("y1", y - dy / 2 - 1.2)
-          .attr("x2", x + dx / 2 + 1.4).attr("y2", y + dy / 2 - 1.2)
-          .attr("stroke", light).attr("stroke-width", .8)
-          .attr("stroke-linecap", "round").attr("opacity", rr(.25, .52));
-      };
-      const dent = (x, y, r) => {
-        g.append("ellipse")
-          .attr("cx", x).attr("cy", y).attr("rx", r * rr(1.15, 1.8)).attr("ry", r)
-          .attr("fill", deep).attr("opacity", rr(.2, .42))
-          .attr("transform", `rotate(${rr(-32, 32)} ${x} ${y})`);
-        g.append("path")
-          .attr("d", `M ${x - r * 1.1} ${y - r * .35} Q ${x} ${y - r * 1.1} ${x + r * 1.1} ${y - r * .35}`)
-          .attr("fill", "none").attr("stroke", light)
-          .attr("stroke-width", 1.1).attr("stroke-linecap", "round").attr("opacity", .32);
-      };
-      const chip = (x, y, s) => {
-        g.append("path")
-          .attr("d", `M ${x} ${y} l ${s * .7} ${-s * .25} l ${s * .35} ${s * .5} l ${-s * .8} ${s * .42} z`)
-          .attr("fill", deep).attr("opacity", .38)
-          .attr("transform", `rotate(${rr(-60, 60)} ${x} ${y})`);
-      };
-      const n = Math.round(4 + SHELL.wearLevel * 8);
-      for (let i = 0; i < n; i++) {
-        const [x, y] = pick();
-        scratch(x, y, rr(12, 38), rr(-.9, .9));
-      }
-      for (let i = 0; i < Math.round(1 + SHELL.wearLevel * 4); i++) {
-        const [x, y] = pick();
-        dent(x, y, rr(4, 10));
-      }
-      for (let i = 0; i < Math.round(SHELL.wearLevel * 3); i++) {
-        const [x, y] = pick();
-        chip(x, y, rr(5, 10));
-      }
-    };
-
-    ({
-    doodle() {
-      ring(14, (x, y, i) => {
-        const k = i % 4;
-        if (k === 0)      star(x, y, rr(8, 13), pc(i), i % 3 !== 0);
-        else if (k === 1) heart(x, y, rr(.7, 1.1), pc(i));
-        else if (k === 2) squiggle(x - 20, y, pc(i));
-        else              g.append("circle").attr("cx", x).attr("cy", y).attr("r", rr(4, 7))
-                            .attr("fill", "none").attr("stroke", pc(i)).attr("stroke-width", 2.6);
-      });
-    },
-    clearblue: gloss, clearpurple: gloss,
-    camopink: camo, camogreen: camo,
-    kitty() {
-      [-1, 1].forEach(s => [0, 1, 2].forEach(i => {
-        const y = 234 + i * 16, x = 190 + s * 160;
-        g.append("line").attr("x1", x).attr("y1", y).attr("x2", x + s * 34).attr("y2", y + (i - 1) * 8)
-          .attr("stroke", pc(3)).attr("stroke-width", 3.4).attr("stroke-linecap", "round");
-      }));
-      const bow = g.append("g").attr("transform", "translate(285,40) rotate(-14) scale(1.15)");
-      bow.append("path").attr("d", "M0 0 L-26 -12 Q-34 0 -26 12 Z").attr("fill", pc(0));
-      bow.append("path").attr("d", "M0 0 L26 -12 Q34 0 26 12 Z").attr("fill", pc(0));
-      bow.append("circle").attr("r", 6.5).attr("fill", pc(0));
-    },
-    ocean() {
-      ring(12, (x, y, i) => {
-        if (i % 3 === 0) star(x, y, rr(7, 11), pc(i));
-        else if (i % 3 === 1) g.append("circle").attr("cx", x).attr("cy", y).attr("r", rr(4, 9))
-          .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.4).attr("opacity", .85);
-        else squiggle(x - 18, y, pc(i));
-      });
-      specks(26, pc(0), .8, 1.8, .3, .7);
-    },
-    stars() {
-      specks(90, pc(0), .6, 1.6, .35, .9);
-      ring(9, (x, y, i) => star(x, y, rr(9, 16), pc(i), i % 3 !== 1));
-      for (let r = 0; r < 3; r++) for (let col = 0; col < 5; col++)
-        if ((r + col) % 2 === 0)
-          g.append("rect").attr("x", 36 + col * 15).attr("y", 380 + r * 15)
-            .attr("width", 15).attr("height", 15).attr("fill", pc(0)).attr("opacity", .92)
-            .attr("transform", "rotate(-8 70 400)");
-    },
-    toys() {
-      ring(10, (x, y, i) => {
-        blob(x, y, rr(16, 26), pc(i), 1.2);
-        for (let d = 0; d < 4; d++)
-          g.append("circle").attr("cx", x + rr(-14, 14)).attr("cy", y + rr(-12, 12))
-            .attr("r", rr(1.6, 3)).attr("fill", "#fff").attr("opacity", .85);
-      });
-      specks(40, "#fff", .5, 1.4, .3, .8);
-      gloss();
-    },
-    fragblack() { bolt(); }, fragwhite() { bolt(); },
-    devil() {
-      [-1, 1].forEach(s => {
-        const w = g.append("g")
-          .attr("transform", `translate(${190 + s * 158},212) scale(${s * 1.05},1.05)`);
-        w.append("path").attr("d", "M0 0 Q22 -18 40 -8 Q30 -2 32 6 Q20 2 16 10 Q10 4 0 8 Z")
-          .attr("fill", pc(1)).attr("opacity", .92);
-      });
-      ring(8, (x, y, i) => { if (i % 2 === 0) star(x, y, rr(4, 7), pc(0)); });
-      g.append("circle").attr("cx", 320).attr("cy", 388).attr("r", 11)
-        .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.6);
-      [[320, 371], [308, 379], [332, 379]].forEach(([x, y]) =>
-        g.append("path").attr("d", `M ${x} ${y + 6} L ${x - 3} ${y} L ${x + 3} ${y} Z`)
-          .attr("fill", pc(0)));
-    },
-    conan() {
-      specks(70, pc(0), .5, 1.5, .3, .8);
-      g.append("circle").attr("cx", 190).attr("cy", 235).attr("r", 165)
-        .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 3).attr("opacity", .6);
-      ring(10, (x, y, i) => {
-        g.append("rect").attr("x", x - 13).attr("y", y - 5).attr("width", 26).attr("height", 10)
-          .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2)
-          .attr("opacity", .7).attr("transform", `rotate(${rr(-15, 15)} ${x} ${y})`);
-      });
-    },
-    }[SHELL.name] || (() => {}))();
-    if (SHELL.wear) wear();
-
-    function bolt() {
-    g.append("path").attr("d", "M 6 0 L -3 15 L 2 15 L -5 32 L 10 12 L 4 12 Z")
-      .attr("fill", pc(0)).attr("transform", "translate(248,26) scale(.9)");
-    g.append("circle").attr("cx", 251).attr("cy", 40).attr("r", 15)
-      .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.4);
-  }
-
-    document.getElementById("shellid").textContent =
-      `${SHELL.name} ${SHELL.mint ? "(mint)" : "variant"}${SHELL.wear ? " · well-loved" : ""} · ${SHELL.key}`;
-  }
-
-/* boot */
-paintShell();
-initTokenCatalogue();
-startEggIdle();
-layoutScroll();
 </script>
 </body>
 </html>
