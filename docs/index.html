@@ -46,9 +46,9 @@
     --btn-hi:  #5a54d4;
     --lbl:     rgba(46, 42, 114, .85);
     --seam-ink:rgba(80, 45, 0, .5);
-    --egg-w: 380px;
-    --egg-h: 470px;
-    --egg-radius: 50% 50% 47% 47% / 56% 56% 44% 44%;
+    --egg-w: 398px;
+    --egg-h: 430px;
+    --egg-radius: 50% 50% 48% 48% / 53% 53% 47% 47%;
     --seam-y: 56%;         /* the parting line sits at the widest point */
     --lcd:     #c7d3a0;    /* lcd green */
     --lcd-dim: #b4c18c;
@@ -88,16 +88,18 @@
   .rig { perspective: 900px; margin: 18px 0 8px; will-change: transform; }
   .rig.zooming { transition: transform .8s cubic-bezier(.22, .9, .3, 1); }
   .egg-shell {
-    position: relative;
-    width: var(--egg-w); height: var(--egg-h);
-    background:
-      radial-gradient(220px 200px at 35% 25%, var(--shell-hi) 0%, var(--shell-a) 45%, var(--shell-b) 100%);
-    border-radius: var(--egg-radius);
-    box-shadow:
-      inset -14px -18px 40px var(--shell-deep),
-      inset 10px 12px 30px rgba(255, 255, 255, .5),
-      0 24px 60px rgba(0, 0, 0, .55);
-    transform: rotateX(4deg);
+      position: relative;
+      width: var(--egg-w); height: var(--egg-h);
+      background:
+        radial-gradient(170px 150px at 36% 17%, rgba(255,255,255,.55), transparent 60%),
+        radial-gradient(360px 320px at 48% 40%, var(--shell-hi) 0%, var(--shell-a) 46%, var(--shell-b) 100%);
+      border-radius: var(--egg-radius);
+      box-shadow:
+        inset -18px -22px 44px var(--shell-deep),
+        inset 12px 14px 32px rgba(255, 255, 255, .46),
+        inset 0 -3px 0 rgba(0, 0, 0, .08),
+        0 24px 60px rgba(0, 0, 0, .55);
+      transform: rotateX(4deg);
   }
   /* per-visitor coat (speckles/spots/stripes), painted by the identicon
      script into an svg that stretches with the shell */
@@ -147,30 +149,32 @@
      egg's curve and the square screen, so neither outline has to bend
      to the other (clip-path kills box-shadow, hence the rig wrapper) */
   .frame-rig {
-    /* sized so the burst tips peek only ~15% past the screen edge, like
-       the gen-1 — any bigger and the whole thing reads as a flower */
-    position: absolute; inset: 46px 38px auto 38px; height: 302px;
-    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .4));
+      /* compact gen-1 style frame: the jagged plastic hugs the screen
+         instead of becoming the whole object. */
+      position: absolute; inset: 62px 46px auto 46px; height: 274px;
+      filter: drop-shadow(0 7px 9px rgba(0, 0, 0, .46));
   }
   .frame {
     position: absolute; inset: 0;
     background: linear-gradient(170deg, var(--trim-hi) 0%, var(--trim) 55%, var(--trim-lo) 100%);
-    /* gen-1 proportions: the screen covers 13–87% of this box, every
-       valley tucks under it, and only eight irregular tips peek past
-       the edge — 2 top, 2 each side, 2 bottom, like the target photo */
-    clip-path: polygon(
-      33% 3%, 50% 18%, 67% 5%, 80% 20%,
-      99% 38%, 82% 55%, 96% 72%, 78% 80%,
-      68% 97%, 50% 82%, 32% 95%, 22% 80%,
-      3% 73%, 18% 55%, 1% 37%, 20% 20%
-    );
-  }
-  .screen {
-    position: absolute; inset: 42px 40px;
-    background: linear-gradient(160deg, var(--lcd) 60%, var(--lcd-dim));
-    border: 5px solid var(--trim-lo);   /* thin bezel rim, like the gen-1 */
-    border-radius: 16px;
-    box-shadow: inset 0 3px 10px rgba(30, 40, 20, .45);
+      /* gen-1 proportions: irregular tips peek outside a tight LCD bezel. */
+      clip-path: polygon(
+        33% 2%, 49% 14%, 65% 3%, 78% 17%,
+        95% 33%, 84% 49%, 98% 65%, 82% 77%,
+        68% 96%, 50% 85%, 32% 96%, 19% 77%,
+        3% 67%, 16% 50%, 4% 33%, 22% 17%
+      );
+    }
+    .screen {
+      position: absolute; inset: 38px 31px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.18), transparent 20%),
+        linear-gradient(160deg, var(--lcd) 58%, var(--lcd-dim));
+      border: 7px solid var(--trim-lo);
+      border-radius: 13px;
+      box-shadow:
+        0 2px 0 rgba(255,255,255,.12),
+        inset 0 3px 10px rgba(30, 40, 20, .48);
     overflow: hidden;
     transition: filter .18s;
   }
@@ -178,11 +182,11 @@
   .screen svg { width: 100%; height: 100%; display: block; }
 
   .buttons {
-    position: absolute; bottom: 58px; left: 0; right: 0;
-    display: flex; justify-content: center; gap: 34px;
-  }
-  .btn {
-    width: 54px; height: 54px; border-radius: 50%;
+      position: absolute; bottom: 48px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 42px;
+    }
+    .btn {
+      width: 50px; height: 50px; border-radius: 50%;
     border: none; cursor: pointer;
     background: radial-gradient(20px 20px at 35% 30%, var(--btn-hi), var(--btn) 70%);
     box-shadow: inset 0 -4px 6px rgba(0,0,0,.45), inset 0 3px 4px rgba(255,255,255,.35),
@@ -192,9 +196,9 @@
   .btn:active,
   .btn.pressed { transform: translateY(2px); box-shadow: inset 0 -2px 4px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.3); filter: brightness(1.25); }
   .btn.mid { margin-top: 16px; }  /* middle button sits lower, like the original */
-  .btn-labels {
-    position: absolute; bottom: 34px; left: 0; right: 0;
-    display: flex; justify-content: center; gap: 30px;
+    .btn-labels {
+      position: absolute; bottom: 28px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 38px;
     font-size: 9px; color: var(--lbl); font-weight: 700; letter-spacing: 1px;
   }
   .btn-labels span { width: 58px; text-align: center; transition: opacity .14s; }
@@ -221,9 +225,105 @@
   .buttons, .btn-labels { transition: opacity .3s; }
 
   footer { margin: 14px 0 30px; font-size: 11px; color: #6c7191; text-align: center; line-height: 1.7; transition: opacity .35s; }
-  footer a { color: #a7b6ff; text-decoration: none; }
-  footer .fine { color: #565b78; }
-</style>
+    footer a { color: #a7b6ff; text-decoration: none; }
+    footer .fine { color: #565b78; }
+
+    .catalogue {
+      min-height: 100vh;
+      padding: clamp(34px, 8vw, 88px) 18px clamp(48px, 9vw, 96px);
+      background:
+        radial-gradient(780px 460px at 78% 18%, rgba(131, 216, 149, .2), transparent 66%),
+        radial-gradient(620px 520px at 14% 78%, rgba(224, 118, 222, .16), transparent 64%),
+        linear-gradient(180deg, #0d0f18 0%, #151928 58%, #10131d 100%);
+      color: #eef2df;
+    }
+    .catalogue-inner {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(280px, .82fr) minmax(320px, 1fr);
+      gap: clamp(24px, 5vw, 64px);
+      align-items: center;
+    }
+    .catalogue-kicker {
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: #9ed6a9;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .catalogue h2 {
+      font-size: clamp(28px, 5vw, 56px);
+      line-height: 1;
+      letter-spacing: 0;
+      max-width: 680px;
+      color: #fbfde8;
+    }
+    .catalogue-lede {
+      margin: 18px 0 26px;
+      max-width: 640px;
+      color: #c4cbae;
+      font-size: clamp(15px, 2vw, 18px);
+      line-height: 1.65;
+    }
+    .token-list {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+    .token-list li {
+      border-left: 4px solid rgba(199, 211, 160, .22);
+      padding: 12px 14px 13px 16px;
+      background: rgba(255, 255, 255, .035);
+      border-radius: 0 8px 8px 0;
+      transition: background .28s, border-color .28s, transform .28s;
+    }
+    .token-list li.active {
+      border-color: #d66adf;
+      background: rgba(214, 106, 223, .13);
+      transform: translateX(4px);
+    }
+    .token-list strong {
+      display: block;
+      color: #fbfde8;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .token-list span {
+      display: block;
+      color: #b7bea5;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .token-stage {
+      position: relative;
+      border: 1px solid rgba(199, 211, 160, .22);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(199, 211, 160, .13), rgba(199, 211, 160, .04)),
+        #111720;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 22px 70px rgba(0,0,0,.42);
+      overflow: hidden;
+    }
+    .token-stage::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(199, 211, 160, .055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(199, 211, 160, .045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+    }
+    #tokenLoop {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 11;
+      display: block;
+    }
+    @media (max-width: 860px) {
+      .catalogue-inner { grid-template-columns: 1fr; }
+    }
+  </style>
 <script>
 "use strict";
 /* ================================================================
@@ -277,11 +377,15 @@ const SHELL = (() => {
   };
   const NAMES = Object.keys(ARCH);
 
-  let key = null, forced = null;
-  try {
-    const q = new URLSearchParams(location.search).get("shell");
-    if (q && ARCH[q]) { forced = q; key = q; }
-    else if (q && /^[0-9a-f]{16}$/.test(q)) key = q;
+    let key = null, forced = null, forcedWear = null;
+    try {
+      const params = new URLSearchParams(location.search);
+      const q = params.get("shell");
+      const w = params.get("wear");
+      if (w === "1" || w === "true") forcedWear = true;
+      else if (w === "0" || w === "false") forcedWear = false;
+      if (q && ARCH[q]) { forced = q; key = q; }
+      else if (q && /^[0-9a-f]{16}$/.test(q)) key = q;
     else {
       key = localStorage.getItem("tamayo.shell");
       if (!/^[0-9a-f]{16}$/.test(key || "")) {
@@ -302,9 +406,11 @@ const SHELL = (() => {
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
   const rnd  = mulberry(hsh);
-  const name = forced || NAMES[Math.floor(rnd() * NAMES.length)];
-  const A    = ARCH[name];
-  const mint = forced ? true : rnd() < 0.15;
+    const name = forced || NAMES[Math.floor(rnd() * NAMES.length)];
+    const A    = ARCH[name];
+    const mint = forced ? true : rnd() < 0.15;
+    const wear = forcedWear === null ? (!mint && rnd() < 0.28) : forcedWear;
+    const wearLevel = wear ? .45 + rnd() * .55 : 0;
 
   /* derivative mutation: one hue rotation shared by every chromatic
      color (achromatic plastic keeps its white/black), plus a little
@@ -347,8 +453,8 @@ const SHELL = (() => {
   for (const [k, v] of Object.entries(css))
     document.documentElement.style.setProperty(k, v);
 
-  return { key, name, mint, dark,
-           pat: pat.map(c => H(c)),
+    return { key, name, mint, dark, wear, wearLevel,
+             pat: pat.map(c => H(c)),
            shellCol: H(shell), trimCol: H(trim), btnCol: H(btn),
            /* coat rng: canonical seed for mints (identical for everyone),
               key-derived for variants (layout unique per key) */
@@ -399,6 +505,44 @@ const SHELL = (() => {
 </div><!-- .stage -->
 </div><!-- #scrollspace -->
 
+<section class="catalogue" id="token-catalogue" aria-labelledby="token-catalogue-title">
+  <div class="catalogue-inner">
+    <div>
+      <div class="catalogue-kicker">token catalogue</div>
+      <h2 id="token-catalogue-title">four ways to prove enough, and no more</h2>
+      <p class="catalogue-lede">
+        The crypto packages stay low level, but the token service now exposes
+        four rows product runtimes can wrap: one-use access, private continuity,
+        policy-bound email, and Google email verification token compatibility.
+      </p>
+      <ol class="token-list" id="tokenList">
+        <li>
+          <strong>Burn token</strong>
+          <span>Anonymous one-use pass. The verifier learns that this request was allowed once, then burns the token.</span>
+        </li>
+        <li>
+          <strong>Private identity token</strong>
+          <span>Same visitor for one relying party, no email shown. The repeated name only works for that site.</span>
+        </li>
+        <li>
+          <strong>Policy-bound email token</strong>
+          <span>Email address is shown, and issuance can require a trusted runtime measurement.</span>
+        </li>
+        <li>
+          <strong>Google email verification token</strong>
+          <span>Email address only, using the Google-compatible format for interop and regression tests.</span>
+        </li>
+      </ol>
+    </div>
+    <div class="token-stage" aria-label="Looping animation of token issuer, holder, and verifier flow">
+      <svg id="tokenLoop" viewBox="0 0 640 440" role="img" aria-labelledby="tokenLoopTitle tokenLoopDesc">
+        <title id="tokenLoopTitle">Token catalogue loop</title>
+        <desc id="tokenLoopDesc">A looping diagram cycles through the four token rows and shows what each verifier learns.</desc>
+      </svg>
+    </div>
+  </div>
+</section>
+
 <div class="scroll-hint">▼ scroll</div>
 
 <div id="zoomctl">
@@ -432,6 +576,132 @@ function rng(seed) {
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
+}
+
+function initTokenCatalogue() {
+  const rows = [
+    {
+      name: "Burn token",
+      plain: "anonymous one-use pass",
+      learns: "verifier learns: allowed once",
+      left: "ask without identity",
+      right: "used once, then gone",
+      foot: "issuer does not see the final token",
+      accent: "#d66adf",
+    },
+    {
+      name: "Private identity token",
+      plain: "repeat visitor, no email",
+      learns: "verifier learns: same visitor at this site",
+      left: "same holder returns",
+      right: "no email revealed",
+      foot: "reusable only for that relying party",
+      accent: "#83d895",
+    },
+    {
+      name: "Policy-bound email token",
+      plain: "email plus policy check",
+      learns: "verifier learns: address and issuance context",
+      left: "trusted runtime can be required",
+      right: "email address shown",
+      foot: "policy is checked before issuance",
+      accent: "#f3d268",
+    },
+    {
+      name: "Google email verification token",
+      plain: "Google-compatible email token",
+      learns: "verifier learns: verified email address",
+      left: "standard email proof",
+      right: "email address shown",
+      foot: "separate from private-token policy",
+      accent: "#7db8ff",
+    },
+  ];
+  const list = Array.from(document.querySelectorAll("#tokenList li"));
+  const stage = d3.select("#tokenLoop");
+  if (!list.length || stage.empty()) return;
+
+  const drawNode = (g, x, y, title, sub, accent) => {
+    const node = g.append("g").attr("transform", `translate(${x},${y})`);
+    node.append("rect")
+      .attr("x", -76).attr("y", -32).attr("width", 152).attr("height", 64)
+      .attr("rx", 8)
+      .attr("fill", "rgba(12,16,22,.88)")
+      .attr("stroke", accent)
+      .attr("stroke-width", 2);
+    node.append("text")
+      .attr("text-anchor", "middle").attr("y", -5)
+      .attr("fill", "#fbfde8").attr("font-size", 16).attr("font-weight", 700)
+      .text(title);
+    node.append("text")
+      .attr("text-anchor", "middle").attr("y", 16)
+      .attr("fill", "#b7bea5").attr("font-size", 11)
+      .text(sub);
+  };
+
+  const draw = idx => {
+    const row = rows[idx];
+    list.forEach((el, i) => el.classList.toggle("active", i === idx));
+    stage.selectAll("g.token-frame").interrupt().remove();
+
+    const g = stage.append("g").attr("class", "token-frame");
+    g.append("rect")
+      .attr("x", 22).attr("y", 22).attr("width", 596).attr("height", 396)
+      .attr("rx", 8)
+      .attr("fill", "rgba(199,211,160,.045)")
+      .attr("stroke", "rgba(199,211,160,.18)");
+
+    g.append("text")
+      .attr("x", 320).attr("y", 64).attr("text-anchor", "middle")
+      .attr("fill", row.accent).attr("font-size", 24).attr("font-weight", 800)
+      .text(row.name);
+    g.append("text")
+      .attr("x", 320).attr("y", 92).attr("text-anchor", "middle")
+      .attr("fill", "#fbfde8").attr("font-size", 16)
+      .text(row.plain);
+
+    drawNode(g, 110, 220, "issuer", row.left, row.accent);
+    drawNode(g, 320, 158, "holder", "receives token", row.accent);
+    drawNode(g, 530, 220, "verifier", row.right, row.accent);
+
+    const path = g.append("path")
+      .attr("d", "M 188 212 C 238 112 402 112 452 212")
+      .attr("fill", "none")
+      .attr("stroke", row.accent)
+      .attr("stroke-width", 4)
+      .attr("stroke-linecap", "round")
+      .attr("opacity", .84);
+    g.append("path")
+      .attr("d", "M 452 212 l -18 -5 l 11 15 Z")
+      .attr("fill", row.accent)
+      .attr("opacity", .88);
+
+    const dot = g.append("circle")
+      .attr("r", 9)
+      .attr("fill", "#fbfde8")
+      .attr("stroke", row.accent)
+      .attr("stroke-width", 4);
+    const pathNode = path.node();
+    const len = pathNode.getTotalLength();
+    dot.transition().duration(2300).ease(d3.easeCubicInOut)
+      .attrTween("transform", () => t => {
+        const p = pathNode.getPointAtLength(t * len);
+        return `translate(${p.x},${p.y})`;
+      });
+
+    g.append("text")
+      .attr("x", 320).attr("y", 314).attr("text-anchor", "middle")
+      .attr("fill", "#fbfde8").attr("font-size", 18).attr("font-weight", 700)
+      .text(row.learns);
+    g.append("text")
+      .attr("x", 320).attr("y", 346).attr("text-anchor", "middle")
+      .attr("fill", "#b7bea5").attr("font-size", 14)
+      .text(row.foot);
+  };
+
+  let idx = 0;
+  draw(idx);
+  setInterval(() => { idx = (idx + 1) % rows.length; draw(idx); }, 3200);
 }
 
 /* caption: up to 3 lines under the scene, above the bottom icon row */
@@ -1437,7 +1707,7 @@ function onScroll() {
   rigEl.style.transform =
     `translateY(${(1 - smoothstep(t)) * (innerHeight - rigCenter0)}px) scale(${baseS})`;
   footEl.style.opacity = t;
-  hintEl.style.opacity = 1;
+  hintEl.style.opacity = t < .98 ? 1 : 0;
 }
 addEventListener("scroll", onScroll, { passive: true });
 addEventListener("resize", layoutScroll);
@@ -1553,14 +1823,72 @@ function paintShell() {
     for (let i = 0; i < 17; i++)
       blob(rr(-10, 390), rr(-10, 480), rr(24, 44), pc(i));
   };
-  const ring = (n, fn) => {   // n spots around the shell rim
-    for (let i = 0; i < n; i++) {
-      const a = i / n * 2 * Math.PI + rr(-.14, .14);
-      fn(190 + Math.cos(a) * rr(140, 168), 238 + Math.sin(a) * rr(168, 205) * .95, i);
-    }
-  };
+    const ring = (n, fn) => {   // n spots around the shell rim
+      for (let i = 0; i < n; i++) {
+        const a = i / n * 2 * Math.PI + rr(-.14, .14);
+        fn(190 + Math.cos(a) * rr(140, 168), 238 + Math.sin(a) * rr(168, 205) * .95, i);
+      }
+    };
+    const wear = () => {
+      const dark = "rgba(32,28,22,.38)";
+      const deep = "rgba(16,14,12,.28)";
+      const light = "rgba(255,255,255,.32)";
+      const zones = [
+        [28, 54, 142, 116],
+        [246, 48, 354, 128],
+        [18, 166, 88, 328],
+        [294, 170, 366, 330],
+        [82, 356, 304, 438],
+      ];
+      const pick = () => {
+        const z = zones[Math.floor(R() * zones.length)];
+        return [rr(z[0], z[2]), rr(z[1], z[3])];
+      };
+      const scratch = (x, y, len, a) => {
+        const dx = Math.cos(a) * len, dy = Math.sin(a) * len;
+        g.append("line")
+          .attr("x1", x - dx / 2).attr("y1", y - dy / 2)
+          .attr("x2", x + dx / 2).attr("y2", y + dy / 2)
+          .attr("stroke", dark).attr("stroke-width", rr(1.1, 2.3))
+          .attr("stroke-linecap", "round").attr("opacity", rr(.46, .86));
+        g.append("line")
+          .attr("x1", x - dx / 2 + 1.4).attr("y1", y - dy / 2 - 1.2)
+          .attr("x2", x + dx / 2 + 1.4).attr("y2", y + dy / 2 - 1.2)
+          .attr("stroke", light).attr("stroke-width", .8)
+          .attr("stroke-linecap", "round").attr("opacity", rr(.25, .52));
+      };
+      const dent = (x, y, r) => {
+        g.append("ellipse")
+          .attr("cx", x).attr("cy", y).attr("rx", r * rr(1.15, 1.8)).attr("ry", r)
+          .attr("fill", deep).attr("opacity", rr(.2, .42))
+          .attr("transform", `rotate(${rr(-32, 32)} ${x} ${y})`);
+        g.append("path")
+          .attr("d", `M ${x - r * 1.1} ${y - r * .35} Q ${x} ${y - r * 1.1} ${x + r * 1.1} ${y - r * .35}`)
+          .attr("fill", "none").attr("stroke", light)
+          .attr("stroke-width", 1.1).attr("stroke-linecap", "round").attr("opacity", .32);
+      };
+      const chip = (x, y, s) => {
+        g.append("path")
+          .attr("d", `M ${x} ${y} l ${s * .7} ${-s * .25} l ${s * .35} ${s * .5} l ${-s * .8} ${s * .42} z`)
+          .attr("fill", deep).attr("opacity", .38)
+          .attr("transform", `rotate(${rr(-60, 60)} ${x} ${y})`);
+      };
+      const n = Math.round(4 + SHELL.wearLevel * 8);
+      for (let i = 0; i < n; i++) {
+        const [x, y] = pick();
+        scratch(x, y, rr(12, 38), rr(-.9, .9));
+      }
+      for (let i = 0; i < Math.round(1 + SHELL.wearLevel * 4); i++) {
+        const [x, y] = pick();
+        dent(x, y, rr(4, 10));
+      }
+      for (let i = 0; i < Math.round(SHELL.wearLevel * 3); i++) {
+        const [x, y] = pick();
+        chip(x, y, rr(5, 10));
+      }
+    };
 
-  ({
+    ({
     doodle() {
       ring(14, (x, y, i) => {
         const k = i % 4;
@@ -1637,21 +1965,23 @@ function paintShell() {
           .attr("opacity", .7).attr("transform", `rotate(${rr(-15, 15)} ${x} ${y})`);
       });
     },
-  }[SHELL.name] || (() => {}))();
+    }[SHELL.name] || (() => {}))();
+    if (SHELL.wear) wear();
 
-  function bolt() {
+    function bolt() {
     g.append("path").attr("d", "M 6 0 L -3 15 L 2 15 L -5 32 L 10 12 L 4 12 Z")
       .attr("fill", pc(0)).attr("transform", "translate(248,26) scale(.9)");
     g.append("circle").attr("cx", 251).attr("cy", 40).attr("r", 15)
       .attr("fill", "none").attr("stroke", pc(0)).attr("stroke-width", 2.4);
   }
 
-  document.getElementById("shellid").textContent =
-    `${SHELL.name} ${SHELL.mint ? "(mint)" : "variant"} · ${SHELL.key}`;
-}
+    document.getElementById("shellid").textContent =
+      `${SHELL.name} ${SHELL.mint ? "(mint)" : "variant"}${SHELL.wear ? " · well-loved" : ""} · ${SHELL.key}`;
+  }
 
 /* boot */
 paintShell();
+initTokenCatalogue();
 startEggIdle();
 layoutScroll();
 </script>
