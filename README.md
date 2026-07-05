@@ -10,6 +10,9 @@ interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo
 > **warning** — experimental, unaudited, not production-ready; "verified"
 > means byte-exact against the stipulated references, nothing more
 
+token product boundaries and migration plan:
+[`docs/token-roadmap.md`](./docs/token-roadmap.md)
+
 ## what's here
 
 | package | what it is | verified against |
