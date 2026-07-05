@@ -73,8 +73,11 @@ func TestPrivateIdentityPresentation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyPrivateIdentityPresentation: %v", err)
 	}
-	if pseudonym != token.Pseudonym() {
+	if pseudonym != token.PseudonymForOrigin("rp.example") {
 		t.Fatal("pseudonym mismatch")
+	}
+	if pseudonym == token.PseudonymForOrigin("other.example") {
+		t.Fatal("pseudonym must be origin-bound")
 	}
 	pres.Origin = "other.example"
 	if _, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute); err == nil || !strings.Contains(err.Error(), "proof-of-possession") {

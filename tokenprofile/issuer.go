@@ -95,7 +95,7 @@ func (i *Issuer) TokenKeyID() [32]byte {
 
 // BlindSign signs blinded PoMFRIT targets. It is intentionally type-oblivious:
 // a burn-token target and a private-identity-token target have the same blinded
-// shape.
+// form.
 func (i *Issuer) BlindSign(blinded [][]byte) ([][]byte, error) {
 	out := make([][]byte, 0, len(blinded))
 	for idx, target := range blinded {

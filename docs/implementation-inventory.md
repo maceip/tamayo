@@ -24,20 +24,20 @@ truth.
 
 ## Token Rows
 
-| row | current best implementation | important files | target |
+| row | current best implementation | important files | remaining work |
 | --- | --- | --- | --- |
-| Burn token | `eat-pass` Rust; partial Go duplicate in `confidential-agent`. | `eat-pass/core/src/lib.rs`, `confidential-agent/internal/tokenservice/types.go` | `tamayo/tokenprofile` should expose the Go wire format, mint helper, parse, verify, and redeem inputs. |
-| Private identity token | `eat-pass` Rust; partial Go duplicate in `confidential-agent`. | `eat-pass/core/src/pvt.rs`, `eat-pass/docs/pvt.md`, `confidential-agent/internal/tokenservice/types.go` | `tamayo/tokenprofile` should expose private identity token input, parse, blind verification, presentation message, and holder proof verification. |
-| Policy-bound email token | Incomplete. Pieces exist in `confidential-agent`. | `confidential-agent/internal/tokenservice/jwt.go`, `confidential-agent/internal/policy` | Specify and implement in Go after the authorization interface is landed. Must support runtime measurement authorization. |
-| Google EVT | Most complete in `eat-pass bridge`; simpler Go duplicate in `confidential-agent`. | `eat-pass/cli/src/bridge.rs`, `eat-pass/cli/tests/bridge_e2e.rs`, `confidential-agent/internal/tokenservice/jwt.go` | Port a clean Google EVT profile into `tamayo`, separate from policy-bound token paths. |
+| Burn token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/burn.go`, `tokenservice/service.go` | Product repos must consume the shared API and provide spent-token storage. |
+| Private identity token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/private_identity.go`, `tokenservice/service.go` | Replace the Ed25519 holder proof with a specified PQ holder proof, or keep documenting the holder proof limit. |
+| Policy-bound email token | `tamayo/emailtoken`, `tamayo/tokenauth`, and `tamayo/tokenservice`. | `emailtoken/policy_email.go`, `tokenauth`, `tokenservice/service.go` | Product repos must provide verified email evidence, runtime measurement evidence, and transport. PQ signing remains unspecified. |
+| Google EVT | `tamayo/emailtoken` and `tamayo/tokenservice`. | `emailtoken/evt.go`, `emailtoken/presentation.go`, `tokenservice/service.go` | Keep separate from policy-bound issuance; product repos can wrap it for interop tests. |
 
 ## Package Split
 
 | package | owns | must not own |
 | --- | --- | --- |
 | `tokenprofile` | Token wire formats, parse/serialize, blind issuer helper, burn token verification, private identity token verification, presentation message construction. | HTTP, persistent storage, runtime measurement collection, network policy. |
-| `tokenauth` | Shared authorization data structures: token family, runtime measurement, email/address proof claims, mint binding, authorization decision. | Product-specific policy engine or transport. |
-| `emailtoken` | Google EVT JWT and key-binding profile. | Blind token policy, TEE measurement policy, HTTP service. |
+| `tokenauth` | Compiled JSON authorization data structures: token family, runtime measurement, email/address proof claims, origin, mint binding, authorization decision. | Product-specific transport or evidence collection. |
+| `emailtoken` | Google EVT JWT, policy-bound email JWT, JWKS, holder key binding, and KB-JWT presentation verification. | Blind token policy, TEE measurement collection, HTTP service. |
 | `tokenservice` | Row-neutral issuer/verifier APIs that compose token profiles, authorization decisions, key lookup, and caller-provided time/nonce inputs. | HTTP, persistent storage, network traffic, filesystem access, runtime measurement collection. |
 | product repos | Storage, HTTP routes, operator policy, measurement collection, runtime composition. | New token byte layouts or duplicate cryptographic token implementations. |
 
@@ -46,10 +46,12 @@ boundaries are not.
 
 ## Migration Checks
 
-- `tamayo` tests must prove burn tokens and private identity tokens round-trip
+- `tamayo` tests prove burn tokens and private identity tokens round-trip
   without importing `eat-pass` or `confidential-agent`.
-- `tamayo` tests must include a measurement authorization object for rows 1-3,
-  even where product policy chooses not to require it.
+- `tamayo` tests include measurement authorization for policy-controlled rows
+  through `tokenauth`.
+- `tamayo` tests prove Google EVT and policy-bound email tokens verify through
+  separate service paths.
 - `eat-pass` tests stay as the Rust reference while porting.
 - `confidential-agent` should stop defining token byte formats after it consumes
   the `tamayo` packages.

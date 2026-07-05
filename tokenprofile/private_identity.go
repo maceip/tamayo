@@ -1,7 +1,6 @@
 package tokenprofile
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"encoding/binary"
 	"errors"
@@ -15,6 +14,7 @@ const (
 	HolderAlgMLDSA44         = byte(0x02)
 	privateIdentityInputHead = 2 + 4 + 32 + 1
 	popDomain                = "eat-pass/pvt-pop\x00"
+	pseudonymDomain          = "tamayo/private-identity-pseudonym\x00"
 )
 
 // PrivateIdentityInput is the blind-signed input for a reusable private
@@ -115,8 +115,13 @@ func (p PrivateIdentityToken) Digest() [32]byte {
 	return digest(p.Bytes())
 }
 
-func (p PrivateIdentityToken) Pseudonym() [32]byte {
-	return digest(p.Input.HolderPub)
+func (p PrivateIdentityToken) PseudonymForOrigin(origin string) [32]byte {
+	buf := make([]byte, 0, len(pseudonymDomain)+4+len(origin)+len(p.Input.HolderPub))
+	buf = append(buf, pseudonymDomain...)
+	buf = binary.BigEndian.AppendUint32(buf, uint32(len(origin)))
+	buf = append(buf, origin...)
+	buf = append(buf, p.Input.HolderPub...)
+	return digest(buf)
 }
 
 // PrivateIdentityPresentation is one verifier-bound presentation of a reusable
@@ -130,14 +135,14 @@ type PrivateIdentityPresentation struct {
 }
 
 func PrivateIdentityPresentationMessage(origin string, nonce, tokenDigest [32]byte, issuedAt int64) []byte {
-	var buf bytes.Buffer
-	buf.WriteString(popDomain)
-	binary.Write(&buf, binary.BigEndian, uint16(len(origin)))
-	buf.WriteString(origin)
-	buf.Write(nonce[:])
-	buf.Write(tokenDigest[:])
-	binary.Write(&buf, binary.BigEndian, uint64(issuedAt))
-	return buf.Bytes()
+	out := make([]byte, 0, len(popDomain)+4+len(origin)+32+32+8)
+	out = append(out, popDomain...)
+	out = binary.BigEndian.AppendUint32(out, uint32(len(origin)))
+	out = append(out, origin...)
+	out = append(out, nonce[:]...)
+	out = append(out, tokenDigest[:]...)
+	out = binary.BigEndian.AppendUint64(out, uint64(issuedAt))
+	return out
 }
 
 func (i *Issuer) VerifyPrivateIdentityToken(token PrivateIdentityToken) error {
@@ -175,5 +180,5 @@ func (i *Issuer) VerifyPrivateIdentityPresentation(p PrivateIdentityPresentation
 	default:
 		return [32]byte{}, fmt.Errorf("unsupported holder_alg 0x%02x", p.Token.Input.HolderAlg)
 	}
-	return p.Token.Pseudonym(), nil
+	return p.Token.PseudonymForOrigin(p.Origin), nil
 }
