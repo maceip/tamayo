@@ -52,6 +52,46 @@ func TestServiceIssuesAndVerifiesBlindRows(t *testing.T) {
 	if _, err := issuer.Verifier().VerifyBurnTokenBytes(token.Bytes(), challenge); err != nil {
 		t.Fatalf("VerifyBurnTokenBytes: %v", err)
 	}
+
+	holderPriv := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x66}, ed25519.SeedSize))
+	holderPub := holderPriv.Public().(ed25519.PublicKey)
+	pvtInput := tokenprofile.NewPrivateIdentityInput(blind.KeyVersion(), blind.TokenKeyID(), tokenprofile.HolderAlgEd25519, holderPub)
+	target, state = tokenprofile.PrepareBlind(pvtInput.Bytes(), additionalR)
+	sigs, err = issuer.SignAuthorizedBlind(BlindMintRequest{
+		Decision: allowedDecision(tokenauth.TokenPrivateIdentity, 1, blind.KeyVersion(), "binding"),
+		Family:   tokenauth.TokenPrivateIdentity,
+		Blinded:  [][]byte{target},
+		Now:      time.Unix(1_800_000_000, 0),
+	})
+	if err != nil {
+		t.Fatalf("SignAuthorizedBlind private identity: %v", err)
+	}
+	authenticator, err = tokenprofile.FinalizeBlind(blind.ExpandedPublicKey(), sigs[0], state)
+	if err != nil {
+		t.Fatalf("FinalizeBlind private identity: %v", err)
+	}
+	pvt := tokenprofile.PrivateIdentityToken{
+		Input:         pvtInput,
+		Authenticator: authenticator,
+	}
+	var pvtNonce [32]byte
+	copy(pvtNonce[:], bytes.Repeat([]byte{0x77}, 32))
+	now := time.Unix(1_800_000_000, 0)
+	msg := tokenprofile.PrivateIdentityPresentationMessage("rp.example", pvtNonce, pvt.Digest(), now.Unix())
+	pres := tokenprofile.PrivateIdentityPresentation{
+		Token:     pvt,
+		Origin:    "rp.example",
+		Nonce:     pvtNonce,
+		IssuedAt:  now.Unix(),
+		Signature: ed25519.Sign(holderPriv, msg),
+	}
+	pseudonym, err := issuer.Verifier().VerifyPrivateIdentityPresentation(pres, now, time.Minute)
+	if err != nil {
+		t.Fatalf("VerifyPrivateIdentityPresentation: %v", err)
+	}
+	if pseudonym != pvt.PseudonymForOrigin("rp.example") {
+		t.Fatal("service private identity pseudonym mismatch")
+	}
 }
 
 func TestServiceIssuesAndVerifiesEmailRows(t *testing.T) {

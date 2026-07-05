@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/maceip/tamayo/faest"
 )
 
 const (
 	PrivateIdentityTokenType = uint16(0x5056)
 	HolderAlgEd25519         = byte(0x01)
 	HolderAlgMLDSA44         = byte(0x02)
+	HolderAlgFAEST128s       = byte(0x03)
 	privateIdentityInputHead = 2 + 4 + 32 + 1
 	popDomain                = "eat-pass/pvt-pop\x00"
 	pseudonymDomain          = "tamayo/private-identity-pseudonym\x00"
@@ -81,9 +84,37 @@ func holderPubLen(alg byte) (int, error) {
 		return ed25519.PublicKeySize, nil
 	case HolderAlgMLDSA44:
 		return 1312, nil
+	case HolderAlgFAEST128s:
+		return faestPublicKeyLen(faest.FAEST128s), nil
 	default:
 		return 0, fmt.Errorf("unsupported holder_alg 0x%02x", alg)
 	}
+}
+
+func FAEST128sPublicKeyBytes(pk *faest.PublicKey) []byte {
+	if pk == nil {
+		return nil
+	}
+	out := make([]byte, 0, faestPublicKeyLen(faest.FAEST128s))
+	out = append(out, pk.OwfInput...)
+	out = append(out, pk.OwfOutput...)
+	return out
+}
+
+func parseFAEST128sPublicKey(b []byte) (*faest.PublicKey, error) {
+	want := faestPublicKeyLen(faest.FAEST128s)
+	if len(b) != want {
+		return nil, fmt.Errorf("faest-128s public key is %d bytes, want %d", len(b), want)
+	}
+	inputLen := faest.FAEST128s.OWF.InputSize
+	return &faest.PublicKey{
+		OwfInput:  append([]byte(nil), b[:inputLen]...),
+		OwfOutput: append([]byte(nil), b[inputLen:]...),
+	}, nil
+}
+
+func faestPublicKeyLen(params faest.FaestParams) int {
+	return params.OWF.InputSize + params.OWF.Beta*16
 }
 
 // PrivateIdentityToken is reusable at a verifier. Product services issue and
@@ -177,6 +208,14 @@ func (i *Issuer) VerifyPrivateIdentityPresentation(p PrivateIdentityPresentation
 		}
 	case HolderAlgMLDSA44:
 		return [32]byte{}, errors.New("ml-dsa-44 proof-of-possession is not implemented")
+	case HolderAlgFAEST128s:
+		pk, err := parseFAEST128sPublicKey(p.Token.Input.HolderPub)
+		if err != nil {
+			return [32]byte{}, err
+		}
+		if !faest.FAEST128s.Verify(msg, pk, p.Signature) {
+			return [32]byte{}, errors.New("faest-128s proof-of-possession rejected")
+		}
 	default:
 		return [32]byte{}, fmt.Errorf("unsupported holder_alg 0x%02x", p.Token.Input.HolderAlg)
 	}

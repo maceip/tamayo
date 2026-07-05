@@ -27,7 +27,7 @@ truth.
 | row | current best implementation | important files | remaining work |
 | --- | --- | --- | --- |
 | Burn token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/burn.go`, `tokenservice/service.go` | Product repos must consume the shared API and provide spent-token storage. |
-| Private identity token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/private_identity.go`, `tokenservice/service.go` | Replace the Ed25519 holder proof with a specified PQ holder proof, or keep documenting the holder proof limit. |
+| Private identity token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/private_identity.go`, `tokenservice/service.go` | Ed25519 and FAEST-128s holder proofs are supported. ML-DSA remains parse-only until that primitive exists here. |
 | Policy-bound email token | `tamayo/emailtoken`, `tamayo/tokenauth`, and `tamayo/tokenservice`. | `emailtoken/policy_email.go`, `tokenauth`, `tokenservice/service.go` | Product repos must provide verified email evidence, runtime measurement evidence, and transport. PQ signing remains unspecified. |
 | Google EVT | `tamayo/emailtoken` and `tamayo/tokenservice`. | `emailtoken/evt.go`, `emailtoken/presentation.go`, `tokenservice/service.go` | Keep separate from policy-bound issuance; product repos can wrap it for interop tests. |
 

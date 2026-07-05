@@ -22,7 +22,7 @@ token product boundaries and migration plan:
 | `mayo` | mayo keygen / sign / verify + salt-free preimage sampler | nist round-2 kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
 | `faest` | the faest aes signature and its voleith engine | full nist kat 600/600 byte-exact (100 vectors x 6 sets) |
 | `pomfrit` | the one-more-mayo blind signature and its vole engine (ggm-forest bavc, small-vole, deg-2 quicksilver, mayo-eval circuit) | byte-exact vs the c++/c reference, both directions, l1/l3/l5 |
-| `tokenprofile` | burn-token and private-identity token layouts over PoMFRIT/MAYO | round-trip tests, challenge binding, origin-bound presentation pseudonyms |
+| `tokenprofile` | burn-token and private-identity token layouts over PoMFRIT/MAYO | round-trip tests, challenge binding, origin-bound pseudonyms, Ed25519 and FAEST-128s holder proofs |
 | `tokenauth` | compiled JSON mint authorization inputs for policy-controlled token rows | unknown-field rejection, origin checks, address checks, measurement checks |
 | `emailtoken` | Google EVT and policy-bound email JWT profiles with KB-JWT presentation | issue/verify tests for address claims, holder key binding, nonce, audience, sd_hash |
 | `tokenservice` | cgo-free issuer/verifier service APIs over the token packages | service-level tests for burn, Google EVT, and policy-bound email rows |

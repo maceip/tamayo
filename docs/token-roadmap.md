@@ -23,7 +23,7 @@ Current implementation locations are tracked in
 | row | plain name | what the verifier learns | use | lifetime | TEE measurement authorization | post-quantum status | implementation status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Burn token | "This request was authorized once." No stable identifier. | One request, anti-abuse, one-shot access. | Burned on redemption. | First-class mint authorization input through `tokenauth`; service signing requires an allowed decision. | Yes: PoMFRIT over MAYO. | Landed in `tokenprofile` and `tokenservice`; product repos still need to consume it and own spend storage. |
-| 2 | Private identity token | Stable pseudonym at one verifier, no email address. | Account continuity or repeat visitor without address disclosure. | Reusable at one verifier; replay is controlled by presentation nonces. | First-class mint authorization input through `tokenauth`; origin can be required by policy. | Yes for blind issuance. Holder proof is Ed25519 today; ML-DSA is parsed but not verified. | Landed in `tokenprofile`; verifier returns an origin-bound pseudonym. PQ holder proof remains open. |
+| 2 | Private identity token | Stable pseudonym at one verifier, no email address. | Account continuity or repeat visitor without address disclosure. | Reusable at one verifier; replay is controlled by presentation nonces. | First-class mint authorization input through `tokenauth`; origin can be required by policy. | Yes for blind issuance and FAEST-128s holder proof. Ed25519 is also supported; ML-DSA is parsed but not verified. | Landed in `tokenprofile` and `tokenservice`; verifier returns an origin-bound pseudonym. |
 | 3 | Policy-bound email token | Verified email address, plus policy-bound issuance context. | RPs that need the address and also want the same policy surface as the private tokens. | JWT-style expiry plus KB-JWT presentation. | First-class issuance authorization input through `tokenauth`; measurement requirements are compiled and tested. | Classical Ed25519 JWT today. A PQ signing profile is still open and must not be claimed yet. | Initial Go profile landed in `emailtoken` and `tokenservice`; runtime email proof and transport remain product work. |
 | 4 | Google EVT | Verified email address only. | Interop and regression testing against Google's public email-verification-token format. | JWT-style expiry plus presentation nonce/key binding. | None by design. This row is intentionally not coupled to TEE measurement, policy, or PQ. | No: classical JOSE path. | Landed in `emailtoken` and `tokenservice` as a separate Google EVT path. |
 
@@ -57,5 +57,5 @@ Current implementation locations are tracked in
    `confidential-agent` after the Go profiles are available from `tamayo`.
 4. Make `confidential-agent` a consumer: bootable runtime, agent workflow, and
    policy wiring only.
-5. Specify and implement the PQ holder proof and any PQ email-signing profile
-   before documenting those rows as fully post-quantum.
+5. Specify and implement any PQ email-signing profile before documenting
+   address-bearing email rows as fully post-quantum.

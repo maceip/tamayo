@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maceip/tamayo/faest"
 	"github.com/maceip/tamayo/mayo"
 )
 
@@ -82,6 +83,44 @@ func TestPrivateIdentityPresentation(t *testing.T) {
 	pres.Origin = "other.example"
 	if _, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute); err == nil || !strings.Contains(err.Error(), "proof-of-possession") {
 		t.Fatalf("wrong origin error = %v", err)
+	}
+}
+
+func TestPrivateIdentityPresentationFAEST128s(t *testing.T) {
+	issuer := testIssuer(t)
+	holderSK, holderPK, err := faest.FAEST128s.KeyGen(bytes.NewReader(bytes.Repeat([]byte{0x10}, 128)))
+	if err != nil {
+		t.Fatalf("FAEST128s.KeyGen: %v", err)
+	}
+	holderPub := FAEST128sPublicKeyBytes(holderPK)
+
+	input := NewPrivateIdentityInput(issuer.KeyVersion(), issuer.TokenKeyID(), HolderAlgFAEST128s, holderPub)
+	token := PrivateIdentityToken{
+		Input:         input,
+		Authenticator: mintAuthenticator(t, issuer, input.Bytes()),
+	}
+	now := time.Unix(1_800_000_000, 0)
+	var nonce [32]byte
+	copy(nonce[:], bytes.Repeat([]byte{0x44}, 32))
+	msg := PrivateIdentityPresentationMessage("rp.example", nonce, token.Digest(), now.Unix())
+	rho := bytes.Repeat([]byte{0x55}, faest.FAEST128s.OWF.LambdaBytes)
+	pres := PrivateIdentityPresentation{
+		Token:     token,
+		Origin:    "rp.example",
+		Nonce:     nonce,
+		IssuedAt:  now.Unix(),
+		Signature: faest.FAEST128s.Sign(msg, holderSK, rho),
+	}
+	pseudonym, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute)
+	if err != nil {
+		t.Fatalf("VerifyPrivateIdentityPresentation FAEST: %v", err)
+	}
+	if pseudonym != token.PseudonymForOrigin("rp.example") {
+		t.Fatal("pseudonym mismatch")
+	}
+	pres.Signature[0] ^= 0x80
+	if _, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute); err == nil || !strings.Contains(err.Error(), "faest") {
+		t.Fatalf("tampered FAEST proof error = %v", err)
 	}
 }
 
