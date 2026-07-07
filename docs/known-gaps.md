@@ -62,8 +62,8 @@ demos, TLS/Redis/SMTP plumbing.
 
 | item | source | note |
 | --- | --- | --- |
-| EVP `.well-known` issuer service | `cli/src/bridge.rs` | The browser-facing Google-EVT rail: `/.well-known/email-verification`, jwks, RFC 9421-signed issuance. Port target: `cmd/tamayo`. The benchmark surface for Chrome's feature-flagged EVP. |
-| RFC 9421 HTTP Message Signature verification | `cli/src/bridge.rs` (fixed covered-component profile) | Prerequisite of the above; ~200-line transpile. |
+| ~~EVP `.well-known` issuer service~~ | — | **Ported** — `cmd/tamayo/evp.go`: discovery metadata, jwks, and the RFC 9421-signed issuance endpoint with browser-key-bound mail codes and per-mailbox budgets; `serve -evp-issuer` mounts it, `-tls-cert/-tls-key` serve it over HTTPS. End-to-end tested with a stand-in browser client. |
+| ~~RFC 9421 HTTP Message Signature verification~~ | — | **Ported** with the above (fixed covered-component `hwk` profile, `cmd/tamayo/evp.go`). |
 | RFC 9577 `PrivateToken` HTTP carriage | `core/src/lib.rs` `http` module | The `WWW-Authenticate`/`Authorization` header codec for presenting tokens over HTTP. Small. |
 | FAEST-signed `IssuanceAuthorization` | `core/src/authorize.rs` | The attester→issuer signed authorization object. tamayo's `MintDecision` is unsigned — fine in-process (`tokenservice`), but a cross-process attester/issuer split needs the signature. |
 | FAEST-signed policy sidecars | `policy/src/sign.rs` | `.json.sig` signing/verification for operator policy files; portable even though the appraisal layer itself stays Rust-side. |

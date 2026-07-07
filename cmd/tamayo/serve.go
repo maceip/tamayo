@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -10,9 +11,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/maceip/tamayo/emailtoken"
+	"github.com/maceip/tamayo/mailbox"
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
 	"github.com/maceip/tamayo/tokenservice"
@@ -28,6 +33,7 @@ type server struct {
 	policy  *tokenauth.Policy
 	budgets *tokenauth.MemoryBudgetStore
 	maxSkew time.Duration
+	evp     *evpRail // nil when the EVP rail is not mounted
 
 	mu        sync.Mutex
 	spentBurn map[[32]byte]bool // by burn nonce
@@ -40,9 +46,18 @@ func cmdServe(args []string) error {
 	policyPath := fs.String("policy", "", "tokenauth policy JSON (see 'tamayo example-policy')")
 	addr := fs.String("addr", "127.0.0.1:8787", "listen address (loopback by default; this is a reference runtime)")
 	maxSkew := fs.Duration("max-skew", 2*time.Minute, "allowed presentation timestamp skew")
+	tlsCert := fs.String("tls-cert", "", "TLS certificate chain (PEM); with -tls-key, serve HTTPS")
+	tlsKey := fs.String("tls-key", "", "TLS private key (PEM)")
+	evpIssuer := fs.String("evp-issuer", "", "mount the EVP rail (/.well-known/email-verification) under this issuer id")
+	publicBase := fs.String("public-base", "", "public base URL for EVP metadata (default: scheme://addr)")
+	sendmail := fs.String("sendmail", "", "command to deliver mailbox codes: run as `cmd <address>` with the code on stdin (default: print to stderr, dev only)")
+	codeTTL := fs.Duration("code-ttl", 10*time.Minute, "mailbox challenge code lifetime")
 	fs.Parse(args)
 	if *policyPath == "" {
 		return errors.New("serve: -policy is required (generate one with 'tamayo example-policy')")
+	}
+	if (*tlsCert == "") != (*tlsKey == "") {
+		return errors.New("serve: -tls-cert and -tls-key must be set together")
 	}
 
 	issuer, err := loadIssuer(*issuerPath)
@@ -71,9 +86,58 @@ func cmdServe(args []string) error {
 		spentBurn: make(map[[32]byte]bool),
 		seenPvt:   make(map[string]bool),
 	}
+
+	scheme := "http"
+	if *tlsCert != "" {
+		scheme = "https"
+	}
+	if *evpIssuer != "" {
+		base := *publicBase
+		if base == "" {
+			base = scheme + "://" + *addr
+		}
+		evtSigner, err := emailtoken.NewSigner(*evpIssuer, nil)
+		if err != nil {
+			return err
+		}
+		var gateKey [32]byte
+		if _, err := rand.Read(gateKey[:]); err != nil {
+			return err
+		}
+		deliver := func(address, code string) error {
+			fmt.Fprintf(os.Stderr, "MAILBOX CODE (dev delivery) %s: %s\n", address, code)
+			return nil
+		}
+		if *sendmail != "" {
+			cmd := *sendmail
+			deliver = func(address, code string) error {
+				c := exec.Command(cmd, address)
+				c.Stdin = strings.NewReader(code + "\n")
+				return c.Run()
+			}
+		}
+		s.evp = &evpRail{
+			signer:       evtSigner,
+			issuerID:     *evpIssuer,
+			publicBase:   strings.TrimRight(base, "/"),
+			store:        mailbox.NewChallengeStore(uint64(codeTTL.Seconds())),
+			gateKey:      gateKey,
+			budgetLimit:  16,
+			budgetWindow: time.Hour,
+			deliver:      deliver,
+		}
+	}
+
 	id := issuer.TokenKeyID()
-	fmt.Printf("tamayo reference issuer/verifier\n  addr:         http://%s\n  key_version:  %d\n  token_key_id: %s\n  policy mode:  %s\n  state:        in-memory only (spent set + budgets are lost on exit)\n",
-		*addr, issuer.KeyVersion(), hex.EncodeToString(id[:]), policy.Mode())
+	fmt.Printf("tamayo reference issuer/verifier\n  addr:         %s://%s\n  key_version:  %d\n  token_key_id: %s\n  policy mode:  %s\n  state:        in-memory only (spent set + budgets are lost on exit)\n",
+		scheme, *addr, issuer.KeyVersion(), hex.EncodeToString(id[:]), policy.Mode())
+	if s.evp != nil {
+		fmt.Printf("  evp issuer:   %s (EVT kid %s, discovery %s/.well-known/email-verification)\n",
+			s.evp.issuerID, s.evp.signer.KID(), s.evp.publicBase)
+	}
+	if *tlsCert != "" {
+		return http.ListenAndServeTLS(*addr, *tlsCert, *tlsKey, s.routes())
+	}
 	return http.ListenAndServe(*addr, s.routes())
 }
 
@@ -84,6 +148,7 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("POST /v1/blind-sign", s.handleBlindSign)
 	mux.HandleFunc("POST /v1/verify/burn", s.handleVerifyBurn)
 	mux.HandleFunc("POST /v1/verify/private-identity", s.handleVerifyPvt)
+	s.evpRoutes(mux)
 	return mux
 }
 

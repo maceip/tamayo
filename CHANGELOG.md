@@ -2,6 +2,22 @@
 
 ## unreleased
 
+- cmd/tamayo: the EVP rail — `serve -evp-issuer <id>` mounts the
+  browser-facing email-verification issuer
+  (`/.well-known/email-verification` discovery metadata, an EdDSA jwks, and
+  the issuance endpoint verifying RFC 9421 http message signatures under
+  the browser's ed25519 `hwk` key with the fixed covered-component set);
+  mailbox-control codes are bound to the requesting browser key so a
+  phished code cannot be redeemed under another holder, each evt charges
+  the mailbox's per-window budget, and `-sendmail` delivers codes through
+  an external command (dev default prints to stderr); `-tls-cert/-tls-key`
+  serve the whole runtime over https for real-browser benchmarking;
+  end-to-end tests drive a stand-in browser through discovery, signed
+  issuance, cross-key/replay/tamper/stale rejections, and the budget limit
+- docs: the token roadmap records that eligibility gates are pluggable by
+  design (email is only the first; wallet/other-token gates must remain
+  possible without schema change)
+
 - tokenauth: the eligibility vocabulary is now "gate", replacing "bridge" —
   `GateKind`/`GateRule`/`AllowedGates`, policy json fields
   `gates`/`allowed_gates`/`gate_kind`, and `gate_*` check names. breaking

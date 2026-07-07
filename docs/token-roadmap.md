@@ -36,6 +36,15 @@ Current implementation locations are tracked in
 
 ## Invariants
 
+- Eligibility gates are pluggable and email is only the first one. Email
+  verification launches the system because it is universally understood, but
+  nothing in the design may assume it is the only gate: any verifiable claim
+  a deployment wants to layer on top (an Ethereum wallet signature, another
+  token, a hardware measurement) can become a gate. Concretely,
+  `tokenauth.GateKind` is an open string set — a new gate is a policy entry
+  plus an evidence verifier, never a schema change. Not scheduled; must not
+  be designed away.
+
 - TEE measurement is not a token format. It is authorization evidence consumed
   before minting or issuing a token.
 - Rows 1-3 must always have a code path where runtime measurement can be used
