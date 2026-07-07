@@ -30,8 +30,36 @@ var (
 	FAEST256f = FaestParams{"256f", OWF256, Tau256Fast, field.Big768, field.Big256, 8, 26548}
 )
 
+// The six Even-Mansour FAEST parameter sets. Same fields/BAVC extension as
+// their AES-level counterparts; EM Tau sets and sig sizes per faest-rs.
+var (
+	FAESTEM128s = FaestParams{"em128s", OWF128EM, Tau128SmallEM, field.Big384, field.Big128, 7, 3906}
+	FAESTEM128f = FaestParams{"em128f", OWF128EM, Tau128FastEM, field.Big384, field.Big128, 8, 5060}
+	FAESTEM192s = FaestParams{"em192s", OWF192EM, Tau192SmallEM, field.Big576, field.Big192, 8, 9340}
+	FAESTEM192f = FaestParams{"em192f", OWF192EM, Tau192FastEM, field.Big576, field.Big192, 8, 12380}
+	FAESTEM256s = FaestParams{"em256s", OWF256EM, Tau256SmallEM, field.Big768, field.Big256, 6, 17984}
+	FAESTEM256f = FaestParams{"em256f", OWF256EM, Tau256FastEM, field.Big768, field.Big256, 8, 23476}
+)
+
 func (p FaestParams) use256() bool { return p.OWF.LambdaBytes != 16 }
 func (p FaestParams) lHat() int    { return p.OWF.LBytes + 3*p.OWF.LambdaBytes + 2 }
+
+// nLeafCommit is the BAVC leaf-commitment size in lambda units: 3 for AES, 2
+// for Even-Mansour.
+func (p FaestParams) nLeafCommit() int {
+	if p.OWF.IsEM {
+		return 2
+	}
+	return 3
+}
+
+// newBavc builds the AES or Even-Mansour BAVC for this parameter set.
+func (p FaestParams) newBavc() *Bavc {
+	if p.OWF.IsEM {
+		return NewBavcEM(p.Tau, p.Ext)
+	}
+	return NewBavc(p.Tau, p.Ext)
+}
 
 func flatten(parts [][]byte) []byte {
 	var out []byte
@@ -45,6 +73,9 @@ func flatten(parts [][]byte) []byte {
 // (byte 0 of the input flipped per block). Transpiled from parameter.rs
 // evaluate_owf (non-EM).
 func evaluateOWF(o OWFParams, key, input []byte) []byte {
+	if o.IsEM {
+		return emEvaluateOWF(o, key, input)
+	}
 	out := make([]byte, 0, o.Beta*16)
 	inp := append([]byte(nil), input...)
 	rkeys := rijndaelKeySchedule(key, o.NSt, o.NK, o.R, o.SKe)
@@ -56,6 +87,27 @@ func evaluateOWF(o OWFParams, key, input []byte) []byte {
 		inp[0] ^= 1
 	}
 	return out
+}
+
+// emEvaluateOWF computes the Even-Mansour OWF y = Rijndael_input(key) XOR key,
+// where input is the public Rijndael key and key is the secret block. Beta is
+// always 1 for EM. Transpiled from faest-rs parameter.rs evaluate_owf (EM).
+func emEvaluateOWF(o OWFParams, key, input []byte) []byte {
+	nsb := o.NStBytes()
+	rkeys := rijndaelKeySchedule(input, o.NSt, o.NK, o.R, o.SKe)
+	padded := make([]byte, 32)
+	copy(padded, key)
+	res := rijndaelEncrypt(rkeys, padded, o.NSt, o.R)
+	y := make([]byte, nsb)
+	n0 := min(16, nsb)
+	copy(y, res[0][:n0])
+	if nsb > 16 {
+		copy(y[16:], res[1][:nsb-16])
+	}
+	for i := 0; i < nsb; i++ {
+		y[i] ^= key[i]
+	}
+	return y
 }
 
 // KeyGen samples a FAEST secret key (owf_input || owf_key) from rand and derives
@@ -108,7 +160,7 @@ func (p FaestParams) Sign(msg, sk, rho []byte) []byte {
 	r, ivPre := hashRIV(u256, owfKey, mu, rho, lam)
 	iv := hashIV(u256, ivPre)
 
-	bavc := NewBavc(p.Tau, p.Ext)
+	bavc := p.newBavc()
 	vc := bavc.VoleCommit(r, iv, lHat)
 
 	cs := flatten(vc.C)
@@ -127,7 +179,7 @@ func (p FaestParams) Sign(msg, sk, rho []byte) []byte {
 	a0, a1, a2 := o.AesProve(f, witness, vc.U[o.LBytes:o.LBytes+2*lam], vc.V, pk, chall2)
 	a0b, a1b, a2b := f.ToBytes(a0), f.ToBytes(a1), f.ToBytes(a2)
 
-	decomSize := p.Tau.Tau*3*lam + p.Tau.Topen*lam
+	decomSize := p.Tau.Tau*p.nLeafCommit()*lam + p.Tau.Topen*lam
 	for ctr := uint32(0); ; ctr++ {
 		chall3 := hashChallenge3(u256, chall2, a0b, a1b, a2b, ctr, lam)
 		if !checkChallenge3(chall3, o.Lambda(), p.WGrind) {
@@ -177,7 +229,7 @@ func (p FaestParams) Verify(msg []byte, pk *PublicKey, sig []byte) bool {
 
 	csLen := lHat * (p.Tau.Tau - 1)
 	uTildeLen := lam + 2
-	decomSize := p.Tau.Tau*3*lam + p.Tau.Topen*lam
+	decomSize := p.Tau.Tau*p.nLeafCommit()*lam + p.Tau.Topen*lam
 
 	// Malformed input must be rejected, not panic: the signature length is a
 	// fixed function of the parameter set.
@@ -207,7 +259,7 @@ func (p FaestParams) Verify(msg []byte, pk *PublicKey, sig []byte) bool {
 	iv := hashIV(u256, ivPre)
 
 	// parse decommitment
-	comSize := 3 * lam
+	comSize := p.nLeafCommit() * lam
 	op := &BavcOpening{}
 	for i := 0; i < p.Tau.Tau; i++ {
 		op.Coms = append(op.Coms, decomI[i*comSize:(i+1)*comSize])
@@ -223,7 +275,7 @@ func (p FaestParams) Verify(msg []byte, pk *PublicKey, sig []byte) bool {
 		cRows[i] = cs[i*lHat : (i+1)*lHat]
 	}
 
-	bavc := NewBavc(p.Tau, p.Ext)
+	bavc := p.newBavc()
 	rec, ok := bavc.VoleReconstruct(chall3, op, cRows, iv, lHat)
 	if !ok {
 		return false

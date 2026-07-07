@@ -89,4 +89,28 @@ fn main() {
         "faest_256f",
         "out/PQCsignKAT_faest_256f.rsp",
     );
+    generate::<faest::FAESTEM128sSigningKey, faest::FAESTEM128sSignature>(
+        "faest_em_128s",
+        "out/PQCsignKAT_faest_em_128s.rsp",
+    );
+    generate::<faest::FAESTEM128fSigningKey, faest::FAESTEM128fSignature>(
+        "faest_em_128f",
+        "out/PQCsignKAT_faest_em_128f.rsp",
+    );
+    generate::<faest::FAESTEM192sSigningKey, faest::FAESTEM192sSignature>(
+        "faest_em_192s",
+        "out/PQCsignKAT_faest_em_192s.rsp",
+    );
+    generate::<faest::FAESTEM192fSigningKey, faest::FAESTEM192fSignature>(
+        "faest_em_192f",
+        "out/PQCsignKAT_faest_em_192f.rsp",
+    );
+    generate::<faest::FAESTEM256sSigningKey, faest::FAESTEM256sSignature>(
+        "faest_em_256s",
+        "out/PQCsignKAT_faest_em_256s.rsp",
+    );
+    generate::<faest::FAESTEM256fSigningKey, faest::FAESTEM256fSignature>(
+        "faest_em_256f",
+        "out/PQCsignKAT_faest_em_256f.rsp",
+    );
 }

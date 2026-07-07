@@ -145,6 +145,12 @@ func TestFaestNISTKAT(t *testing.T) {
 		{FAEST192f, "PQCsignKAT_faest_192f.rsp.gz"},
 		{FAEST256s, "PQCsignKAT_faest_256s.rsp.gz"},
 		{FAEST256f, "PQCsignKAT_faest_256f.rsp.gz"},
+		{FAESTEM128s, "PQCsignKAT_faest_em_128s.rsp.gz"},
+		{FAESTEM128f, "PQCsignKAT_faest_em_128f.rsp.gz"},
+		{FAESTEM192s, "PQCsignKAT_faest_em_192s.rsp.gz"},
+		{FAESTEM192f, "PQCsignKAT_faest_em_192f.rsp.gz"},
+		{FAESTEM256s, "PQCsignKAT_faest_em_256s.rsp.gz"},
+		{FAESTEM256f, "PQCsignKAT_faest_em_256f.rsp.gz"},
 	}
 	const dir = "testdata/"
 

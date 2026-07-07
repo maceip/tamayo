@@ -17,7 +17,7 @@ every known gap is indexed in [`docs/known-gaps.md`](./docs/known-gaps.md)
 |---|---|---|
 | `gf16`, `field` | gf(16), gf(2^128/192/256) + extensions | exhaustive/property tests, reference vectors |
 | `mayo` | mayo keygen/sign/verify + salt-free preimage sampler | nist kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
-| `faest` | the faest aes signature and its voleith engine | full nist kat 600/600 byte-exact |
+| `faest` | the faest aes + even-mansour signatures and their voleith engine | full nist kat 1200/1200 byte-exact (12 sets: 6 aes + 6 em) |
 | `pomfrit` | the one-more-mayo blind signature and its vole engine | byte-exact vs the c++/c reference, both directions, l1/l3/l5 |
 | `mldsa` | ml-dsa-44/65/87 (fips 204) | nist acvp byte-exact (480 vectors) |
 | `tokenprofile` | burn + private-identity token layouts over pomfrit/mayo | round-trips, challenge binding, origin-bound pseudonyms, ed25519/faest-128s/ml-dsa-44 holder proofs |

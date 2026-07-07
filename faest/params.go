@@ -27,6 +27,16 @@ var (
 	Tau192Fast  = Tau{"192f", 24, 8, 5120, 8, 16, 163}
 	Tau256Small = Tau{"256s", 22, 12, 61440, 14, 8, 245}
 	Tau256Fast  = Tau{"256f", 32, 8, 7168, 8, 24, 246}
+
+	// Even-Mansour Tau sets: same tau/k split as their AES counterparts but
+	// distinct leaf counts (L) and opening thresholds (Topen). Transpiled
+	// from faest-rs src/parameter.rs Tau*EM.
+	Tau128SmallEM = Tau{"em128s", 11, 12, 22528, 11, 0, 103}
+	Tau128FastEM  = Tau{"em128f", 16, 8, 3072, 8, 8, 112}
+	Tau192SmallEM = Tau{"em192s", 16, 12, 49152, 8, 8, 162}
+	Tau192FastEM  = Tau{"em192f", 24, 8, 5120, 8, 16, 176}
+	Tau256SmallEM = Tau{"em256s", 22, 12, 61440, 14, 8, 218}
+	Tau256FastEM  = Tau{"em256f", 32, 8, 7168, 8, 24, 234}
 )
 
 // Tau1Offset returns the flat offset of the i-th (larger) instance's bits.

@@ -174,12 +174,11 @@ func (o OWFParams) encCstrntsProve(zk *ZKProofHasher, inputKeys, outputKeys []by
 }
 
 func (o OWFParams) owfConstraintsProve(zk *ZKProofHasher, w byteCommits, pk *PublicKey) {
-	if o.IsEM {
-		panic("faest: the EM constraint path is not implemented (see the doc.go EM boundary note)")
-	}
 	f := w.f
 
-	// First constraint (::5): the product of the two low witness bits.
+	// First constraint (::5), shared by AES and EM: the two low bits of the
+	// first committed byte (the AES key, or the EM secret input block) are
+	// not both set. Degree-3 in the committed value.
 	k0 := w.keys[0] & 1
 	k1 := (w.keys[0] >> 1) & 1
 	tag2 := f.Zero()
@@ -190,6 +189,16 @@ func (o OWFParams) owfConstraintsProve(zk *ZKProofHasher, w byteCommits, pk *Pub
 		tag2 = f.Add(tag2, w.tags[1])
 	}
 	zk.Update(commitDeg3(f, f.FromBit(k0&k1), f.Zero(), f.Mul(w.tags[0], w.tags[1]), tag2))
+
+	if o.IsEM {
+		// Even-Mansour: round keys are the public Rijndael schedule of the
+		// public block pk.OwfInput; the committed witness is the input x and
+		// the OWF is y = Rijndael_pk(x) XOR x. No key-expansion constraints.
+		extendedKey := o.emExtendedKeyProve(f, pk.OwfInput)
+		input := w.subBytes(0, o.NStBytes())
+		o.encCstrntsProveEM(zk, input, pk.OwfOutput[:o.NStBytes()], w.subBytes(o.LKe/8, o.LEnc/8), extendedKey)
+		return
+	}
 
 	owfInput := append([]byte(nil), pk.OwfInput...)
 	k := o.keyExpCstrntsProve(zk, w.subBytes(0, o.LKe/8))
@@ -204,6 +213,72 @@ func (o OWFParams) owfConstraintsProve(zk *ZKProofHasher, w byteCommits, pk *Pub
 		owfOutput := pk.OwfOutput[o.InputSize*b : o.InputSize*(b+1)]
 		o.encCstrntsProve(zk, owfInput, owfOutput, wTilde, extendedKey)
 		owfInput[0] ^= 1
+	}
+}
+
+// emRoundKeyBytes returns the R+1 public Rijndael round keys (NStBytes each)
+// for the EM OWF, in committed-state byte order — extracted from the bitsliced
+// schedule exactly as rijndaelEncrypt materializes round key r at
+// kb[8*r:8*r+8].
+func (o OWFParams) emRoundKeyBytes(owfInput []byte) [][]byte {
+	kb := rijndaelKeySchedule(owfInput, o.NSt, o.NK, o.R, o.SKe)
+	nsb := o.NStBytes()
+	out := make([][]byte, o.R+1)
+	for r := 0; r <= o.R; r++ {
+		res := invBitslice(kb[8*r : 8*r+8])
+		rk := make([]byte, nsb)
+		n0 := min(16, nsb)
+		copy(rk, res[0][:n0])
+		if nsb > 16 {
+			copy(rk[16:], res[1][:nsb-16])
+		}
+		out[r] = rk
+	}
+	return out
+}
+
+// emExtendedKeyProve lifts the public round keys into zero-tag byte
+// commitments, so the shared enc helpers treat them as public constants.
+func (o OWFParams) emExtendedKeyProve(f field.Big, owfInput []byte) []byteCommits {
+	rks := o.emRoundKeyBytes(owfInput)
+	out := make([]byteCommits, len(rks))
+	for i, rk := range rks {
+		tags := make([][]uint64, len(rk)*8)
+		for j := range tags {
+			tags[j] = f.Zero()
+		}
+		out[i] = byteCommits{f: f, keys: rk, tags: tags}
+	}
+	return out
+}
+
+// encCstrntsProveEM mirrors encCstrntsProve for the EM one-way function: the
+// input and output states are committed (the secret block and block XOR y),
+// and the round keys are public (zero-tag commitments). All inner s-box and
+// linear helpers are shared with the AES path.
+func (o OWFParams) encCstrntsProveEM(zk *ZKProofHasher, input byteCommits, y []byte, w byteCommits, extendedKey []byteCommits) {
+	f := input.f
+	state := input.addRoundKeyCommitted(extendedKey[0])
+
+	for r := 0; r < o.R/2; r++ {
+		statePrime := o.encCstrntsEvenProve(zk, state, w.subBytes(3*o.NStBytes()*r/2, o.NStBytes()/2))
+
+		roundKey := extendedKey[2*r+1].committedStateToBytes()
+		roundKeySq := squareCommits(roundKey)
+
+		st0 := aesRoundProve(f, statePrime, roundKey, false, o.NStBytes())
+		st1 := aesRoundProve(f, statePrime, roundKeySq, true, o.NStBytes())
+
+		if r != o.R/2-1 {
+			sTilde := w.subBytes(o.NStBytes()/2+3*o.NStBytes()*r/2, o.NStBytes())
+			o.encCstrntsOddProve(zk, sTilde, st0, st1)
+			state = sTilde.bytewiseMixColumns(o.NSt)
+			state.addRoundKeyAssignCommitted(extendedKey[2*r+2])
+		} else {
+			output := input.addRoundKeyCommittedKnown(y)
+			sTilde := output.addRoundKeyCommitted(extendedKey[2*r+2])
+			o.encCstrntsOddProve(zk, sTilde, st0, st1)
+		}
 	}
 }
 

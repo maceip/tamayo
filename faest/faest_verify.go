@@ -192,11 +192,20 @@ func (o OWFParams) encCstrnts(zk *ZKVerifyHasher, input, output, w voleCommits, 
 }
 
 func (o OWFParams) owfConstraintsVerify(zk *ZKVerifyHasher, w voleCommits, delta []uint64, pk *PublicKey) {
-	if o.IsEM {
-		panic("faest: the EM constraint path is not implemented (see the doc.go EM boundary note)")
-	}
 	f := w.f
 	zk.MulAndUpdate(w.scalars[0], w.scalars[1])
+
+	if o.IsEM {
+		// EM: public Rijndael round keys, committed input block, output =
+		// input XOR y. voleCommits are uniform (a public constant is
+		// vcFromConstant = byte*delta), so the shared encCstrnts applies with
+		// no EM-specific variant.
+		extendedKey := o.emExtendedKeyVerify(f, pk.OwfInput, delta)
+		owfInput := w.sub(0, o.NStBits())
+		owfOutput := owfInput.addRoundKey(vcFromConstant(f, pk.OwfOutput[:o.NStBytes()], delta))
+		o.encCstrnts(zk, owfInput, owfOutput, w.sub(o.LKe, o.LEnc), extendedKey)
+		return
+	}
 
 	owfInput := vcFromConstant(f, pk.OwfInput[:o.NStBytes()], delta)
 	k := o.keyExpCstrnts(zk, w.sub(0, o.LKe))
@@ -212,6 +221,17 @@ func (o OWFParams) owfConstraintsVerify(zk *ZKVerifyHasher, w voleCommits, delta
 		o.encCstrnts(zk, owfInput, owfOutput, wTilde, extendedKey)
 		owfInput.scalars[0] = f.Add(owfInput.scalars[0], delta)
 	}
+}
+
+// emExtendedKeyVerify builds the R+1 public EM round keys as voleCommits
+// (each public byte lifted to byte*delta).
+func (o OWFParams) emExtendedKeyVerify(f field.Big, owfInput []byte, delta []uint64) []voleCommits {
+	rks := o.emRoundKeyBytes(owfInput)
+	out := make([]voleCommits, len(rks))
+	for i, rk := range rks {
+		out[i] = vcFromConstant(f, rk, delta)
+	}
+	return out
 }
 
 // reshapeAndToField transposes the lambda x LHatBytes VOLE-tag matrix into field

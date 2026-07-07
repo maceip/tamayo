@@ -2,6 +2,15 @@
 
 ## unreleased
 
+- faest: the six Even-Mansour parameter sets (FAESTEM128s/f, 192s/f, 256s/f)
+  are now fully implemented and verified byte-exact against the FAEST NIST
+  KAT (100 vectors each, sk/pk/sm/verify — the KAT surface is now 1200/1200).
+  The EM one-way function y = Rijndael_pk(x) XOR x uses public round keys
+  from the Rijndael schedule (no key-expansion constraints), the committed
+  secret input, and a 2*lambda PRG leaf commitment (NLeafCommit=2) vs the
+  3*lambda universal-hash one for AES; Rijndael-192/256 (NSt=6/8) wide states
+  are exercised. This was the last true crypto gap in known-gaps.md.
+
 - key rotation: `serve -issuer a.json,b.json` keeps retired key epochs live
   for verification while the first file signs, `/v1/kt` publishes one record
   per epoch (oldest first), verify routes by token_key_id, and the spent set

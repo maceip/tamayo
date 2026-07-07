@@ -14,10 +14,13 @@ boundaries), [`../PLAN.md`](../PLAN.md) (PoMFRIT verification ledger).
 
 | gap | detail / source of truth |
 | --- | --- |
-| FAEST Even-Mansour sets | The only true open gap. The EM building blocks are built and byte-exact (Rijndael-192/256, the EM witness extension, the EM OWF params) and end-to-end EM sign vectors are vendored — but the EM prove/verify constraint path was never ported, so the middle is missing and no EM parameter set is exported (the constraint entry points panic on an EM OWF rather than silently doing the wrong thing). Nothing in the token stack consumes EM today (holder proofs use FAEST-128s), so it is unscheduled. Closing it = port the EM constraints from the reference, define the six EM `FaestParams`, regenerate the EM NIST KATs with `tools/faest_kat_gen`. See `faest` doc.go "Even-Mansour boundary". |
 | Pages explainer lags the code | The demo site tells the crypto + delegation story but does not yet demo the runnable token layer (`cmd/tamayo`, the live issuer) or the burn/private-identity split. Both sides exist; the demo just does not wire them. Blocked on the in-progress `docs/index.html` re-theme in the working tree — not touched to avoid clobbering unsaved work. |
 
 ## Recently closed
+
+- **FAEST Even-Mansour** — all six EM sets (FAESTEM128s/f, 192s/f, 256s/f)
+  implemented and verified byte-exact against the FAEST NIST KAT (100
+  vectors each). Was the last true crypto gap.
 
 - **Key rotation** — `serve -issuer a.json,b.json` keeps retired epochs live
   for verification while the first signs; `/v1/kt` publishes a record per

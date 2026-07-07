@@ -43,18 +43,21 @@ func TestFaestSignKAT(t *testing.T) {
 		192: {FAEST192s, FAEST192f},
 		256: {FAEST256s, FAEST256f},
 	}
+	emSets := map[int][2]FaestParams{
+		128: {FAESTEM128s, FAESTEM128f},
+		192: {FAESTEM192s, FAESTEM192f},
+		256: {FAESTEM256s, FAESTEM256f},
+	}
 
 	msg := faestMsg
 	rho := faestRho()
 	n := 0
 	for _, v := range vecs {
+		table := sets
 		if v.EM {
-			// The EM sign vectors are vendored and ready, but the EM
-			// constraint path is not ported (see the doc.go EM boundary
-			// note), so they cannot be checked yet.
-			continue
+			table = emSets
 		}
-		ps, pf := sets[v.Lambda][0], sets[v.Lambda][1]
+		ps, pf := table[v.Lambda][0], table[v.Lambda][1]
 		sk := ints2bytes(v.Sk)
 		_, _, pk := ps.PublicKeyFromSecret(sk)
 

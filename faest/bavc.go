@@ -12,13 +12,36 @@ import "github.com/maceip/tamayo/field"
 type Bavc struct {
 	Tau Tau
 	ext field.Big
+	em  bool // Even-Mansour: 2*lambda PRG leaf commitments, no uhash
 }
 
-// NewBavc pairs a Tau parameter set with its degree-3 extension field.
+// NewBavc pairs a Tau parameter set with its degree-3 extension field (the
+// standard AES leaf commitment, NLeafCommit=3).
 func NewBavc(t Tau, ext field.Big) *Bavc { return &Bavc{Tau: t, ext: ext} }
+
+// NewBavcEM is the Even-Mansour variant: the leaf commitment is 2*lambda
+// bytes read straight from the PRG (no universal hash, no per-tree uhash),
+// and the revealed seed is the node key itself. Transpiled from faest-rs
+// src/bavc.rs BavcEm / LeafCommitment::commit_em.
+func NewBavcEM(t Tau, ext field.Big) *Bavc { return &Bavc{Tau: t, ext: ext, em: true} }
 
 func (b *Bavc) lam() int     { return b.ext.Bytes / 3 }
 func (b *Bavc) use256() bool { return b.lam() != 16 }
+func (b *Bavc) nLeafCommit() int {
+	if b.em {
+		return 2
+	}
+	return 3
+}
+
+// leafCommitEM is the EM leaf commitment: com = first 2*lambda bytes of the
+// PRG keystream under the node key, sd = the node key itself.
+func (b *Bavc) leafCommitEM(key, iv []byte, tweak uint32) (sd, com []byte) {
+	com = make([]byte, 2*b.lam())
+	NewPRG(key, iv, tweak).Read(com)
+	sd = append([]byte(nil), key...)
+	return sd, com
+}
 
 // BavcCommitment is the output of Commit: the top commitment h (2*lambda), the
 // full GGM key set (2L-1 nodes), the L leaf commitments and the L leaf seeds,
@@ -78,14 +101,22 @@ func (b *Bavc) Commit(r, iv []byte) *BavcCommitment {
 
 	for i := 0; i < b.Tau.Tau; i++ {
 		hi := H1(u256)
-		uhashI := make([]byte, 3*lam)
-		h0r.Read(uhashI)
+		var uhashI []byte
+		if !b.em {
+			uhashI = make([]byte, 3*lam)
+			h0r.Read(uhashI)
+		}
 
 		nI := b.Tau.BavcMaxNodeIndex(i)
 		tweak := uint32(i + L - 1)
 		for j := 0; j < nI; j++ {
 			alpha := b.Tau.PosInTree(i, j)
-			sd, com := LeafCommit(b.ext, keys[alpha], iv, tweak, uhashI)
+			var sd, com []byte
+			if b.em {
+				sd, com = b.leafCommitEM(keys[alpha], iv, tweak)
+			} else {
+				sd, com = LeafCommit(b.ext, keys[alpha], iv, tweak, uhashI)
+			}
 			hi.Update(com)
 			seeds = append(seeds, sd)
 			coms = append(coms, com)
@@ -234,8 +265,11 @@ func (b *Bavc) Reconstruct(op *BavcOpening, iDelta []uint16, iv []byte) (*BavcRe
 	comIt := 0
 
 	for i := 0; i < b.Tau.Tau; i++ {
-		uhashI := make([]byte, 3*lam)
-		h0r.Read(uhashI)
+		var uhashI []byte
+		if !b.em {
+			uhashI = make([]byte, 3*lam)
+			h0r.Read(uhashI)
+		}
 
 		hi := H1(u256)
 		nI := b.Tau.BavcMaxNodeIndex(i)
@@ -243,7 +277,12 @@ func (b *Bavc) Reconstruct(op *BavcOpening, iDelta []uint16, iv []byte) (*BavcRe
 		for j := 0; j < nI; j++ {
 			alpha := b.Tau.PosInTree(i, j)
 			if !s[alpha] {
-				sd, h := LeafCommit(b.ext, keys[alpha], iv, tweak, uhashI)
+				var sd, h []byte
+				if b.em {
+					sd, h = b.leafCommitEM(keys[alpha], iv, tweak)
+				} else {
+					sd, h = LeafCommit(b.ext, keys[alpha], iv, tweak, uhashI)
+				}
 				seeds = append(seeds, sd)
 				hi.Update(h)
 			} else {

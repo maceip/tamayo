@@ -20,25 +20,22 @@
 // Experimental and unaudited. Correctness rests on reference KATs, not a
 // security review.
 //
-// # Even-Mansour boundary
+// # Even-Mansour sets
 //
-// The six exported parameter sets are the standard AES ones; the six
-// Even-Mansour (EM) sets are not implemented end to end. The EM building
-// blocks that do exist — the Rijndael-192/256 cipher (rijndael.go), the EM
-// witness extension (witness.go), and the OWF128EM/OWF192EM/OWF256EM
-// parameters — are each transpiled from faest-rs and byte-exact against its
-// vectors (rijndael_data.json, AesExtendedWitness.json), but the EM
-// prove/verify constraint path was never ported, so no EM set is exported
-// and no EM signature can be produced or checked (the constraint entry
-// points panic on an EM OWF rather than silently computing the AES
-// constraints). End-to-end EM sign vectors are already vendored in
-// FaestProve.json (skipped by TestFaestSignKAT); completing FAEST-EM means
-// porting the EM constraints from faest-rs, defining the six EM FaestParams
-// sets, and regenerating the EM NIST KAT sets with tools/faest_kat_gen.
+// All twelve parameter sets are implemented: the six standard AES sets and
+// the six Even-Mansour (EM) sets (FAESTEM128s/f, 192s/f, 256s/f), verified
+// byte-exact against the FAEST NIST KAT (100 vectors each). The EM one-way
+// function is y = Rijndael_pk(x) XOR x with public round keys and the secret
+// input x committed; relative to AES it skips the key-expansion constraints,
+// derives its round keys from the public Rijndael schedule, and uses a
+// 2*lambda PRG leaf commitment (NLeafCommit=2) instead of the 3*lambda
+// universal-hash one. Rijndael-192/256 (NSt=6/8) is exercised by the wider
+// EM states.
 //
 // # Public entry points
 //
-//	FAEST128s, FAEST128f, FAEST192s, FAEST192f, FAEST256s, FAEST256f  // FaestParams
+//	FAEST128s, FAEST128f, FAEST192s, FAEST192f, FAEST256s, FAEST256f  // AES FaestParams
+//	FAESTEM128s, FAESTEM128f, FAESTEM192s, FAESTEM192f, FAESTEM256s, FAESTEM256f  // EM FaestParams
 //	(FaestParams).KeyGen           // sample a valid secret key + public key
 //	(FaestParams).Sign             // sign a message
 //	(FaestParams).Verify           // verify a signature
