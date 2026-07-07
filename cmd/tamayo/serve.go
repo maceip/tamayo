@@ -64,6 +64,7 @@ func cmdServe(args []string) error {
 	publicBase := fs.String("public-base", "", "public base URL for EVP metadata (default: scheme://addr)")
 	sendmail := fs.String("sendmail", "", "command to deliver mailbox codes: run as `cmd <address>` with the code on stdin (default: print to stderr, dev only)")
 	codeTTL := fs.Duration("code-ttl", 10*time.Minute, "mailbox challenge code lifetime")
+	policyPub := fs.String("policy-pub", "", "comma-separated trusted operator keys (hex); requires a verifying <policy>.sig sidecar")
 	fs.Parse(args)
 	if *policyPath == "" {
 		return errors.New("serve: -policy is required (generate one with 'tamayo example-policy')")
@@ -79,6 +80,25 @@ func cmdServe(args []string) error {
 	rawPolicy, err := os.ReadFile(*policyPath)
 	if err != nil {
 		return err
+	}
+	if *policyPub != "" {
+		var trusted [][32]byte
+		for _, h := range strings.Split(*policyPub, ",") {
+			v, err := hex.DecodeString(strings.TrimSpace(h))
+			if err != nil || len(v) != 32 {
+				return fmt.Errorf("-policy-pub: keys must be 32 hex bytes")
+			}
+			var k [32]byte
+			copy(k[:], v)
+			trusted = append(trusted, k)
+		}
+		sidecar, err := os.ReadFile(*policyPath + ".sig")
+		if err != nil {
+			return fmt.Errorf("-policy-pub set but sidecar unreadable: %w (sign with 'tamayo sign-policy')", err)
+		}
+		if err := tokenauth.VerifyPolicySidecar(rawPolicy, string(sidecar), trusted); err != nil {
+			return fmt.Errorf("policy %s: %w", *policyPath, err)
+		}
 	}
 	policy, err := tokenauth.CompileJSON(rawPolicy)
 	if err != nil {

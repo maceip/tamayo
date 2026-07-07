@@ -2,6 +2,15 @@
 
 ## unreleased
 
+- the reference port list is complete: `tokenauth/authorization.go` (the
+  wire-compatible faest-128f-signed issuance-authorization envelope for a
+  cross-process attester/issuer split, with `AttesterSigner` and full
+  rejection coverage) and `tokenauth/sidecar.go` (faest-signed policy
+  sidecars: `tamayo sign-policy` writes `<policy>.sig`, `serve -policy-pub`
+  refuses any policy whose sidecar does not verify under a trusted operator
+  key — tamper refusal verified live); nothing portable remains outside
+  this repo
+
 - three more reference ports: `tokenprofile/carriage.go` (rfc 9577
   privatetoken www-authenticate/authorization header codecs, wire-shaped
   like the reference), `tokenservice.SpentStore` + `MemorySpentStore`

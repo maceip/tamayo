@@ -34,6 +34,7 @@ commands:
   mint-burn      -issuer issuer.json -challenge <string> [-out token.b64]
   verify-burn    -issuer issuer.json -token <file|-> -challenge <string>
   example-policy
+  sign-policy     -policy policy.json [-key policy-key.json]
   serve          -issuer issuer.json -policy policy.json [-addr 127.0.0.1:8787]
 
 run 'tamayo <command> -h' for the flags of one command.`
@@ -55,6 +56,8 @@ func main() {
 		err = cmdVerifyBurn(os.Args[2:])
 	case "example-policy":
 		err = cmdExamplePolicy(os.Args[2:])
+	case "sign-policy":
+		err = cmdSignPolicy(os.Args[2:])
 	case "serve":
 		err = cmdServe(os.Args[2:])
 	case "-h", "--help", "help":

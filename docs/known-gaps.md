@@ -58,15 +58,15 @@ the `gate` crate's hardware-attestation verifiers (unified-quote EAT,
 Azure, Android, iOS), the CoRIM/EAR appraisal-policy layer, platform SDKs,
 demos, TLS/Redis/SMTP plumbing.
 
-**Rust-only but portable (unported, would fit this repo):**
+**Rust-only but portable — the list is now EMPTY; every row below is ported:**
 
 | item | source | note |
 | --- | --- | --- |
 | ~~EVP `.well-known` issuer service~~ | — | **Ported** — `cmd/tamayo/evp.go`: discovery metadata, jwks, and the RFC 9421-signed issuance endpoint with browser-key-bound mail codes and per-mailbox budgets; `serve -evp-issuer` mounts it, `-tls-cert/-tls-key` serve it over HTTPS. End-to-end tested with a stand-in browser client. |
 | ~~RFC 9421 HTTP Message Signature verification~~ | — | **Ported** with the above (fixed covered-component `hwk` profile, `cmd/tamayo/evp.go`). |
 | ~~RFC 9577 `PrivateToken` HTTP carriage~~ | — | **Ported** — `tokenprofile/carriage.go` header codecs, round-trip tested. |
-| FAEST-signed `IssuanceAuthorization` | `core/src/authorize.rs` | The attester→issuer signed authorization object. tamayo's `MintDecision` is unsigned — fine in-process (`tokenservice`), but a cross-process attester/issuer split needs the signature. |
-| FAEST-signed policy sidecars | `policy/src/sign.rs` | `.json.sig` signing/verification for operator policy files; portable even though the appraisal layer itself stays Rust-side. |
+| ~~FAEST-signed `IssuanceAuthorization`~~ | — | **Ported** — `tokenauth/authorization.go`: the wire-compatible signed envelope (canonical bytes, version/expiry/batch checks) plus `AttesterSigner`; round-trip and rejection tested. |
+| ~~FAEST-signed policy sidecars~~ | — | **Ported** — `tokenauth/sidecar.go` + `tamayo sign-policy` + `serve -policy-pub` (a tampered policy is refused at startup; verified live). |
 | ~~Standalone spent-store seam~~ | — | **Ported** — `tokenservice.SpentStore` + `MemorySpentStore` (epoch-partitioned, fail-closed, prunable); `cmd/tamayo serve` rewired onto it. |
 
 ## Repo / ecosystem

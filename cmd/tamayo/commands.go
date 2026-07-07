@@ -301,3 +301,68 @@ func cmdExamplePolicy(args []string) error {
 	fmt.Println(string(raw))
 	return nil
 }
+
+// policyKeyFile is an operator's policy-signing key: the 32-byte seed the
+// FAEST-128f key pair derives from. Treat it like a private key.
+type policyKeyFile struct {
+	SeedB64 string `json:"policy_signing_seed_b64"`
+}
+
+func loadOrCreatePolicySigner(path string) (*tokenauth.PolicySigner, error) {
+	if raw, err := os.ReadFile(path); err == nil {
+		var f policyKeyFile
+		dec := json.NewDecoder(strings.NewReader(string(raw)))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&f); err != nil {
+			return nil, fmt.Errorf("policy key file %s: %w", path, err)
+		}
+		seed, err := base64.RawURLEncoding.DecodeString(f.SeedB64)
+		if err != nil {
+			return nil, fmt.Errorf("policy key file %s: %w", path, err)
+		}
+		return tokenauth.NewPolicySigner(seed)
+	}
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		return nil, err
+	}
+	raw, err := json.MarshalIndent(policyKeyFile{SeedB64: base64.RawURLEncoding.EncodeToString(seed)}, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(path, append(raw, '\n'), 0o600); err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(os.Stderr, "wrote new policy signing key %s (secret — 0600)\n", path)
+	return tokenauth.NewPolicySigner(seed)
+}
+
+// cmdSignPolicy writes the FAEST-128f sidecar for a policy file, so a
+// runtime configured with the operator's public key refuses any policy
+// that was not signed by it.
+func cmdSignPolicy(args []string) error {
+	fs := flag.NewFlagSet("sign-policy", flag.ExitOnError)
+	policyPath := fs.String("policy", "policy.json", "policy JSON to sign")
+	keyPath := fs.String("key", "policy-key.json", "operator signing key file (created if absent)")
+	fs.Parse(args)
+
+	signer, err := loadOrCreatePolicySigner(*keyPath)
+	if err != nil {
+		return err
+	}
+	policyJSON, err := os.ReadFile(*policyPath)
+	if err != nil {
+		return err
+	}
+	sidecar, err := signer.SignPolicy(policyJSON, nil)
+	if err != nil {
+		return err
+	}
+	sigPath := *policyPath + ".sig"
+	if err := os.WriteFile(sigPath, []byte(sidecar+"\n"), 0o644); err != nil {
+		return err
+	}
+	pub := signer.Public()
+	fmt.Printf("wrote %s\noperator public key (for serve -policy-pub): %s\n", sigPath, hex.EncodeToString(pub[:]))
+	return nil
+}
