@@ -1,47 +1,125 @@
-name: Release
+name: Auto Release
 
-# Cuts a GitHub release with prebuilt cmd/tamayo binaries when a version tag
-# is pushed. Go users don't need these — `go install
-# github.com/maceip/tamayo/cmd/tamayo@<tag>` builds from source — the
-# attached archives are for machines without a Go toolchain. Everything is
-# cross-compiled with the stock toolchain, CGO_ENABLED=0.
+# Every push to main cuts a release: the patch version bumps automatically
+# (v0.1.0 -> v0.1.1 -> ...), each platform binary is built AND executed on a
+# native GitHub-hosted runner (the packaged asset itself runs the full blind
+# mint -> verify loop before it is allowed to ship), and the tested archives
+# plus SHA256SUMS are attached to the release. Go users can always build
+# from source instead: go install github.com/maceip/tamayo/cmd/tamayo@<tag>.
+#
+# darwin/amd64 is built and smoke-tested on the arm64 macOS runner under
+# Rosetta 2 (installed on GitHub's macOS runners).
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+# Serialize releases so racing pushes can't compute the same next version.
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  version:
+    name: bump patch version
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: bump
+        run: |
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          latest=${latest:-v0.0.0}
+          IFS=. read -r maj min pat <<< "${latest#v}"
+          tag="v${maj}.${min}.$((pat + 1))"
+          echo "next release: $tag (previous: $latest)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build + test ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    goos: linux,   goarch: amd64 }
+          - { os: ubuntu-24.04-arm, goos: linux,   goarch: arm64 }
+          - { os: macos-latest,     goos: darwin,  goarch: arm64 }
+          - { os: macos-latest,     goos: darwin,  goarch: amd64 }
+          - { os: windows-latest,   goos: windows, goarch: amd64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Cross-compile cmd/tamayo
+      - name: Build
+        shell: bash
         run: |
+          bin=tamayo; [ "${{ matrix.goos }}" = windows ] && bin=tamayo.exe
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags "-s -w" -o "$bin" ./cmd/tamayo
+      - name: Package
+        shell: bash
+        run: |
+          name="tamayo_${TAG}_${{ matrix.goos }}_${{ matrix.goarch }}"
           mkdir -p dist
-          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
-            goos="${t%/*}"; goarch="${t#*/}"
-            bin=tamayo; [ "$goos" = windows ] && bin=tamayo.exe
-            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
-              go build -trimpath -ldflags "-s -w" -o "dist/$bin" ./cmd/tamayo
-            name="tamayo_${GITHUB_REF_NAME}_${goos}_${goarch}"
-            if [ "$goos" = windows ]; then
-              (cd dist && zip -q "${name}.zip" "$bin" && rm "$bin")
-            else
-              tar -C dist -czf "dist/${name}.tar.gz" "$bin" && rm "dist/$bin"
-            fi
-          done
-          (cd dist && sha256sum ./* > SHA256SUMS)
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
+          if [ "${{ matrix.goos }}" = windows ]; then
+            7z a -tzip "dist/${name}.zip" tamayo.exe > /dev/null
+          else
+            tar -czf "dist/${name}.tar.gz" tamayo
+          fi
+      - name: Smoke-test the packaged asset
+        shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
+          mkdir smoke && cd smoke
+          case "${{ matrix.goos }}" in
+            windows) 7z x "../dist/"*.zip > /dev/null; bin=./tamayo.exe ;;
+            *)       tar -xzf ../dist/*.tar.gz;        bin=./tamayo ;;
+          esac
+          "$bin" keygen -out issuer.json
+          "$bin" demo -issuer issuer.json | tee demo.out
+          grep -q 'RESULT: PASS' demo.out
+          "$bin" mint-burn -issuer issuer.json -challenge ci-smoke -out token.b64
+          "$bin" verify-burn -issuer issuer.json -token token.b64 -challenge ci-smoke
+          "$bin" example-policy > /dev/null
+          ! "$bin" verify-burn -issuer issuer.json -token token.b64 -challenge wrong
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: create release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: (cd dist && sha256sum ./* > SHA256SUMS)
+      - name: Create release
+        run: |
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
             --generate-notes \
             dist/*

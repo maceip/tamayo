@@ -2,6 +2,14 @@
 
 ## unreleased
 
+- continuous releases: every push to main auto-bumps the patch version and
+  cuts a github release — each platform binary (linux amd64/arm64, macos
+  amd64/arm64, windows amd64) is built on a native github-hosted runner,
+  the packaged asset itself is executed there (keygen, the full blind
+  mint→verify demo, a mint/verify round trip, and a wrong-challenge
+  rejection) before upload, and SHA256SUMS covers the set; darwin/amd64 is
+  exercised under rosetta on the arm runner
+
 - new `mldsa` package: ml-dsa-44/65/87 (fips 204), pure go, cgo-free —
   keygen/sign/verify with the deterministic + hedged variants and the pure,
   internal, and external-mu interfaces (hashml-dsa pre-hash is out of scope);

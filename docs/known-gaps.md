@@ -43,7 +43,7 @@ the Rust reference; **accepted** = known limitation we are not going to fix.
 
 | gap | kind | detail / source of truth |
 | --- | --- | --- |
-| No version tag yet | deferred | `go install .../cmd/tamayo@latest` and pkg.go.dev docs activate once a `vX.Y.Z` tag is pushed; nothing else to publish anywhere. README "use it". |
+| Releases are patch-bump only | accepted | Every push to main auto-bumps the patch version and cuts a release with runner-tested binaries (`.github/workflows/release.yml`); minor/major bumps are a manual tag away (the auto-bump continues from the highest existing tag). |
 | TEE attestation stays Rust-side | boundary | `eat-pass/gate` + unified-quote (EAT verification, quote collection) feed authorization as evidence; tamayo consumes, never reimplements. Roadmap "Repository Boundaries". |
 | eat-pass is frozen, confidential-agent must thin | boundary (cross-repo) | Product repos still need to consume the tamayo packages and drop their duplicate token code. Roadmap cleanup items 1–4. |
 | Pages explainer lags the code | deferred | maceip.github.io/tamayo tells the delegation story and the PoMFRIT math; it does not yet demo the runnable token layer (`cmd/tamayo`) or the burn/private-identity split. Blocked on the in-progress `docs/index.html` re-theme in the working tree. |
