@@ -35,6 +35,9 @@ type PolicyEmailIssueOptions struct {
 	Policy    PolicyBinding
 	IssuedAt  time.Time
 	TTL       time.Duration
+	// Rnd selects hedged ML-DSA signing on the PQ profile (32 fresh CSPRNG
+	// bytes); nil means deterministic. Ignored by the Ed25519 signer.
+	Rnd []byte
 }
 
 type VerifiedPolicyEmailPresentation struct {
@@ -54,14 +57,8 @@ func (s *Signer) IssuePolicyEmail(opts PolicyEmailIssueOptions) (string, error) 
 	if _, err := opts.HolderJWK.Ed25519PublicKey(); err != nil {
 		return "", fmt.Errorf("holder jwk: %w", err)
 	}
-	if strings.TrimSpace(opts.Policy.TokenFamily) == "" {
-		return "", errors.New("policy token_family required")
-	}
-	if opts.Policy.BindingB64 == "" {
-		return "", errors.New("policy binding_b64 required")
-	}
-	if opts.Policy.BudgetKey == "" {
-		return "", errors.New("policy budget_key required")
+	if err := checkPolicyBinding(opts.Policy); err != nil {
+		return "", err
 	}
 	claims := PolicyEmailClaims{
 		Iss:           s.issuer,
@@ -97,11 +94,32 @@ func (v *Verifier) VerifyPolicyEmail(token string, opts VerifyOptions) (PolicyEm
 	if v.kid != "" && header.Kid != v.kid {
 		return PolicyEmailClaims{}, errors.New("policy email kid mismatch")
 	}
+	return checkPolicyEmailClaims(payload, v.issuer, false, opts)
+}
+
+// checkPolicyBinding validates the issuance-side policy binding fields.
+func checkPolicyBinding(p PolicyBinding) error {
+	if strings.TrimSpace(p.TokenFamily) == "" {
+		return errors.New("policy token_family required")
+	}
+	if p.BindingB64 == "" {
+		return errors.New("policy binding_b64 required")
+	}
+	if p.BudgetKey == "" {
+		return errors.New("policy budget_key required")
+	}
+	return nil
+}
+
+// checkPolicyEmailClaims validates the decoded policy email payload; the
+// classical profile requires an Ed25519 holder key, the PQ profile also
+// accepts AKP/ML-DSA-44 (allowAKP).
+func checkPolicyEmailClaims(payload []byte, issuer string, allowAKP bool, opts VerifyOptions) (PolicyEmailClaims, error) {
 	var claims PolicyEmailClaims
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return PolicyEmailClaims{}, err
 	}
-	if claims.Iss != v.issuer {
+	if claims.Iss != issuer {
 		return PolicyEmailClaims{}, errors.New("policy email issuer mismatch")
 	}
 	if !claims.EmailVerified {
@@ -110,7 +128,7 @@ func (v *Verifier) VerifyPolicyEmail(token string, opts VerifyOptions) (PolicyEm
 	if claims.Email == "" {
 		return PolicyEmailClaims{}, errors.New("policy email address required")
 	}
-	if _, err := claims.CNF.JWK.Ed25519PublicKey(); err != nil {
+	if err := checkHolderJWK(claims.CNF.JWK, allowAKP); err != nil {
 		return PolicyEmailClaims{}, fmt.Errorf("policy email cnf.jwk: %w", err)
 	}
 	if claims.Policy.TokenFamily == "" || claims.Policy.BindingB64 == "" || claims.Policy.BudgetKey == "" {

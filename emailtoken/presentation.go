@@ -105,6 +105,12 @@ func verifyKBJWT(kbJWT, tokenWithTilde string, holderPub ed25519.PublicKey, opts
 	if err != nil {
 		return KBClaims{}, fmt.Errorf("kb-jwt: %w", err)
 	}
+	return checkKBClaims(header, payload, tokenWithTilde, opts)
+}
+
+// checkKBClaims validates a verified KB-JWT payload against the presented
+// token and options (shared by the Ed25519 and ML-DSA-44 holder paths).
+func checkKBClaims(header Header, payload []byte, tokenWithTilde string, opts PresentationVerifyOptions) (KBClaims, error) {
 	if header.Typ != TypKBJWT {
 		return KBClaims{}, fmt.Errorf("kb-jwt typ %q unsupported", header.Typ)
 	}

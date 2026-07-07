@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"testing"
 	"time"
 
 	"github.com/maceip/tamayo/emailtoken"
 	"github.com/maceip/tamayo/mayo"
+	"github.com/maceip/tamayo/mldsa"
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
 )
@@ -29,8 +31,16 @@ func TestServiceIssuesAndVerifiesBlindRows(t *testing.T) {
 	var additionalR [32]byte
 	copy(additionalR[:], bytes.Repeat([]byte{0x22}, 32))
 	target, state := tokenprofile.PrepareBlind(input, additionalR)
+	if _, err := issuer.SignAuthorizedBlind(BlindMintRequest{
+		Decision: allowedDecision(tokenauth.TokenBurn, 1, blind.KeyVersion(), "wrong-binding"),
+		Family:   tokenauth.TokenBurn,
+		Blinded:  [][]byte{target},
+		Now:      time.Unix(1_800_000_000, 0),
+	}); err == nil {
+		t.Fatal("decision bound to different blinded targets must be rejected")
+	}
 	sigs, err := issuer.SignAuthorizedBlind(BlindMintRequest{
-		Decision: allowedDecision(tokenauth.TokenBurn, 1, blind.KeyVersion(), "binding"),
+		Decision: allowedDecision(tokenauth.TokenBurn, 1, blind.KeyVersion(), bindingB64(target)),
 		Family:   tokenauth.TokenBurn,
 		Blinded:  [][]byte{target},
 		Now:      time.Unix(1_800_000_000, 0),
@@ -58,7 +68,7 @@ func TestServiceIssuesAndVerifiesBlindRows(t *testing.T) {
 	pvtInput := tokenprofile.NewPrivateIdentityInput(blind.KeyVersion(), blind.TokenKeyID(), tokenprofile.HolderAlgEd25519, holderPub)
 	target, state = tokenprofile.PrepareBlind(pvtInput.Bytes(), additionalR)
 	sigs, err = issuer.SignAuthorizedBlind(BlindMintRequest{
-		Decision: allowedDecision(tokenauth.TokenPrivateIdentity, 1, blind.KeyVersion(), "binding"),
+		Decision: allowedDecision(tokenauth.TokenPrivateIdentity, 1, blind.KeyVersion(), bindingB64(target)),
 		Family:   tokenauth.TokenPrivateIdentity,
 		Blinded:  [][]byte{target},
 		Now:      time.Unix(1_800_000_000, 0),
@@ -183,6 +193,75 @@ func TestServiceIssuesAndVerifiesEmailRows(t *testing.T) {
 	if verifiedPolicy.Token.Policy.TokenFamily != string(tokenauth.TokenPolicyEmail) {
 		t.Fatalf("policy binding = %+v", verifiedPolicy.Token.Policy)
 	}
+}
+
+func TestServiceIssuesAndVerifiesPQEmailRow(t *testing.T) {
+	pqSigner, err := emailtoken.NewPQSigner("issuer.test", bytes.Repeat([]byte{0x88}, 32))
+	if err != nil {
+		t.Fatalf("NewPQSigner: %v", err)
+	}
+	issuer, err := NewIssuerWithPQEmail(nil, nil, pqSigner)
+	if err != nil {
+		t.Fatalf("NewIssuerWithPQEmail: %v", err)
+	}
+	holderPub, holderPriv, err := mldsa.MLDSA44.KeyGen(bytes.Repeat([]byte{0x99}, 32))
+	if err != nil {
+		t.Fatalf("MLDSA44.KeyGen: %v", err)
+	}
+	holderJWK, err := emailtoken.PublicJWKMLDSA44(holderPub, "")
+	if err != nil {
+		t.Fatalf("PublicJWKMLDSA44: %v", err)
+	}
+	now := time.Unix(1_800_000_000, 0)
+
+	token, err := issuer.IssuePolicyEmailPQ(PolicyEmailIssueRequest{
+		Decision:  allowedDecision(tokenauth.TokenPolicyEmail, 1, 3, "policy-binding"),
+		Email:     "alice@example.com",
+		HolderJWK: holderJWK,
+		IssuedAt:  now,
+		TTL:       time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("IssuePolicyEmailPQ: %v", err)
+	}
+	if _, err := issuer.IssuePolicyEmail(PolicyEmailIssueRequest{}); err == nil {
+		t.Fatal("classical rail must not be configured")
+	}
+
+	var nonce [32]byte
+	copy(nonce[:], bytes.Repeat([]byte{0xAA}, 32))
+	kb, err := emailtoken.SignKBJWTMLDSA44(holderPriv, token, emailtoken.PresentationOptions{
+		Audience: "rp.example",
+		Nonce:    nonce,
+		IssuedAt: now,
+	}, nil)
+	if err != nil {
+		t.Fatalf("SignKBJWTMLDSA44: %v", err)
+	}
+	presentation, err := emailtoken.JoinPresentation(token, kb)
+	if err != nil {
+		t.Fatalf("JoinPresentation: %v", err)
+	}
+	verified, err := issuer.Verifier().VerifyPolicyEmailPresentationPQ(presentation, emailtoken.PresentationVerifyOptions{
+		Audience:  "rp.example",
+		Nonce:     nonce,
+		Now:       now,
+		EVTMaxAge: time.Hour,
+		KBMaxAge:  time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("VerifyPolicyEmailPresentationPQ: %v", err)
+	}
+	if verified.Email != "alice@example.com" || verified.Token.Policy.TokenFamily != string(tokenauth.TokenPolicyEmail) {
+		t.Fatalf("verified = %+v", verified)
+	}
+}
+
+// bindingB64 encodes the channel binding for a single-target batch the way
+// tokenauth constraints carry it.
+func bindingB64(target []byte) string {
+	binding := tokenprofile.BindingOf([][]byte{target})
+	return base64.RawURLEncoding.EncodeToString(binding[:])
 }
 
 func allowedDecision(family tokenauth.TokenFamily, count int, keyVersion uint32, binding string) tokenauth.MintDecision {

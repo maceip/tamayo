@@ -1,6 +1,7 @@
 package tokenservice
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,13 +13,15 @@ import (
 )
 
 type Issuer struct {
-	blind *tokenprofile.Issuer
-	email *emailtoken.Signer
+	blind   *tokenprofile.Issuer
+	email   *emailtoken.Signer
+	pqEmail *emailtoken.PQSigner
 }
 
 type Verifier struct {
-	blind *tokenprofile.Issuer
-	email *emailtoken.Verifier
+	blind   *tokenprofile.Issuer
+	email   *emailtoken.Verifier
+	pqEmail *emailtoken.PQVerifier
 }
 
 type BlindMintRequest struct {
@@ -35,6 +38,9 @@ type PolicyEmailIssueRequest struct {
 	IssuedAt   time.Time
 	TTL        time.Duration
 	DecisionID string
+	// Rnd selects hedged ML-DSA signing on the PQ rail (32 fresh CSPRNG
+	// bytes); nil means deterministic. Ignored by the Ed25519 rail.
+	Rnd []byte
 }
 
 func NewIssuer(blind *tokenprofile.Issuer, email *emailtoken.Signer) (*Issuer, error) {
@@ -44,14 +50,28 @@ func NewIssuer(blind *tokenprofile.Issuer, email *emailtoken.Signer) (*Issuer, e
 	return &Issuer{blind: blind, email: email}, nil
 }
 
+// NewIssuerWithPQEmail additionally mounts the post-quantum policy-bound
+// email rail (ML-DSA-44 JWS; see docs/pq-email-profile.md).
+func NewIssuerWithPQEmail(blind *tokenprofile.Issuer, email *emailtoken.Signer, pqEmail *emailtoken.PQSigner) (*Issuer, error) {
+	if blind == nil && email == nil && pqEmail == nil {
+		return nil, errors.New("at least one issuer rail is required")
+	}
+	return &Issuer{blind: blind, email: email, pqEmail: pqEmail}, nil
+}
+
 func (s *Issuer) Verifier() *Verifier {
 	var emailVerifier *emailtoken.Verifier
 	if s.email != nil {
 		emailVerifier = s.email.Verifier()
 	}
+	var pqVerifier *emailtoken.PQVerifier
+	if s.pqEmail != nil {
+		pqVerifier = s.pqEmail.Verifier()
+	}
 	return &Verifier{
-		blind: s.blind,
-		email: emailVerifier,
+		blind:   s.blind,
+		email:   emailVerifier,
+		pqEmail: pqVerifier,
 	}
 }
 
@@ -75,23 +95,28 @@ func (s *Issuer) SignAuthorizedBlind(req BlindMintRequest) ([][]byte, error) {
 	if err := validateDecision(req.Decision, req.Family, len(req.Blinded), s.blind.KeyVersion(), req.Now); err != nil {
 		return nil, err
 	}
+	// The authorization must be bound to these exact blinded targets
+	// (eat-pass issue_authorized: binding_of(blinded) == auth.binding), so a
+	// decision cannot be replayed for a different batch even though the
+	// issuer never sees token contents.
+	binding := tokenprofile.BindingOf(req.Blinded)
+	if base64.RawURLEncoding.EncodeToString(binding[:]) != req.Decision.Constraints.BindingB64 {
+		return nil, errors.New("authorization binding does not match blinded targets")
+	}
 	return s.blind.BlindSign(req.Blinded)
 }
 
-func (s *Issuer) IssuePolicyEmail(req PolicyEmailIssueRequest) (string, error) {
-	if s.email == nil {
-		return "", errors.New("email signer not configured")
-	}
+func policyEmailOptions(req PolicyEmailIssueRequest) (emailtoken.PolicyEmailIssueOptions, error) {
 	if err := validateDecision(req.Decision, tokenauth.TokenPolicyEmail, 1, 0, req.IssuedAt); err != nil {
-		return "", err
+		return emailtoken.PolicyEmailIssueOptions{}, err
 	}
 	if req.Email == "" {
-		return "", errors.New("email required")
+		return emailtoken.PolicyEmailIssueOptions{}, errors.New("email required")
 	}
 	if req.Decision.Constraints.Address != "" && !strings.EqualFold(req.Decision.Constraints.Address, req.Email) {
-		return "", errors.New("email does not match authorization decision")
+		return emailtoken.PolicyEmailIssueOptions{}, errors.New("email does not match authorization decision")
 	}
-	return s.email.IssuePolicyEmail(emailtoken.PolicyEmailIssueOptions{
+	return emailtoken.PolicyEmailIssueOptions{
 		Email:     req.Email,
 		HolderJWK: req.HolderJWK,
 		Policy: emailtoken.PolicyBinding{
@@ -104,7 +129,32 @@ func (s *Issuer) IssuePolicyEmail(req PolicyEmailIssueRequest) (string, error) {
 		},
 		IssuedAt: req.IssuedAt,
 		TTL:      req.TTL,
-	})
+		Rnd:      req.Rnd,
+	}, nil
+}
+
+func (s *Issuer) IssuePolicyEmail(req PolicyEmailIssueRequest) (string, error) {
+	if s.email == nil {
+		return "", errors.New("email signer not configured")
+	}
+	opts, err := policyEmailOptions(req)
+	if err != nil {
+		return "", err
+	}
+	return s.email.IssuePolicyEmail(opts)
+}
+
+// IssuePolicyEmailPQ issues the policy-bound email row under the ML-DSA-44
+// profile, with the same authorization gate as the classical rail.
+func (s *Issuer) IssuePolicyEmailPQ(req PolicyEmailIssueRequest) (string, error) {
+	if s.pqEmail == nil {
+		return "", errors.New("pq email signer not configured")
+	}
+	opts, err := policyEmailOptions(req)
+	if err != nil {
+		return "", err
+	}
+	return s.pqEmail.IssuePolicyEmail(opts)
 }
 
 func (s *Issuer) IssueGoogleEVT(opts emailtoken.IssueOptions) (string, error) {
@@ -147,6 +197,13 @@ func (v *Verifier) VerifyPolicyEmailPresentation(presentation string, opts email
 		return emailtoken.VerifiedPolicyEmailPresentation{}, errors.New("email verifier not configured")
 	}
 	return v.email.VerifyPolicyEmailPresentation(presentation, opts)
+}
+
+func (v *Verifier) VerifyPolicyEmailPresentationPQ(presentation string, opts emailtoken.PresentationVerifyOptions) (emailtoken.VerifiedPolicyEmailPresentation, error) {
+	if v.pqEmail == nil {
+		return emailtoken.VerifiedPolicyEmailPresentation{}, errors.New("pq email verifier not configured")
+	}
+	return v.pqEmail.VerifyPolicyEmailPresentation(presentation, opts)
 }
 
 func validateDecision(decision tokenauth.MintDecision, family tokenauth.TokenFamily, count int, keyVersion uint32, now time.Time) error {

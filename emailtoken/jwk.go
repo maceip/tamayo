@@ -8,8 +8,9 @@ import (
 
 type JWK struct {
 	Kty string `json:"kty"`
-	Crv string `json:"crv"`
-	X   string `json:"x"`
+	Crv string `json:"crv,omitempty"`
+	X   string `json:"x,omitempty"`
+	Pub string `json:"pub,omitempty"` // AKP public key (draft-ietf-cose-dilithium)
 	Kid string `json:"kid,omitempty"`
 	Alg string `json:"alg,omitempty"`
 	Use string `json:"use,omitempty"`
