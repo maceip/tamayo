@@ -23,6 +23,10 @@
 node_modules/
 package-lock.json
 
+# AI-generated design reference scratch for the Pages explainer (~87 MB of
+# images) — keep out of git history
+/docs/style/
+
 # Editor / OS
 .DS_Store
 *.swp

@@ -17,7 +17,7 @@ truth.
 
 | repo | current token role | label | notes |
 | --- | --- | --- | --- |
-| `/Users/mac/tamayo` | MAYO, FAEST, PoMFRIT primitives, token-profile packages, and issuer/verifier service APIs. | authoritative | Add shared token code here. Keep cgo-free and TamaGo-compatible. |
+| `/Users/mac/tamayo` | MAYO, FAEST, PoMFRIT, ML-DSA primitives, token-profile packages, and issuer/verifier service APIs. | authoritative | Add shared token code here. Keep cgo-free and TamaGo-compatible (CI cross-builds all library packages for `GOOS=tamago`). |
 | `/Users/mac/tee-stack/eat-pass` | Rust product prototype with burn tokens, private identity tokens, mail gate, and Google EVT bridge. | reference | Freeze feature work. Use as behavior reference while porting. |
 | `/Users/mac/confidential-agent` | Bootable agent/runtime plus a second Go token service under `internal/tokenservice`. | migration input, then duplicate | Move reusable token behavior into `tamayo`; keep only runtime composition here. |
 | `/Users/mac/tee-stack/unified-quote` and attestation repos | Runtime evidence and measurement verification language. | reference / dependency | Feed authorization policy before token minting. Do not mix token formats into these repos. |
@@ -27,8 +27,8 @@ truth.
 | row | current best implementation | important files | remaining work |
 | --- | --- | --- | --- |
 | Burn token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/burn.go`, `tokenservice/service.go` | Product repos must consume the shared API and provide spent-token storage. |
-| Private identity token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/private_identity.go`, `tokenservice/service.go` | Ed25519 and FAEST-128s holder proofs are supported. ML-DSA remains parse-only until that primitive exists here. |
-| Policy-bound email token | `tamayo/emailtoken`, `tamayo/tokenauth`, and `tamayo/tokenservice`. | `emailtoken/policy_email.go`, `tokenauth`, `tokenservice/service.go` | Product repos must provide verified email evidence, runtime measurement evidence, and transport. PQ signing remains unspecified. |
+| Private identity token | `tamayo/tokenprofile` and `tamayo/tokenservice`. | `tokenprofile/private_identity.go`, `tokenservice/service.go` | Ed25519, FAEST-128s, and ML-DSA-44 holder proofs are supported (ML-DSA-44 via the `mldsa` package, NIST ACVP-verified). |
+| Policy-bound email token | `tamayo/emailtoken`, `tamayo/tokenauth`, and `tamayo/tokenservice`. | `emailtoken/policy_email.go`, `emailtoken/pq_email.go`, `tokenauth`, `tokenservice/service.go` | Product repos must provide verified email evidence, runtime measurement evidence, and transport. PQ signing is specified (`docs/pq-email-profile.md`) and implemented as the ML-DSA-44 rail; Ed25519 remains the default. |
 | Google EVT | `tamayo/emailtoken` and `tamayo/tokenservice`. | `emailtoken/evt.go`, `emailtoken/presentation.go`, `tokenservice/service.go` | Keep separate from policy-bound issuance; product repos can wrap it for interop tests. |
 
 ## Package Split
@@ -39,6 +39,9 @@ truth.
 | `tokenauth` | Compiled JSON authorization data structures: token family, runtime measurement, email/address proof claims, origin, mint binding, authorization decision. | Product-specific transport or evidence collection. |
 | `emailtoken` | Google EVT JWT, policy-bound email JWT, JWKS, holder key binding, and KB-JWT presentation verification. | Blind token policy, TEE measurement collection, HTTP service. |
 | `tokenservice` | Row-neutral issuer/verifier APIs that compose token profiles, authorization decisions, key lookup, and caller-provided time/nonce inputs. | HTTP, persistent storage, network traffic, filesystem access, runtime measurement collection. |
+| `transparency` | Issuer key log format, chain hashing, FAEST-128f signed heads, inclusion/consistency verification. | Log distribution transport, durable log storage. |
+| `mailbox` | Email canonicalization, keyed bucket ids, challenge code create/verify semantics. | SMTP delivery, durable challenge storage, provider-specific address folding policy. |
+| `cmd/tamayo` | Reference runtime wiring of the above (cli + http demo service); in-memory state only. | Durable storage, production transport, measurement collection — it demonstrates the boundary, it does not move it. |
 | product repos | Storage, HTTP routes, operator policy, measurement collection, runtime composition. | New token byte layouts or duplicate cryptographic token implementations. |
 
 The package names are allowed to change during implementation, but these

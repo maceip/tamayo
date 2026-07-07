@@ -2,6 +2,96 @@
 
 ## unreleased
 
+- new `mldsa` package: ml-dsa-44/65/87 (fips 204), pure go, cgo-free —
+  keygen/sign/verify with the deterministic + hedged variants and the pure,
+  internal, and external-mu interfaces (hashml-dsa pre-hash is out of scope);
+  verified byte-exact against the nist acvp ml-dsa-fips204 vector sets (75
+  keygen + 270 siggen + 135 sigver, all non-pre-hash groups, vendored gzipped
+  with commit provenance in `mldsa/testdata/`); branch-free secret-path
+  arithmetic (centered reduction, multiply-shift decompose) and
+  malformed-input rejection probes matching the repo's hardening bar; unblocks
+  the roadmap's "ml-dsa is parsed but not verified" row for private identity
+  holder proofs
+- `docs/known-gaps.md`: single index of every known gap, deferral, and
+  boundary (faest-em, hashml-dsa, draft-stage pq jose identifiers, opt-in
+  budget enforcement, product-side storage/transport, cross-repo cleanup,
+  release tagging, pages demo lag) — if a gap is not in that table it is not
+  a known gap; linked from the readme, and the nil-BudgetStore semantics are
+  now documented in the tokenauth package doc
+- new `transparency` package: the eat-pass key transparency log ported to go
+  — append-only hash chain (leaf/head/sth domains byte-identical),
+  faest-128f signed heads, and the three client checks (verify log,
+  inclusion, consistency); wire compatibility proven by verifying a log
+  generated and signed by the verbatim rust reference (`tools/kt_dump`
+  compiles eat-pass's transparency.rs unmodified and certifies every dumped
+  head with the reference's own verify_log before vendoring); closes the
+  review finding that the mandatory-in-spec key transparency capability had
+  no tamayo counterpart
+- new `mailbox` package: the eat-pass mailbox-control eligibility gate
+  ported to go — canonical email rules, keyed hmac rate-limit buckets
+  (pinned byte-exact against reference-dumped values), and the single-use,
+  binding-bound, attempt-limited challenge store; TEE-free by design, feeds
+  `tokenauth` as an eligibility bridge; smtp delivery and durable storage
+  stay product work
+- new `cmd/tamayo` reference binary (`go install
+  github.com/maceip/tamayo/cmd/tamayo@latest`): `keygen` writes an issuer
+  key-epoch file, `demo` runs the burn + private-identity blind loops end to
+  end, `mint-burn`/`verify-burn` are the cli round trip, `example-policy`
+  emits a compile-checked tokenauth policy, and `serve` is a reference http
+  issuer/verifier (policy + budget gated `/v1/blind-sign` with the binding
+  check, `/v1/verify/burn` with an in-memory spent set,
+  `/v1/verify/private-identity` with per-origin nonce replay protection);
+  covered by end-to-end httptest flows; all durable state remains product
+  work per the inventory boundaries
+- readme: "use it" section — library install (go modules straight from the
+  repo; proxy.golang.org/pkg.go.dev pick tags up automatically, nothing to
+  post to a registry), binary install, portability matrix (stock go,
+  linux/macos/windows/freebsd amd64/arm64/riscv64, cgo on or off; tamago-go
+  needed only for GOOS=tamago), and a token-layer usage snippet
+- faest: the even-mansour boundary is now explicit instead of a buried
+  comment — doc.go documents exactly which em building blocks exist and are
+  byte-exact (rijndael-192/256, em witness extension, em owf params, vendored
+  em sign vectors) versus the unported em constraint path, and the constraint
+  entry points panic on an em owf instead of silently computing aes
+  constraints on an em witness; completing faest-em (constraints port + em
+  parameter sets + kat regeneration) is recorded there as future work
+- tokenauth: the budget rate-limit path is now implemented and exercised —
+  `MemoryBudgetStore` transpiles the eat-pass `InMemoryRateLimiter`
+  (window-bucketed counters, fail-closed contract, prune housekeeping) and
+  new tests drive `AuthorizeMint` through reserve/deny/window-rollover;
+  previously `BudgetStore` was an interface with no implementation and every
+  test passed nil
+- tokenservice/tokenprofile: blind-row authorizations are now
+  cryptographically bound to the presented batch — `tokenprofile.BindingOf`
+  ports the eat-pass `binding_of` (sha-256 over `eat-pass/binding\0`, batch
+  count, length-prefixed targets, wire-compatible) and
+  `SignAuthorizedBlind` recomputes it and rejects a decision whose
+  `binding_b64` does not match the blinded targets (previously only
+  count/family/expiry were checked, so a decision could be replayed for
+  different targets)
+- emailtoken/tokenservice: pq email-signing profile for the policy-bound
+  email row (roadmap cleanup item 5, specified in
+  `docs/pq-email-profile.md`) — `PQSigner`/`PQVerifier` issue and verify the
+  same `tamayo-policy-email+jwt` claims as an ml-dsa-44 jws
+  (draft-ietf-cose-dilithium `alg`/`AKP` identifiers, honestly flagged as
+  draft-stage), holder `cnf` keys may be okp/ed25519 or akp/ml-dsa-44 with
+  kb-jwt support for both (`SignKBJWTMLDSA44`), deterministic by default
+  with caller-supplied hedging, and the service grows the parallel
+  `IssuePolicyEmailPQ`/`VerifyPolicyEmailPresentationPQ` rail behind the same
+  `tokenauth` gate; the google evt row intentionally stays classical
+- tokenprofile: the ml-dsa-44 private-identity holder proof is now verified
+  (pure ml-dsa with empty context, matching the eat-pass pvt cnf-key
+  convention) instead of returning "not implemented"; round-trip presentation
+  test added alongside the ed25519 and faest-128s ones; token packages and
+  `mldsa` added to the `GOOS=tamago` ci cross-build to enforce the roadmap's
+  tamago-compatibility mandate
+- pomfrit: deleted the unreachable deg-2 quicksilver gf2 helper surface
+  (`QSP2Bit.MulBit`, `QSP2El.MulBit`, `QSP2El.AddBit`, `QSP2Bit.ToEl`,
+  `QSP2Bit.Add`) per the PLAN.md ledger promise ("covered or deleted when the
+  mayo circuit is re-verified"): the reference expression is an ambiguous c++
+  overload the dumper cannot produce vectors for, and the mayo circuit was
+  re-verified without it; full byte-exact suite green after the deletion
+
 - `spec/draft-maceip-pomfrit-evp-profile-00.md`: rfc-style (kramdown-rfc)
   profile draft layering pomfrit blind issuance on the email verification
   protocol's discovery/transport rails — private verification token
