@@ -42,6 +42,7 @@ func loadIssuer(path string) (*tokenprofile.Issuer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("issuer file %s: seed: %w", path, err)
 	}
+	defer tokenprofile.Wipe(seed) // wipe the raw seed once the issuer holds its keys
 	return tokenprofile.NewIssuer(f.KeyVersion, seed)
 }
 
@@ -59,9 +60,11 @@ func cmdKeygen(args []string) error {
 	if err != nil {
 		return err
 	}
+	seedB64 := base64.RawURLEncoding.EncodeToString(seed)
+	tokenprofile.Wipe(seed) // the seed's job is done once it is encoded for the file
 	raw, err := json.MarshalIndent(issuerFile{
 		KeyVersion:   uint32(*keyVersion),
-		Mayo1SeedB64: base64.RawURLEncoding.EncodeToString(seed),
+		Mayo1SeedB64: seedB64,
 	}, "", "  ")
 	if err != nil {
 		return err

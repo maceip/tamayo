@@ -2,6 +2,26 @@
 
 ## unreleased
 
+- key rotation: `serve -issuer a.json,b.json` keeps retired key epochs live
+  for verification while the first file signs, `/v1/kt` publishes one record
+  per epoch (oldest first), verify routes by token_key_id, and the spent set
+  partitions by key version — a token minted under the old key still
+  verifies across the rotation overlap (tested)
+- mldsa: HashML-DSA (fips 204 §5.4 pre-hash) — `SignPreHash`/`VerifyPreHash`
+  across all twelve approved hash functions (sha2, sha3, shake), verified
+  byte-exact against the acvp preHash groups (now 360 siggen + 180 sigver);
+  vendored vectors regenerated to include them
+- tokenprofile: best-effort key zeroization — `Wipe`/`Issuer.Zeroize` and
+  seed-buffer wiping in the cli (go's gc can still copy buffers, so this
+  reduces rather than eliminates secret residency — a language limitation,
+  documented, not unfinished work)
+- docs/known-gaps.md rewritten to a strict definition — a gap is both sides
+  built with a missing middle; future work (audit), language limits
+  (zeroization), standards state (draft jose ids), and deployment-owned
+  pieces (multi-replica storage) are listed separately, not as gaps. two
+  real gaps remain: faest even-mansour (unconsumed) and the pages demo
+  (blocked on the in-progress index.html)
+
 - cmd/tamayo: durable state fallback — `serve -state-dir <dir>` appends
   every burn spend, presentation nonce, and budget reservation to an
   fsynced json-lines journal and replays it at startup, so a restart no

@@ -27,6 +27,7 @@ type acvpFile struct {
 		Deterministic bool   `json:"deterministic"`
 		Interface     string `json:"signatureInterface"`
 		ExternalMu    bool   `json:"externalMu"`
+		PreHash       string `json:"preHash"`
 		Tests         []struct {
 			TcID      int    `json:"tcId"`
 			SK        string `json:"sk"`
@@ -34,6 +35,7 @@ type acvpFile struct {
 			Mu        string `json:"mu"`
 			Context   string `json:"context"`
 			Rnd       string `json:"rnd"`
+			HashAlg   string `json:"hashAlg"`
 			Signature string `json:"signature"`
 		} `json:"tests"`
 	} `json:"sigGen"`
@@ -41,17 +43,33 @@ type acvpFile struct {
 		ParameterSet string `json:"parameterSet"`
 		Interface    string `json:"signatureInterface"`
 		ExternalMu   bool   `json:"externalMu"`
+		PreHash      string `json:"preHash"`
 		Tests        []struct {
 			TcID       int    `json:"tcId"`
 			PK         string `json:"pk"`
 			Message    string `json:"message"`
 			Mu         string `json:"mu"`
 			Context    string `json:"context"`
+			HashAlg    string `json:"hashAlg"`
 			Signature  string `json:"signature"`
 			TestPassed bool   `json:"testPassed"`
 			Reason     string `json:"reason"`
 		} `json:"tests"`
 	} `json:"sigVer"`
+}
+
+func preHashByName(t *testing.T, name string) PreHash {
+	m := map[string]PreHash{
+		"SHA2-224": PreHashSHA224, "SHA2-256": PreHashSHA256, "SHA2-384": PreHashSHA384,
+		"SHA2-512": PreHashSHA512, "SHA2-512/224": PreHashSHA512_224, "SHA2-512/256": PreHashSHA512_256,
+		"SHA3-224": PreHashSHA3_224, "SHA3-256": PreHashSHA3_256, "SHA3-384": PreHashSHA3_384,
+		"SHA3-512": PreHashSHA3_512, "SHAKE-128": PreHashSHAKE128, "SHAKE-256": PreHashSHAKE256,
+	}
+	ph, ok := m[name]
+	if !ok {
+		t.Fatalf("unknown pre-hash %q", name)
+	}
+	return ph
 }
 
 func paramsByName(t *testing.T, name string) *Params {
@@ -138,6 +156,8 @@ func TestSigGenACVP(t *testing.T) {
 			var sig []byte
 			var err error
 			switch {
+			case g.PreHash == "preHash":
+				sig, err = p.SignPreHash(unhex(t, tc.SK), unhex(t, tc.Message), unhex(t, tc.Context), preHashByName(t, tc.HashAlg), rnd)
 			case g.ExternalMu:
 				sig, err = p.SignMu(unhex(t, tc.SK), unhex(t, tc.Mu), rnd)
 			case g.Interface == "internal":
@@ -166,6 +186,8 @@ func TestSigVerACVP(t *testing.T) {
 		for _, tc := range trim(g.Tests, testing.Short()) {
 			var ok bool
 			switch {
+			case g.PreHash == "preHash":
+				ok = p.VerifyPreHash(unhex(t, tc.PK), unhex(t, tc.Message), unhex(t, tc.Signature), unhex(t, tc.Context), preHashByName(t, tc.HashAlg))
 			case g.ExternalMu:
 				ok = p.VerifyMu(unhex(t, tc.PK), unhex(t, tc.Mu), unhex(t, tc.Signature))
 			case g.Interface == "internal":

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -29,13 +30,14 @@ import (
 // die with the process — a product runtime must back both with durable,
 // shared storage before this protects anything across restarts or replicas.
 type server struct {
-	issuer  *tokenprofile.Issuer
-	svc     *tokenservice.Issuer
-	policy  *tokenauth.Policy
-	budgets tokenauth.BudgetStore
-	maxSkew time.Duration
-	journal *journal // nil = in-memory only
-	evp     *evpRail // nil when the EVP rail is not mounted
+	issuer    *tokenprofile.Issuer   // current signing epoch (verifiers[0])
+	verifiers []*tokenprofile.Issuer // current + retired epochs still accepted for verification
+	svc       *tokenservice.Issuer
+	policy    *tokenauth.Policy
+	budgets   tokenauth.BudgetStore
+	maxSkew   time.Duration
+	journal   *journal // nil = in-memory only
+	evp       *evpRail // nil when the EVP rail is not mounted
 
 	spent *tokenservice.MemorySpentStore
 	kt    *ktState
@@ -44,9 +46,21 @@ type server struct {
 	seenPvt map[string]bool // by origin \x00 presentation nonce
 }
 
-// ktState is the served key-transparency log: this runtime's single key
-// epoch, signed at startup. Rotation (multiple records, durable log
-// storage) is product work; serving the log is not.
+// issuerForKeyID returns the verification epoch whose token_key_id matches,
+// so a token minted under a now-retired key still verifies during the
+// overlap window. nil if no live epoch owns the key.
+func (s *server) issuerForKeyID(id [32]byte) *tokenprofile.Issuer {
+	for _, v := range s.verifiers {
+		if v.TokenKeyID() == id {
+			return v
+		}
+	}
+	return nil
+}
+
+// ktState is the served key-transparency log: one record per live key
+// epoch, signed at startup. Publishing multiple epochs is what lets clients
+// pin the log and follow a rotation across the overlap window.
 type ktState struct {
 	logPub  [32]byte
 	records []transparency.KeyRecord
@@ -55,7 +69,7 @@ type ktState struct {
 
 func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	issuerPath := fs.String("issuer", "issuer.json", "issuer key-epoch file")
+	issuerPath := fs.String("issuer", "issuer.json", "issuer key-epoch file(s), comma-separated; the first signs, all are accepted for verification (rotation overlap)")
 	policyPath := fs.String("policy", "", "tokenauth policy JSON (see 'tamayo example-policy')")
 	addr := fs.String("addr", "127.0.0.1:8787", "listen address (loopback by default; this is a reference runtime)")
 	maxSkew := fs.Duration("max-skew", 2*time.Minute, "allowed presentation timestamp skew")
@@ -75,10 +89,28 @@ func cmdServe(args []string) error {
 		return errors.New("serve: -tls-cert and -tls-key must be set together")
 	}
 
-	issuer, err := loadIssuer(*issuerPath)
-	if err != nil {
-		return err
+	var verifiers []*tokenprofile.Issuer
+	seenVer := map[uint32]bool{}
+	for _, p := range strings.Split(*issuerPath, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		iss, err := loadIssuer(p)
+		if err != nil {
+			return err
+		}
+		if seenVer[iss.KeyVersion()] {
+			return fmt.Errorf("serve: duplicate issuer key_version %d", iss.KeyVersion())
+		}
+		seenVer[iss.KeyVersion()] = true
+		verifiers = append(verifiers, iss)
 	}
+	if len(verifiers) == 0 {
+		return errors.New("serve: at least one -issuer file is required")
+	}
+	issuer := verifiers[0]
+
 	rawPolicy, err := os.ReadFile(*policyPath)
 	if err != nil {
 		return err
@@ -112,13 +144,14 @@ func cmdServe(args []string) error {
 	}
 
 	s := &server{
-		issuer:  issuer,
-		svc:     svc,
-		policy:  policy,
-		budgets: tokenauth.NewMemoryBudgetStore(),
-		maxSkew: *maxSkew,
-		spent:   tokenservice.NewMemorySpentStore(),
-		seenPvt: make(map[string]bool),
+		issuer:    issuer,
+		verifiers: verifiers,
+		svc:       svc,
+		policy:    policy,
+		budgets:   tokenauth.NewMemoryBudgetStore(),
+		maxSkew:   *maxSkew,
+		spent:     tokenservice.NewMemorySpentStore(),
+		seenPvt:   make(map[string]bool),
 	}
 	if err := s.initKT(); err != nil {
 		return err
@@ -212,7 +245,13 @@ func (s *server) initKT() error {
 		return err
 	}
 	log := transparency.NewKeyLog()
-	log.Append(s.issuer.KeyVersion(), s.issuer.TokenKeyID(), uint64(time.Now().Unix()))
+	// One record per live epoch, oldest key_version first, so the log reads
+	// as an append-only history a rotating client can follow.
+	ordered := append([]*tokenprofile.Issuer(nil), s.verifiers...)
+	sort.Slice(ordered, func(a, b int) bool { return ordered[a].KeyVersion() < ordered[b].KeyVersion() })
+	for _, v := range ordered {
+		log.Append(v.KeyVersion(), v.TokenKeyID(), uint64(time.Now().Unix()))
+	}
 	s.kt = &ktState{
 		logPub:  signer.Public(),
 		records: log.Records(),
@@ -340,15 +379,20 @@ func (s *server) handleVerifyBurn(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.issuer.VerifyBurnToken(token, sha256.Sum256(challenge)); err != nil {
+	iss := s.issuerForKeyID(token.TokenKeyID)
+	if iss == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "token_key_id is not a live issuer epoch"})
+		return
+	}
+	if err := iss.VerifyBurnToken(token, sha256.Sum256(challenge)); err != nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.spent.CheckAndMark(s.issuer.KeyVersion(), token.Nonce); err != nil {
+	if err := s.spent.CheckAndMark(iss.KeyVersion(), token.Nonce); err != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.journal.spend(s.issuer.KeyVersion(), token.Nonce); err != nil {
+	if err := s.journal.spend(iss.KeyVersion(), token.Nonce); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "state journal: " + err.Error()})
 		return
 	}
@@ -407,7 +451,12 @@ func (s *server) handleVerifyPvt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pseudonym, err := s.issuer.VerifyPrivateIdentityPresentation(tokenprofile.PrivateIdentityPresentation{
+	iss := s.issuerForKeyID(token.Input.TokenKeyID)
+	if iss == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "token_key_id is not a live issuer epoch"})
+		return
+	}
+	pseudonym, err := iss.VerifyPrivateIdentityPresentation(tokenprofile.PrivateIdentityPresentation{
 		Token:     token,
 		Origin:    req.Origin,
 		Nonce:     nonce,

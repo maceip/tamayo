@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/maceip/tamayo/mayo"
 	"github.com/maceip/tamayo/pomfrit"
@@ -70,6 +71,24 @@ func randomBytes(n int) ([]byte, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// Wipe overwrites b with zeros. Best-effort: Go's runtime may have copied the
+// buffer during a stack/heap move before this runs, and the GC can relocate
+// live objects, so this reduces — not eliminates — secret residency. The
+// loop is not dead-code-eliminated because b escapes; KeepAlive pins it past
+// the writes.
+func Wipe(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+	runtime.KeepAlive(b)
+}
+
+// Zeroize wipes the issuer's secret key material. The issuer is unusable
+// after this; call it when retiring a key epoch.
+func (i *Issuer) Zeroize() {
+	Wipe(i.csk)
 }
 
 // KeyVersion returns the issuer epoch identifier.

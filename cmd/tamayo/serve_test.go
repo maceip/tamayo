@@ -37,13 +37,14 @@ func testServer(t *testing.T) (*server, *httptest.Server, *tokenprofile.Issuer) 
 		t.Fatalf("example policy must compile: %v", err)
 	}
 	s := &server{
-		issuer:  issuer,
-		svc:     svc,
-		policy:  policy,
-		budgets: tokenauth.NewMemoryBudgetStore(),
-		maxSkew: 2 * time.Minute,
-		spent:   tokenservice.NewMemorySpentStore(),
-		seenPvt: make(map[string]bool),
+		issuer:    issuer,
+		verifiers: []*tokenprofile.Issuer{issuer},
+		svc:       svc,
+		policy:    policy,
+		budgets:   tokenauth.NewMemoryBudgetStore(),
+		maxSkew:   2 * time.Minute,
+		spent:     tokenservice.NewMemorySpentStore(),
+		seenPvt:   make(map[string]bool),
 	}
 	if err := s.initKT(); err != nil {
 		t.Fatalf("initKT: %v", err)
@@ -197,5 +198,91 @@ func TestServeKT(t *testing.T) {
 	seq, err := transparency.VerifyInclusion(out.Records, issuer.TokenKeyID())
 	if err != nil || seq != 0 {
 		t.Fatalf("inclusion: %d %v", seq, err)
+	}
+}
+
+// TestKeyRotationOverlap proves the rotation window: a burn token minted
+// under epoch v1 still verifies after v2 becomes the signer, as long as v1
+// stays in the verifier set, and /v1/kt lists both epochs.
+func TestKeyRotationOverlap(t *testing.T) {
+	v1, err := tokenprofile.NewIssuer(1, make([]byte, mayo.Mayo1.SKSeedBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Mint a burn token under v1 directly.
+	var nonce, addR [32]byte
+	nonce[0] = 0x51
+	challenge := sha256.Sum256([]byte("rotate"))
+	input := tokenprofile.BurnInput(nonce, challenge, v1.TokenKeyID())
+	target, state := tokenprofile.PrepareBlind(input, addR)
+	sigs, err := v1.BlindSign([][]byte{target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth, err := tokenprofile.FinalizeBlind(v1.ExpandedPublicKey(), sigs[0], state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenBytes := tokenprofile.BurnToken{
+		TokenType: tokenprofile.BurnTokenType, Nonce: nonce,
+		ChallengeDigest: challenge, TokenKeyID: v1.TokenKeyID(), Authenticator: auth,
+	}.Bytes()
+
+	// Stand up a server where v2 signs but v1 is still a live verifier.
+	v2, err := tokenprofile.NewIssuer(2, make([]byte, mayo.Mayo1.SKSeedBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// v2 uses the same seed → same token_key_id; give it a distinct seed.
+	v2b := make([]byte, mayo.Mayo1.SKSeedBytes)
+	v2b[0] = 0x99
+	v2, err = tokenprofile.NewIssuer(2, v2b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, _ := tokenservice.NewIssuer(v2, nil)
+	raw, _ := json.Marshal(examplePolicy())
+	policy, _ := tokenauth.CompileJSON(raw)
+	s := &server{
+		issuer:    v2,
+		verifiers: []*tokenprofile.Issuer{v2, v1}, // v2 current, v1 retired-but-live
+		svc:       svc,
+		policy:    policy,
+		budgets:   tokenauth.NewMemoryBudgetStore(),
+		maxSkew:   2 * time.Minute,
+		spent:     tokenservice.NewMemorySpentStore(),
+		seenPvt:   make(map[string]bool),
+	}
+	if err := s.initKT(); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(s.routes())
+	defer ts.Close()
+
+	// The v1 token still verifies during the overlap.
+	spend := map[string]any{
+		"token_b64":     base64.RawURLEncoding.EncodeToString(tokenBytes),
+		"challenge_b64": base64.RawURLEncoding.EncodeToString([]byte("rotate")),
+	}
+	if status, _ := postJSON(t, ts.URL+"/v1/verify/burn", spend); status != http.StatusOK {
+		t.Fatalf("retired-epoch token must still verify, got %d", status)
+	}
+	// Spent under v1's epoch — double spend still caught.
+	if status, _ := postJSON(t, ts.URL+"/v1/verify/burn", spend); status != http.StatusConflict {
+		t.Fatalf("double spend across rotation = %d", status)
+	}
+
+	// KT lists both epochs, oldest first, and both are included.
+	resp, err := http.Get(ts.URL + "/v1/kt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var kt struct {
+		Records []transparency.KeyRecord `json:"records"`
+	}
+	json.NewDecoder(resp.Body).Decode(&kt)
+	if len(kt.Records) != 2 || kt.Records[0].KeyVersion != 1 || kt.Records[1].KeyVersion != 2 {
+		t.Fatalf("kt records = %+v", kt.Records)
 	}
 }
