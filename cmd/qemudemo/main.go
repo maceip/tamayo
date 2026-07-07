@@ -24,8 +24,8 @@ import (
 
 	_ "github.com/usbarmory/tamago/board/qemu/sifive_u"
 
-	"github.com/maceip/tamayo/pomfrit"
 	"github.com/maceip/tamayo/mayo"
+	"github.com/maceip/tamayo/pomfrit"
 )
 
 //go:embed data/l1_epk.bin
