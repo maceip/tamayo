@@ -81,16 +81,6 @@ func (a QSP2Bit) Value() byte { return a.value }
 // Value returns the committed field element (the leading MAC coefficient).
 func (a QSP2El) Value() []uint64 { return a.mac[len(a.mac)-1] }
 
-// ToEl converts gf2 to gfsecpar of the same degree
-// (quicksilver_gfsecpar(const quicksilver_gf2&)): the MAC coefficients carry
-// over and the bit becomes the leading coefficient via from_1.
-func (a QSP2Bit) ToEl() QSP2El {
-	mac := make([][]uint64, len(a.mac)+1)
-	copy(mac, a.mac)
-	mac[len(a.mac)] = a.f.FromBit(a.value)
-	return QSP2El{f: a.f, mac: mac}
-}
-
 // lift raises a to degree d (mac.shift_left<d-deg>): coefficients move up and
 // the vacated low coefficients are zero.
 func (a QSP2El) lift(d int) QSP2El {
@@ -118,9 +108,6 @@ func (a QSP2El) Add(b QSP2El) QSP2El {
 	return QSP2El{f: a.f, mac: mac}
 }
 
-// AddBit returns a + b (gfsecpar + gf2 goes through the gfsecpar conversion).
-func (a QSP2El) AddBit(b QSP2Bit) QSP2El { return a.Add(b.ToEl()) }
-
 // AddOne returns a + 1 (operator+(a, poly1)): the constant is a same-degree
 // gfsecpar whose only nonzero coefficient is the leading one.
 func (a QSP2El) AddOne() QSP2El {
@@ -128,19 +115,6 @@ func (a QSP2El) AddOne() QSP2El {
 	copy(mac, a.mac)
 	mac[a.Deg()] = a.f.Add(mac[a.Deg()], a.f.One())
 	return QSP2El{f: a.f, mac: mac}
-}
-
-// Add returns a + b over gf2. Only same-degree addition exists in the
-// reference (mixed-degree gf2 sums are ambiguous there and never occur).
-func (a QSP2Bit) Add(b QSP2Bit) QSP2Bit {
-	if a.Deg() != b.Deg() {
-		panic("faest: quicksilver gf2 add degree mismatch")
-	}
-	mac := make([][]uint64, len(a.mac))
-	for i := range mac {
-		mac[i] = a.f.Add(a.mac[i], b.mac[i])
-	}
-	return QSP2Bit{f: a.f, mac: mac, value: a.value ^ b.value}
 }
 
 // Mul returns a * b; degrees add. Coefficient k of the product MAC polynomial
@@ -161,62 +135,6 @@ func (a QSP2El) Mul(b QSP2El) QSP2El {
 		}
 	}
 	return QSP2El{f: f, mac: mac}
-}
-
-// MulBit returns a * b for gfsecpar a and gf2 b:
-// a.mac*b.mac + (a.mac * b.value) << deg(b).
-func (a QSP2El) MulBit(b QSP2Bit) QSP2El {
-	f := a.f
-	d := a.Deg() + b.Deg()
-	if d > qs2MaxDeg {
-		panic("faest: quicksilver degree overflow")
-	}
-	mac := make([][]uint64, d+1)
-	for i := range mac {
-		mac[i] = f.Zero()
-	}
-	for i, ai := range a.mac {
-		for j, bj := range b.mac {
-			mac[i+j] = f.Add(mac[i+j], f.Mul(ai, bj))
-		}
-	}
-	if b.value != 0 {
-		for i, ai := range a.mac {
-			mac[i+b.Deg()] = f.Add(mac[i+b.Deg()], ai)
-		}
-	}
-	return QSP2El{f: f, mac: mac}
-}
-
-// MulBit returns a * b over gf2:
-// a.mac*b.mac + (a.mac*b.value) << deg(b) + (b.mac*a.value) << deg(a),
-// value = a.value & b.value.
-func (a QSP2Bit) MulBit(b QSP2Bit) QSP2Bit {
-	f := a.f
-	d := a.Deg() + b.Deg()
-	if d > qs2MaxDeg {
-		panic("faest: quicksilver degree overflow")
-	}
-	mac := make([][]uint64, d)
-	for i := range mac {
-		mac[i] = f.Zero()
-	}
-	for i, ai := range a.mac {
-		for j, bj := range b.mac {
-			mac[i+j] = f.Add(mac[i+j], f.Mul(ai, bj))
-		}
-	}
-	if b.value != 0 {
-		for i, ai := range a.mac {
-			mac[i+b.Deg()] = f.Add(mac[i+b.Deg()], ai)
-		}
-	}
-	if a.value != 0 {
-		for j, bj := range b.mac {
-			mac[j+a.Deg()] = f.Add(mac[j+a.Deg()], bj)
-		}
-	}
-	return QSP2Bit{f: f, mac: mac, value: a.value & b.value}
 }
 
 // MulScalar returns c * a for a public field element c

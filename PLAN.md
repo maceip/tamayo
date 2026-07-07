@@ -76,7 +76,15 @@ stipulated source and verified byte-exact before it enters this repo.
   expression is an ambiguous overload in the reference and is not used by
   `owf_proof.inc` (the MAYO circuit works via `load_witness_4_bits_and_combine`
   and gfsecpar ops). It will be covered or deleted when the MAYO circuit is
-  re-verified.
+  re-verified. **Resolved 2026-07-06: deleted.** The MAYO circuit was
+  re-verified without it (`TestMayoCircuitKAT`), and "covered" is impossible
+  under the one rule — the reference expression is an ambiguous overload, so
+  `qs2_dump.cpp` cannot produce vectors for it. Removed together with the rest
+  of the unreachable, vector-uncovered gf2 helper surface that existed only to
+  support it (`QSP2El.MulBit`, `QSP2El.AddBit`, `QSP2Bit.ToEl`, `QSP2Bit.Add`
+  — zero callers in the tree; the reachable path is
+  `GetWitnessBit` → `combineBits` → `LoadWitness{4,8}BitsAndCombine`, which the
+  vectors exercise). Full byte-exact suite re-run green after the deletion.
 - The old hand-rolled `zk_prove_deg2.go` (tamago working tree) is superseded;
   it lacked the MAC-mask handling (`combine_mac_masks`, witness mask bits) and
   the proof/check layout entirely.
