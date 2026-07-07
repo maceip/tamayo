@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +15,7 @@ import (
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
 	"github.com/maceip/tamayo/tokenservice"
+	"github.com/maceip/tamayo/transparency"
 )
 
 func testServer(t *testing.T) (*server, *httptest.Server, *tokenprofile.Issuer) {
@@ -36,14 +37,16 @@ func testServer(t *testing.T) (*server, *httptest.Server, *tokenprofile.Issuer) 
 		t.Fatalf("example policy must compile: %v", err)
 	}
 	s := &server{
-		issuer:    issuer,
-		svc:       svc,
-		policy:    policy,
-		budgets:   tokenauth.NewMemoryBudgetStore(),
-		maxSkew:   2 * time.Minute,
-		spentBurn: make(map[[32]byte]bool),
-		seenPvt:   make(map[string]bool),
-		mu:        sync.Mutex{},
+		issuer:  issuer,
+		svc:     svc,
+		policy:  policy,
+		budgets: tokenauth.NewMemoryBudgetStore(),
+		maxSkew: 2 * time.Minute,
+		spent:   tokenservice.NewMemorySpentStore(),
+		seenPvt: make(map[string]bool),
+	}
+	if err := s.initKT(); err != nil {
+		t.Fatalf("initKT: %v", err)
 	}
 	ts := httptest.NewServer(s.routes())
 	t.Cleanup(ts.Close)
@@ -162,5 +165,37 @@ func TestServeBlindSignDenials(t *testing.T) {
 		Now:      time.Now(),
 	}); err == nil {
 		t.Fatal("decision for batch A must not sign batch B")
+	}
+}
+
+// TestServeKT verifies the served key-transparency log: a client can pin
+// the log key, verify the signed head, and find the issuer's current key.
+func TestServeKT(t *testing.T) {
+	_, ts, issuer := testServer(t)
+	resp, err := http.Get(ts.URL + "/v1/kt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		LogPublicKeyHex string                   `json:"log_public_key_hex"`
+		Records         []transparency.KeyRecord `json:"records"`
+		SignedHead      transparency.SignedHead  `json:"signed_head"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	pubBytes, err := hex.DecodeString(out.LogPublicKeyHex)
+	if err != nil || len(pubBytes) != 32 {
+		t.Fatalf("log public key: %v", err)
+	}
+	var logPub [32]byte
+	copy(logPub[:], pubBytes)
+	if err := transparency.VerifyLog(logPub, out.Records, out.SignedHead); err != nil {
+		t.Fatalf("VerifyLog: %v", err)
+	}
+	seq, err := transparency.VerifyInclusion(out.Records, issuer.TokenKeyID())
+	if err != nil || seq != 0 {
+		t.Fatalf("inclusion: %d %v", seq, err)
 	}
 }

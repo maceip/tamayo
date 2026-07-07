@@ -2,6 +2,15 @@
 
 ## unreleased
 
+- three more reference ports: `tokenprofile/carriage.go` (rfc 9577
+  privatetoken www-authenticate/authorization header codecs, wire-shaped
+  like the reference), `tokenservice.SpentStore` + `MemorySpentStore`
+  (epoch-partitioned double-spend seam, fail-closed, prunable — `cmd/tamayo
+  serve` now uses it instead of an ad-hoc map), and `GET /v1/kt` on serve
+  (the runtime's key epoch as a client-verifiable transparency log:
+  verify-log + inclusion tested end to end); remaining from the port list:
+  the signed issuance-authorization envelope and signed policy sidecars
+
 - cmd/tamayo: the EVP rail — `serve -evp-issuer <id>` mounts the
   browser-facing email-verification issuer
   (`/.well-known/email-verification` discovery metadata, an EdDSA jwks, and

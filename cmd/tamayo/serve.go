@@ -21,6 +21,7 @@ import (
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
 	"github.com/maceip/tamayo/tokenservice"
+	"github.com/maceip/tamayo/transparency"
 )
 
 // server is the reference issuer/verifier: real cryptography and policy,
@@ -35,9 +36,20 @@ type server struct {
 	maxSkew time.Duration
 	evp     *evpRail // nil when the EVP rail is not mounted
 
-	mu        sync.Mutex
-	spentBurn map[[32]byte]bool // by burn nonce
-	seenPvt   map[string]bool   // by origin \x00 presentation nonce
+	spent *tokenservice.MemorySpentStore
+	kt    *ktState
+
+	mu      sync.Mutex
+	seenPvt map[string]bool // by origin \x00 presentation nonce
+}
+
+// ktState is the served key-transparency log: this runtime's single key
+// epoch, signed at startup. Rotation (multiple records, durable log
+// storage) is product work; serving the log is not.
+type ktState struct {
+	logPub  [32]byte
+	records []transparency.KeyRecord
+	sth     transparency.SignedHead
 }
 
 func cmdServe(args []string) error {
@@ -78,13 +90,16 @@ func cmdServe(args []string) error {
 	}
 
 	s := &server{
-		issuer:    issuer,
-		svc:       svc,
-		policy:    policy,
-		budgets:   tokenauth.NewMemoryBudgetStore(),
-		maxSkew:   *maxSkew,
-		spentBurn: make(map[[32]byte]bool),
-		seenPvt:   make(map[string]bool),
+		issuer:  issuer,
+		svc:     svc,
+		policy:  policy,
+		budgets: tokenauth.NewMemoryBudgetStore(),
+		maxSkew: *maxSkew,
+		spent:   tokenservice.NewMemorySpentStore(),
+		seenPvt: make(map[string]bool),
+	}
+	if err := s.initKT(); err != nil {
+		return err
 	}
 
 	scheme := "http"
@@ -148,8 +163,38 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("POST /v1/blind-sign", s.handleBlindSign)
 	mux.HandleFunc("POST /v1/verify/burn", s.handleVerifyBurn)
 	mux.HandleFunc("POST /v1/verify/private-identity", s.handleVerifyPvt)
+	mux.HandleFunc("GET /v1/kt", s.handleKT)
 	s.evpRoutes(mux)
 	return mux
+}
+
+// initKT signs this runtime's key epoch into a fresh transparency log so
+// clients can pin the log key and check inclusion/consistency.
+func (s *server) initKT() error {
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		return err
+	}
+	signer, err := transparency.NewLogSigner(seed)
+	if err != nil {
+		return err
+	}
+	log := transparency.NewKeyLog()
+	log.Append(s.issuer.KeyVersion(), s.issuer.TokenKeyID(), uint64(time.Now().Unix()))
+	s.kt = &ktState{
+		logPub:  signer.Public(),
+		records: log.Records(),
+		sth:     signer.Sign(log, nil),
+	}
+	return nil
+}
+
+func (s *server) handleKT(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"log_public_key_hex": hex.EncodeToString(s.kt.logPub[:]),
+		"records":            s.kt.records,
+		"signed_head":        s.kt.sth,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -267,14 +312,8 @@ func (s *server) handleVerifyBurn(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
-	s.mu.Lock()
-	spent := s.spentBurn[token.Nonce]
-	if !spent {
-		s.spentBurn[token.Nonce] = true
-	}
-	s.mu.Unlock()
-	if spent {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "token already spent"})
+	if err := s.spent.CheckAndMark(s.issuer.KeyVersion(), token.Nonce); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

@@ -35,7 +35,7 @@ the Rust reference; **accepted** = known limitation we are not going to fix.
 
 | gap | kind | detail / source of truth |
 | --- | --- | --- |
-| Key-transparency log distribution | boundary | `transparency` owns format + verification; serving `/kt`, gossip, and durable log storage are product transport. Roadmap "Supporting Capabilities". |
+| Key-transparency log distribution | boundary (reference shipped) | `transparency` owns format + verification, and `cmd/tamayo serve` now publishes its key epoch at `GET /v1/kt` (client-verifiable, tested); rotation across epochs, gossip, and durable log storage remain product transport. |
 | Log-signer seed derivation is stack-specific | accepted | A 32-byte seed derives different FAEST keys in Go (SHAKE256) vs Rust (ChaCha20); published keys, logs, and signatures are fully wire-compatible. `transparency.LogSigner` doc. |
 | Mailbox mail delivery + durable challenges | boundary | `mailbox` owns canonicalization, buckets, and challenge semantics; SMTP and shared challenge storage are product work, provider-specific address folding is deployment policy. `mailbox` package doc. |
 
@@ -64,10 +64,10 @@ demos, TLS/Redis/SMTP plumbing.
 | --- | --- | --- |
 | ~~EVP `.well-known` issuer service~~ | — | **Ported** — `cmd/tamayo/evp.go`: discovery metadata, jwks, and the RFC 9421-signed issuance endpoint with browser-key-bound mail codes and per-mailbox budgets; `serve -evp-issuer` mounts it, `-tls-cert/-tls-key` serve it over HTTPS. End-to-end tested with a stand-in browser client. |
 | ~~RFC 9421 HTTP Message Signature verification~~ | — | **Ported** with the above (fixed covered-component `hwk` profile, `cmd/tamayo/evp.go`). |
-| RFC 9577 `PrivateToken` HTTP carriage | `core/src/lib.rs` `http` module | The `WWW-Authenticate`/`Authorization` header codec for presenting tokens over HTTP. Small. |
+| ~~RFC 9577 `PrivateToken` HTTP carriage~~ | — | **Ported** — `tokenprofile/carriage.go` header codecs, round-trip tested. |
 | FAEST-signed `IssuanceAuthorization` | `core/src/authorize.rs` | The attester→issuer signed authorization object. tamayo's `MintDecision` is unsigned — fine in-process (`tokenservice`), but a cross-process attester/issuer split needs the signature. |
 | FAEST-signed policy sidecars | `policy/src/sign.rs` | `.json.sig` signing/verification for operator policy files; portable even though the appraisal layer itself stays Rust-side. |
-| Standalone spent-store seam | `core/src/spend.rs` | eat-pass ships the `SpentStore` trait + in-memory impl in core; tamayo has the semantics only inside `cmd/tamayo serve`. A library interface would mirror `tokenauth.BudgetStore`. |
+| ~~Standalone spent-store seam~~ | — | **Ported** — `tokenservice.SpentStore` + `MemorySpentStore` (epoch-partitioned, fail-closed, prunable); `cmd/tamayo serve` rewired onto it. |
 
 ## Repo / ecosystem
 
