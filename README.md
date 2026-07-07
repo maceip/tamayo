@@ -1,101 +1,80 @@
 # tamayo
 
-pure-go, cgo-free implementations of the **mayo** post-quantum signature, the
-**faest** / vole-in-the-head proof system, and the **pomfrit one-more-mayo**
-blind signature, targeting the [tamago](https://github.com/usbarmory/tamago)
-bare-metal go runtime - tamago + mayo (tamago means "egg")
-
+pure-go, cgo-free post-quantum crypto and anonymous tokens on the
+[tamago](https://github.com/usbarmory/tamago) bare-metal go runtime -
+tamago + mayo (tamago means "egg").
 interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo/)
 
 > **warning** - experimental, unaudited, not production-ready; "verified"
 > means byte-exact against the stipulated references, nothing more
 
-token product boundaries and migration plan:
-[`docs/token-roadmap.md`](./docs/token-roadmap.md) - every known gap and
-deliberate deferral is indexed in
-[`docs/known-gaps.md`](./docs/known-gaps.md)
+token boundaries and migration plan: [`docs/token-roadmap.md`](./docs/token-roadmap.md);
+every known gap is indexed in [`docs/known-gaps.md`](./docs/known-gaps.md)
 
 ## what's here
 
 | package | what it is | verified against |
 |---|---|---|
-| `gf16` | gf(16) arithmetic | exhaustive / property tests |
-| `field` | gf(2^128/192/256) + degree-3 extensions | reference vectors |
-| `mayo` | mayo keygen / sign / verify + salt-free preimage sampler | nist round-2 kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
-| `faest` | the faest aes signature and its voleith engine | full nist kat 600/600 byte-exact (100 vectors x 6 sets) |
-| `pomfrit` | the one-more-mayo blind signature and its vole engine (ggm-forest bavc, small-vole, deg-2 quicksilver, mayo-eval circuit) | byte-exact vs the c++/c reference, both directions, l1/l3/l5 |
-| `mldsa` | ml-dsa-44/65/87 (fips 204) for token-layer holder proofs | nist acvp vectors byte-exact (75 keygen + 270 siggen + 135 sigver) |
-| `tokenprofile` | burn-token and private-identity token layouts over PoMFRIT/MAYO | round-trip tests, challenge binding, origin-bound pseudonyms, Ed25519, FAEST-128s and ML-DSA-44 holder proofs |
-| `tokenauth` | compiled JSON mint authorization inputs for policy-controlled token rows, plus the reference in-memory issuance budget store | unknown-field rejection, origin checks, address checks, measurement checks, budget reserve/deny/window-rollover |
-| `emailtoken` | Google EVT and policy-bound email JWT profiles with KB-JWT presentation; ML-DSA-44 PQ signing profile for the policy-bound row | issue/verify tests for address claims, holder key binding, nonce, audience, sd_hash; PQ round-trip incl. ML-DSA-44 holder KB-JWT |
-| `tokenservice` | cgo-free issuer/verifier service APIs over the token packages | service-level tests for burn, Google EVT, and policy-bound email rows |
-| `transparency` | append-only issuer key log (hash chain + FAEST-128f signed heads) with inclusion and consistency checks | wire-compatible with eat-pass: verifies a reference-generated, reference-signed log byte-exact |
-| `mailbox` | mailbox-control eligibility gate: canonical addresses, keyed rate-limit buckets, single-use binding-bound challenge codes | bucket HMACs pinned against reference-dumped values; challenge/lockout/expiry semantics ported test-for-test |
-| `cmd/tamayo` | the reference issuer/verifier binary: keygen, blind mint/verify cli, policy-gated http service | end-to-end blind-sign + double-spend + policy-denial tests over http |
+| `gf16`, `field` | gf(16), gf(2^128/192/256) + extensions | exhaustive/property tests, reference vectors |
+| `mayo` | mayo keygen/sign/verify + salt-free preimage sampler | nist kat 100/100 (l1/l3/l5); preimage byte-exact vs mayo-c |
+| `faest` | the faest aes signature and its voleith engine | full nist kat 600/600 byte-exact |
+| `pomfrit` | the one-more-mayo blind signature and its vole engine | byte-exact vs the c++/c reference, both directions, l1/l3/l5 |
+| `mldsa` | ml-dsa-44/65/87 (fips 204) | nist acvp byte-exact (480 vectors) |
+| `tokenprofile` | burn + private-identity token layouts over pomfrit/mayo | round-trips, challenge binding, origin-bound pseudonyms, ed25519/faest-128s/ml-dsa-44 holder proofs |
+| `tokenauth` | compiled json mint authorization + reference budget store | policy checks, budget reserve/deny/rollover |
+| `emailtoken` | google evt + policy-bound email jwt with kb-jwt presentation; ml-dsa-44 pq profile | issue/verify + pq round trips |
+| `tokenservice` | issuer/verifier service apis over the token packages | service-level tests, batch-binding enforcement |
+| `transparency` | append-only issuer key log, faest-128f signed heads | verifies a reference-generated, reference-signed log byte-exact |
+| `mailbox` | mailbox eligibility gate: canonical addresses, keyed buckets, binding-bound challenge codes | bucket hmacs pinned vs reference dumps |
+| `cmd/tamayo` | reference issuer/verifier binary (cli + http service) | end-to-end blind-sign, double-spend, policy-denial over http |
 | `cmd/qemudemo` | the blind loop bare-metal on qemu sifive_u (riscv64) | on-device byte-exact at l1+l3+l5 |
-| `spec/` | rfc-style profile draft: pomfrit blind issuance on the email verification protocol's rails (`alg: PoMFRIT-L1`, no `email` claim, `mailbox_verified: true`) + jose registration sketch | sizes byte-exact vs this repo |
+| `spec/` | rfc-style draft: pomfrit blind issuance on evp rails | sizes byte-exact vs this repo |
 
-no cryptographic primitive is hand-written - every construct is a transpile of
-a named source in [`SOURCES.md`](./SOURCES.md); sha-3 and aes come from go's
-`crypto/sha3` and `crypto/aes`
+no cryptographic primitive is hand-written - every construct is a transpile
+of a named source in [`SOURCES.md`](./SOURCES.md); sha-3 and aes come from
+go's `crypto/sha3` and `crypto/aes`
 
 ## use it
 
-**as a library.** plain go modules - there is no registry to publish to:
-`go get github.com/maceip/tamayo@latest` fetches straight from this repo, and
-proxy.golang.org / sum.golang.org mirror and checksum it automatically once a
-version tag is pushed (docs render on pkg.go.dev). the module is pure go and
-cgo-free with a single dependency (tamago, imported only by the bare-metal
-demo behind a build tag), so it cross-compiles with the **stock** go
-toolchain - verified for linux/macos/windows/freebsd on amd64/arm64/riscv64
-with `CGO_ENABLED=0` and `1`. programs that use cgo elsewhere can import it
-freely; the tamago-go toolchain is needed only to target `GOOS=tamago`
-itself.
+**as a library.** `go get github.com/maceip/tamayo@latest` - plain go
+modules, nothing to publish anywhere; proxy.golang.org mirrors tags
+automatically and docs render on pkg.go.dev. single dependency (tamago,
+build-tag-gated to the bare-metal demo), so it cross-compiles with the
+**stock** toolchain - verified for linux/macos/windows/freebsd on
+amd64/arm64/riscv64, cgo on or off; tamago-go is needed only to target
+`GOOS=tamago` itself.
 
-**as a binary.** `cmd/tamayo` is the reference issuer/verifier runtime.
-every push to main cuts a release automatically (patch version bump): each
+**as a binary.** every push to main cuts a release (auto patch bump); each
 platform archive - linux amd64/arm64, macos amd64/arm64, windows amd64 - is
-built with the stock toolchain and **executed on a native github runner**
-(the packaged binary runs the full blind mint -> verify loop) before it is
-attached, alongside SHA256SUMS:
+**executed on a native github runner** (full blind mint→verify loop) before
+it ships, with SHA256SUMS:
 
 ```
 go install github.com/maceip/tamayo/cmd/tamayo@latest
 
-tamayo keygen -out issuer.json                # one issuer key epoch (secret)
-tamayo demo   -issuer issuer.json             # burn + private-identity blind loops, RESULT: PASS
+tamayo keygen -out issuer.json          # one issuer key epoch (secret)
+tamayo demo   -issuer issuer.json       # burn + private-identity loops, RESULT: PASS
 tamayo mint-burn   -issuer issuer.json -challenge "origin challenge" -out token.b64
 tamayo verify-burn -issuer issuer.json -token token.b64 -challenge "origin challenge"
 tamayo example-policy > policy.json
 tamayo serve -issuer issuer.json -policy policy.json   # 127.0.0.1:8787
 ```
 
-`serve` exposes `GET /v1/issuer`, `POST /v1/blind-sign` (tokenauth
-policy + budget gated, binding-checked), `POST /v1/verify/burn` and
-`POST /v1/verify/private-identity` (replay-checked). real cryptography and
-policy, but every stateful piece (spent set, budgets, nonces) is in-memory
-and dies with the process - durable storage, transport hardening, and
-measurement collection stay with product runtimes
-([`docs/implementation-inventory.md`](./docs/implementation-inventory.md))
+`serve` exposes `/v1/issuer`, `/v1/blind-sign` (policy + budget gated,
+binding-checked), `/v1/verify/burn` and `/v1/verify/private-identity`
+(replay-checked). real cryptography, in-memory state - durable storage and
+transport stay with product runtimes
+([`docs/implementation-inventory.md`](./docs/implementation-inventory.md)).
 
 ## one-more-mayo blind signature
 
-the crown jewel (baum, beckmann, beullens, mukherjee, rechberger - *concretely
-efficient blind signatures based on vole-in-the-head proofs and the mayo
-trapdoor*): `sign_1` blinds the message as `t = h + r` with
-`h = shake256(m || proof1)`, `sign_2` is the mayo preimage of `t`, `sign_3` is
-the vole-in-the-head proof, `verify` recomputes `h` and runs `vole_verify` -
-every layer checked byte-for-byte against dumpers compiled from the reference
-sources; the ledger is [`PLAN.md`](./PLAN.md)
-
-on device, `cmd/qemudemo` boots `qemu-system-riscv64 -machine sifive_u` and
-runs the loop at all three levels against embedded reference vectors:
-
-```
-=== One-More-MAYO blind signature on TamaGo (sifive_u/riscv64), L1+L3+L5 ===
-... t / bsig / proof byte-exact, verify + interop + tamper-reject per level ...
-RESULT: PASS - One-More-MAYO blind sign+verify byte-exact on device (L1+L3+L5)
-```
+the crown jewel (baum, beckmann, beullens, mukherjee, rechberger): `sign_1`
+blinds the message as `t = h + r` with `h = shake256(m || proof1)`, `sign_2`
+is the mayo preimage of `t`, `sign_3` is the vole-in-the-head proof,
+`verify` recomputes `h` and runs `vole_verify` - every layer checked
+byte-for-byte against dumpers compiled from the reference sources
+(ledger: [`PLAN.md`](./PLAN.md)). `cmd/qemudemo` runs the loop bare-metal at
+all three levels and accepts byte-identical proofs on device:
 
 ```
 cd cmd/qemudemo && make qemu   # needs tamago-go, qemu-system-riscv64, dtc, python3
@@ -103,8 +82,7 @@ cd cmd/qemudemo && make qemu   # needs tamago-go, qemu-system-riscv64, dtc, pyth
 
 ## usage
 
-the signature packages (`mayo`, `faest`, `pomfrit`, `mldsa`) ship runnable
-`Example`s (run by `go test`, rendered on pkg.go.dev) - the short version:
+the signature packages ship runnable `Example`s - the short version:
 
 ```go
 // mayo (mp := &mayo.Mayo1)
@@ -112,47 +90,33 @@ cpk, csk, _ := mp.CompactKeyGen(seed)
 sig, _ := mp.Sign(msg, csk, randomizer)
 ok := mp.Verify(msg, sig, cpk)
 
-// faest aes signature
-sk, pk, _ := faest.FAEST128s.KeyGen(rand.Reader)
-sig := faest.FAEST128s.Sign(msg, sk, rho)
-ok := faest.FAEST128s.Verify(msg, pk, sig)
-
 // one-more-mayo blind signature (o := pomfrit.MayoOWFL1)
 epk, _ := mp.ExpandPK(cpk)
 t, st, h := o.Sign1(msg, rAdditional)       // user: blind
 bsig := mp.SignWithoutHashing(t, csk)       // signer: mayo preimage
 proof := o.Sign3(epk, h, bsig, st, rAdditional)
 ok = o.BlindVerify(epk, msg, proof.Bytes, rAdditional)
-```
 
-and the token layer (the blind loop under a burn token):
-
-```go
-issuer, _ := tokenprofile.NewIssuer(1, nil)             // one key epoch
+// token layer: the same loop under a burn token
+issuer, _ := tokenprofile.NewIssuer(1, nil)
 input := tokenprofile.BurnInput(nonce, challengeDigest, issuer.TokenKeyID())
-target, state := tokenprofile.PrepareBlind(input, additionalR)   // client blinds
-sigs, _ := issuer.BlindSign([][]byte{target})                    // issuer signs blind
+target, state := tokenprofile.PrepareBlind(input, additionalR)
+sigs, _ := issuer.BlindSign([][]byte{target})
 auth, _ := tokenprofile.FinalizeBlind(issuer.ExpandedPublicKey(), sigs[0], state)
-token := tokenprofile.BurnToken{TokenType: tokenprofile.BurnTokenType,
-	Nonce: nonce, ChallengeDigest: challengeDigest,
-	TokenKeyID: issuer.TokenKeyID(), Authenticator: auth}
-err := issuer.VerifyBurnToken(token, challengeDigest)   // origin verifies offline
 ```
 
-randomness contract: `randomizer` / `rho` / `rAdditional` must be fresh csprng
-output in production; fixed values (as in tests) degrade mayo to hedged
-deterministic signing
+randomness contract: `randomizer` / `rho` / `rAdditional` must be fresh
+csprng output in production; fixed values (as in tests) degrade mayo to
+hedged deterministic signing
 
 ## test + benchmark
 
 ```
-go test ./...          # full byte-exact surface; -short trims kat counts (what ci runs)
-go test -bench . -run xxx ./mayo/ ./faest/ ./pomfrit/
+go test ./...          # full byte-exact surface; -short is what ci runs
+go test -bench . -run xxx ./mayo/ ./faest/ ./pomfrit/ ./mldsa/
 ```
 
-ci: build + vet + short kats on linux amd64/arm64 + macos, `GOOS=tamago`
-cross-builds (amd64/arm/arm64/riscv64), weekly full-kat replay - measured on
-an apple m5 max (single core):
+apple m5 max, single core:
 
 | scheme | set | keygen | sign | verify |
 |---|---|---|---|---|
@@ -163,32 +127,21 @@ an apple m5 max (single core):
 
 ## security log
 
-review pass 2026-07-02, full record in [`PLAN.md`](./PLAN.md):
-
-- **detected + fixed** ([`870789b`]): `field.GF8.Mul` had data-dependent
-  branches on faest's secret witness path (`invnorm`) - rewritten branch-free,
-  kats confirm byte-identical
-- **detected + fixed** ([`870789b`]): `faest.Verify`, `pomfrit.Verify` /
-  `BlindVerify` and `mayo.SignWithoutHashing` panicked on malformed input -
-  now length-check and reject
-- **detected + fixed** ([`fdd8331`]): `crypto/cipher` aes-ctr pulled a fips
-  self-test that stalled bare-metal init - mayo keygen drives `crypto/aes`
-  directly, kat-green
-- **accepted, documented** ([`870789b`]): no zeroization of key material
-  (go's gc can copy buffers); caller-supplied randomness (see usage)
-
-clean by construction: branch-free secret arithmetic (`gf16`, `field`, the
-mayo echelon solver), constant-time comparisons everywhere secrets are
-compared, no secret-indexed table lookups
-
-[`870789b`]: https://github.com/maceip/tamayo/commit/870789b
-[`fdd8331`]: https://github.com/maceip/tamayo/commit/fdd8331
+review pass 2026-07-02, full record in [`PLAN.md`](./PLAN.md): fixed
+data-dependent branches on faest's secret witness path (`field.GF8.Mul`,
+rewritten branch-free, kat-identical); fixed verifier panics on malformed
+input (all verify paths length-check and reject); fixed a fips self-test in
+`crypto/cipher` stalling bare-metal init. accepted + documented: no
+zeroization of key material (go's gc can copy buffers), caller-supplied
+randomness. clean by construction: branch-free secret arithmetic,
+constant-time comparisons, no secret-indexed table lookups.
 
 ## provenance and license
 
 - **faest** - [faest.info](https://faest.info), `ait-crypto/faest-rs` (mit / apache-2.0)
 - **mayo** - [PQCMayo/MAYO-C](https://github.com/PQCMayo/MAYO-C) (apache-2.0), cross-checked vs `pq-mayo`
 - **one-more-mayo** - the `pq_blind_signatures` reference (c++ `optimized_bs` + mayo-c)
+- **ml-dsa** - nist fips 204, acvp vectors
 
 vendored `*/testdata/` vectors are upstream kats and reference dumps under
 their original licenses ([`NOTICE`](./NOTICE)); this project is apache-2.0
