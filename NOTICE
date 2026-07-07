@@ -17,4 +17,12 @@ projects (the FAEST sets regenerated with the upstream NIST harness by
 tools/faest_kat_gen) and are redistributed under their original licenses
 (MIT / Apache-2.0).
 
+Known-answer test vectors vendored under mldsa/testdata/ are extracted from
+the NIST ACVP-Server project (https://github.com/usnistgov/ACVP-Server,
+ML-DSA-FIPS204 gen-val JSON files; the pinned commit is recorded in the
+vector file's provenance field). As works of the U.S. Government, NIST
+materials are not subject to copyright in the United States (see the
+ACVP-Server license).
+
 The MAYO and FAEST names and specifications belong to their respective teams.
+ML-DSA is specified by NIST FIPS 204.

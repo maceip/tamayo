@@ -15,7 +15,7 @@ exists) · **WRITE** = write from spec (small).
 | L0.3 | CSPRNG / randombytes | DROP-IN | stdlib `crypto/rand` | — | tamago wires `internal/rng` |
 | L0.4 | bit/limb ops | DROP-IN | stdlib `math/bits` | — | — |
 | L0.5 | CTR-DRBG (deterministic KAT replay) | WRITE | ~80 LOC over stdlib AES | NIST DRBG vectors | only needed to reproduce KATs |
-| L1.6 | GF(16) = GF(2^4) | WRITE (ref pq-mayo / MAYO-C) | `crypto/gf16` | exhaustive + MAYO-C inverse table | DONE — built & green (3 arches) |
+| L1.6 | GF(16) = GF(2^4) | WRITE (ref pq-mayo / MAYO-C) | `gf16` | exhaustive + MAYO-C inverse table | DONE — built & green (3 arches) |
 | L1.7 | GF(2^128/192/256) + poly over F_2^λ | RUST→GO | `ait-crypto/faest-rs` (fields) | FAEST KAT | CLMUL asm is a later optional fast path |
 | L1.8 | GF(2^512) + F_2^128^4 deg-3 poly (RainHash) | C→GO | `.shape` rainhash_plain + paper §7 | `.shape` C++ KATs + tamago build | DONE — pure Go RainHash512, field ops, and S-box witness helper |
 | L2.9 | GF(16) vec/mat ops + constant-time echelon solver | RUST→GO | pq-mayo `matrix_ops.rs`, `echelon.rs` | MAYO-C cross-check | IN PROGRESS (matrix ops first, solver next) |
@@ -32,6 +32,7 @@ exists) · **WRITE** = write from spec (small).
 | L5.20 | Keccak-deg16 circuit | C→GO | `.shape/vole/conservative_bs/owf_proof.inc` | end-to-end verify | only source is `.shape` C++ |
 | L5.21 | RainHash circuit + RainHash512 | C→GO | `.shape/.../rainhash_plain` (+ IAIK/rainier) | end-to-end verify | DONE as isolated RainHash component — hash, witness layouts, relation checker, circuit primitives, L1 proof-chain parameter guard, and proof-chain QuickSilver wiring green; final PoMFRIT integration waits on MAYO circuit |
 | L6.22 | PoMFRIT Sig1/2/3/Ver + commitment + 2-stage π1/π2 (Alg.1 + Alg.2) | RUST→GO | `.shape/blind-signatures*` (Rust) | paper test cases | One-More-MAYO (Alg.2) is the first end-to-end target |
+| T.23 | ML-DSA-44/65/87 (token-layer holder proofs) | WRITE | FIPS 204 final pseudocode (Aug 2024) → `mldsa`; branch-free Decompose in the reference implementation's multiply-shift form | NIST ACVP ML-DSA-FIPS204 vectors, byte-exact (75 keyGen + 270 sigGen + 135 sigVer, all non-pre-hash groups, vendored in `mldsa/testdata/` with commit provenance) | DONE — deterministic + hedged, pure/internal/external-mu interfaces; HashML-DSA (pre-hash) not implemented |
 
 Decisions accounted for:
 - No construct relies on cgo or AVX2 (cgo disabled on tamago; AVX2 not enabled by tamago today).
