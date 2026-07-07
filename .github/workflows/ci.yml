@@ -8,6 +8,7 @@ jobs:
   test:
     name: build, vet, test (short KATs)
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +22,13 @@ jobs:
         run: go build ./...
       - name: Vet
         run: go vet ./...
+      - name: gofmt
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "gofmt needed on:"; echo "$out"; exit 1
+          fi
       # -short trims the FAEST NIST KAT to 5 vectors per set and the MAYO KAT
       # to 3 signatures per set; every byte-exact reference replay still runs.
       - name: Test
@@ -29,6 +37,7 @@ jobs:
   tamago:
     name: GOOS=tamago cross-build (amd64/arm/arm64/riscv64)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install tamago-go
@@ -45,7 +54,9 @@ jobs:
           for arch in amd64 arm arm64 riscv64; do
             echo "--- GOARCH=$arch"
             GOOS=tamago GOARCH=$arch GOOSPKG=github.com/usbarmory/tamago \
-              "$TAMAGO" build ./gf16/ ./field/ ./mayo/ ./faest/ ./pomfrit/
+              "$TAMAGO" build ./gf16/ ./field/ ./mayo/ ./faest/ ./pomfrit/ ./mldsa/ \
+                ./tokenauth/ ./emailtoken/ ./tokenprofile/ ./tokenservice/ \
+                ./transparency/ ./mailbox/
           done
       - name: Build the on-device demo (sifive_u)
         working-directory: cmd/qemudemo
