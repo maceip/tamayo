@@ -2,6 +2,15 @@
 
 ## unreleased
 
+- cmd/tamayo: durable state fallback — `serve -state-dir <dir>` appends
+  every burn spend, presentation nonce, and budget reservation to an
+  fsynced json-lines journal and replays it at startup, so a restart no
+  longer opens a double-spend/replay window on a single node (proven by a
+  restart-survival test); default stays in-memory, mailbox codes are
+  intentionally not journaled (minutes-lived, re-request is the recovery),
+  and multi-replica deployments still want shared stores behind the
+  SpentStore/BudgetStore seams
+
 - the reference port list is complete: `tokenauth/authorization.go` (the
   wire-compatible faest-128f-signed issuance-authorization envelope for a
   cross-process attester/issuer split, with `AttesterSigner` and full

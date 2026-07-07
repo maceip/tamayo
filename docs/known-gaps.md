@@ -28,7 +28,7 @@ the Rust reference; **accepted** = known limitation we are not going to fix.
 | --- | --- | --- |
 | PQ email JOSE identifiers are draft-stage | accepted (tracked) | `alg: ML-DSA-44` / `kty: AKP` follow draft-ietf-cose-dilithium, not final IANA registrations; the profile must be versioned if the draft names change, and row 3 stays "classical by default". [`pq-email-profile.md`](./pq-email-profile.md). |
 | Budget enforcement is opt-in | accepted (documented) | `AuthorizeMint` with a nil `BudgetStore` skips the budget check ("enforcement happens elsewhere"); `MemoryBudgetStore` is single-process. Multi-replica issuers must implement `BudgetStore` over shared storage, fail-closed. `tokenauth` doc.go. |
-| Spent-token + presentation-nonce storage | boundary | Burn double-spend sets and private-identity nonce stores are product work; the packages verify, products persist. Roadmap invariants; `cmd/tamayo serve` demonstrates with in-memory state only. |
+| Spent-token + presentation-nonce storage | boundary (fallback shipped) | `serve -state-dir` journals every spend, presentation nonce, and budget reservation to an fsynced append-only log and replays it on start, so a single-node restart no longer opens a replay window (restart-survival tested). Multi-replica deployments still need shared stores behind the `SpentStore`/`BudgetStore` seams. |
 | Runtime email proof + transport for email rows | boundary | Verified-email evidence collection, SMTP, JWKS distribution, HTTP hardening: product work. Roadmap row 3/4. |
 
 ## Supporting capabilities

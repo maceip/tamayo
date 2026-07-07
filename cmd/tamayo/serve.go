@@ -32,8 +32,9 @@ type server struct {
 	issuer  *tokenprofile.Issuer
 	svc     *tokenservice.Issuer
 	policy  *tokenauth.Policy
-	budgets *tokenauth.MemoryBudgetStore
+	budgets tokenauth.BudgetStore
 	maxSkew time.Duration
+	journal *journal // nil = in-memory only
 	evp     *evpRail // nil when the EVP rail is not mounted
 
 	spent *tokenservice.MemorySpentStore
@@ -65,6 +66,7 @@ func cmdServe(args []string) error {
 	sendmail := fs.String("sendmail", "", "command to deliver mailbox codes: run as `cmd <address>` with the code on stdin (default: print to stderr, dev only)")
 	codeTTL := fs.Duration("code-ttl", 10*time.Minute, "mailbox challenge code lifetime")
 	policyPub := fs.String("policy-pub", "", "comma-separated trusted operator keys (hex); requires a verifying <policy>.sig sidecar")
+	stateDir := fs.String("state-dir", "", "journal state (spends, nonces, budgets) here and replay on start (default: in-memory only)")
 	fs.Parse(args)
 	if *policyPath == "" {
 		return errors.New("serve: -policy is required (generate one with 'tamayo example-policy')")
@@ -120,6 +122,16 @@ func cmdServe(args []string) error {
 	}
 	if err := s.initKT(); err != nil {
 		return err
+	}
+	if *stateDir != "" {
+		mem := s.spent
+		seen := s.seenPvt
+		j, err := openJournal(*stateDir, mem, seen, s.budgets)
+		if err != nil {
+			return fmt.Errorf("state-dir %s: %w", *stateDir, err)
+		}
+		s.journal = j
+		s.budgets = &journaledBudgets{inner: s.budgets, j: j}
 	}
 
 	scheme := "http"
@@ -336,6 +348,10 @@ func (s *server) handleVerifyBurn(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
+	if err := s.journal.spend(s.issuer.KeyVersion(), token.Nonce); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "state journal: " + err.Error()})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -384,6 +400,10 @@ func (s *server) handleVerifyPvt(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if seen {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "presentation nonce already used for this origin"})
+		return
+	}
+	if err := s.journal.pvt(replayKey); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "state journal: " + err.Error()})
 		return
 	}
 
