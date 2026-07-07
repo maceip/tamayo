@@ -57,6 +57,30 @@ the exact per-dumper include and link lines are the ones recorded in the
 commit history; the blind-loop dumper additionally links mayo-c
 (`params.c arithmetic.c mayo_without_hashing.c common/*.c`) via `mayo_bridge.c`
 
+## kt_dump
+
+reference-vector generator for the `transparency` and `mailbox` packages.
+a small rust crate that compiles eat-pass's `core/src/transparency.rs`
+**verbatim** (`#[path]` module include against `~/tee-stack/eat-pass`, with a
+stub `IssuerPublicKey` carrying a fixed token_key_id — the upstream module is
+only pomfrit-feature-gated because of that one type) plus
+`eat-pass-core --no-default-features` for `faest_sig` and `mailbox`:
+
+- `src/main.rs` — builds a 3-record key log, signs every prefix head with
+  faest-128f (seed `[7u8;32]`), certifies each with the reference's own
+  `verify_log`/`verify_inclusion`/`verify_consistency`, and emits
+  `transparency/testdata/eatpass_kt.json`
+- `src/bin/mailbox_dump.rs` — dumps `mailbox_measurement` bucket hmacs for
+  fixed keys/addresses; the values are pinned in `mailbox/mailbox_test.go`
+
+```
+cargo run --release            # kt vector, stdout
+cargo run --release --bin mailbox_dump
+```
+
+needs the eat-pass checkout at the path in `Cargo.toml` and its cargo deps;
+binaries and vectors are regenerated out-of-tree, only the json is vendored
+
 ## pages_verify
 
 end-to-end checks for the github pages demo (`docs/index.html`), run against
