@@ -52,7 +52,9 @@ with `CGO_ENABLED=0` and `1`. programs that use cgo elsewhere can import it
 freely; the tamago-go toolchain is needed only to target `GOOS=tamago`
 itself.
 
-**as a binary.** `cmd/tamayo` is the reference issuer/verifier runtime:
+**as a binary.** `cmd/tamayo` is the reference issuer/verifier runtime;
+prebuilt archives for machines without a go toolchain are attached to tagged
+releases:
 
 ```
 go install github.com/maceip/tamayo/cmd/tamayo@latest
