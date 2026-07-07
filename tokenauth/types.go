@@ -10,11 +10,11 @@ const (
 	TokenPolicyEmail     TokenFamily = "policy_email"
 )
 
-type BridgeKind string
+type GateKind string
 
 const (
-	BridgeTEE   BridgeKind = "tee"
-	BridgeEmail BridgeKind = "email"
+	GateTEE   GateKind = "tee"
+	GateEmail GateKind = "email"
 )
 
 const (
@@ -29,7 +29,7 @@ type Source struct {
 	Mode          string                `json:"mode"`
 	Defaults      Defaults              `json:"defaults"`
 	TokenFamilies map[string]TokenRule  `json:"token_families"`
-	Bridges       map[string]BridgeRule `json:"bridges"`
+	Gates         map[string]GateRule   `json:"gates"`
 	Measurements  []MeasurementRule     `json:"measurements,omitempty"`
 	Budgets       map[string]BudgetRule `json:"budgets"`
 }
@@ -42,7 +42,7 @@ type Defaults struct {
 
 type TokenRule struct {
 	Enabled              bool     `json:"enabled"`
-	AllowedBridges       []string `json:"allowed_bridges"`
+	AllowedGates         []string `json:"allowed_gates"`
 	AllowedOrigins       []string `json:"allowed_origins,omitempty"`
 	BudgetGroup          string   `json:"budget_group"`
 	MaxBatch             int      `json:"max_batch,omitempty"`
@@ -51,7 +51,7 @@ type TokenRule struct {
 	RequiresOrigin       bool     `json:"requires_origin,omitempty"`
 }
 
-type BridgeRule struct {
+type GateRule struct {
 	Enabled      bool     `json:"enabled"`
 	BucketClaim  string   `json:"bucket_claim,omitempty"`
 	AddressClaim string   `json:"address_claim,omitempty"`
@@ -76,10 +76,10 @@ type Subject struct {
 }
 
 type Eligibility struct {
-	BridgeKind BridgeKind        `json:"bridge_kind"`
-	BucketID   string            `json:"bucket_id"`
-	Assurance  string            `json:"assurance"`
-	Claims     map[string]string `json:"claims,omitempty"`
+	GateKind  GateKind          `json:"gate_kind"`
+	BucketID  string            `json:"bucket_id"`
+	Assurance string            `json:"assurance"`
+	Claims    map[string]string `json:"claims,omitempty"`
 }
 
 type MintRequest struct {
@@ -125,7 +125,7 @@ type Policy struct {
 	mode         string
 	defaults     Defaults
 	tokens       map[TokenFamily]compiledToken
-	bridges      map[BridgeKind]compiledBridge
+	gates        map[GateKind]compiledGate
 	measurements map[string]map[TokenFamily]struct{}
 	budgets      map[string]BudgetRule
 }
@@ -140,7 +140,7 @@ func (p *Policy) Mode() string {
 type compiledToken struct {
 	name                 TokenFamily
 	enabled              bool
-	allowedBridges       map[BridgeKind]struct{}
+	allowedGates         map[GateKind]struct{}
 	allowedOrigins       map[string]struct{}
 	budgetGroup          string
 	maxBatch             int
@@ -149,8 +149,8 @@ type compiledToken struct {
 	requiresOrigin       bool
 }
 
-type compiledBridge struct {
-	name         BridgeKind
+type compiledGate struct {
+	name         GateKind
 	enabled      bool
 	bucketClaim  string
 	addressClaim string

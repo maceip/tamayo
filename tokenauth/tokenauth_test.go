@@ -18,7 +18,7 @@ func TestCompileRejectsUnknownFields(t *testing.T) {
 			"unexpected": true
 		},
 		"token_families": {},
-		"bridges": {},
+		"gates": {},
 		"budgets": {}
 	}`)
 	_, err := CompileJSON(raw)
@@ -38,15 +38,15 @@ func TestAuthorizePrivateIdentityWithTEEAndOrigin(t *testing.T) {
 		TokenFamilies: map[string]TokenRule{
 			string(TokenPrivateIdentity): {
 				Enabled:             true,
-				AllowedBridges:      []string{string(BridgeTEE)},
+				AllowedGates:        []string{string(GateTEE)},
 				AllowedOrigins:      []string{"rp.example"},
 				BudgetGroup:         "private",
 				RequiresAttestation: true,
 				RequiresOrigin:      true,
 			},
 		},
-		Bridges: map[string]BridgeRule{
-			string(BridgeTEE): {
+		Gates: map[string]GateRule{
+			string(GateTEE): {
 				Enabled:     true,
 				BucketClaim: "runtime_id",
 			},
@@ -65,10 +65,10 @@ func TestAuthorizePrivateIdentityWithTEEAndOrigin(t *testing.T) {
 			Platform: "tamago",
 		},
 		Eligibility: []Eligibility{{
-			BridgeKind: BridgeTEE,
-			BucketID:   "runtime-1",
-			Assurance:  AssuranceVerified,
-			Claims:     map[string]string{"runtime_id": "runtime-1"},
+			GateKind:  GateTEE,
+			BucketID:  "runtime-1",
+			Assurance: AssuranceVerified,
+			Claims:    map[string]string{"runtime_id": "runtime-1"},
 		}},
 		TokenFamily: TokenPrivateIdentity,
 		Count:       2,
@@ -102,14 +102,14 @@ func TestAuthorizePolicyEmailRequiresAddressAndMeasurement(t *testing.T) {
 		TokenFamilies: map[string]TokenRule{
 			string(TokenPolicyEmail): {
 				Enabled:              true,
-				AllowedBridges:       []string{string(BridgeEmail)},
+				AllowedGates:         []string{string(GateEmail)},
 				BudgetGroup:          "email",
 				RequiresAddressClaim: true,
 				RequiresAttestation:  true,
 			},
 		},
-		Bridges: map[string]BridgeRule{
-			string(BridgeEmail): {
+		Gates: map[string]GateRule{
+			string(GateEmail): {
 				Enabled:      true,
 				BucketClaim:  "email",
 				AddressClaim: "email",
@@ -129,10 +129,10 @@ func TestAuthorizePolicyEmailRequiresAddressAndMeasurement(t *testing.T) {
 			Platform: "tamago",
 		},
 		Eligibility: []Eligibility{{
-			BridgeKind: BridgeEmail,
-			BucketID:   "alice@example.com",
-			Assurance:  AssuranceVerified,
-			Claims:     map[string]string{"email": "alice@example.com"},
+			GateKind:  GateEmail,
+			BucketID:  "alice@example.com",
+			Assurance: AssuranceVerified,
+			Claims:    map[string]string{"email": "alice@example.com"},
 		}},
 		TokenFamily: TokenPolicyEmail,
 		Count:       1,
@@ -161,13 +161,13 @@ func TestCompilePolicyEmailMustRequireAddressClaim(t *testing.T) {
 		},
 		TokenFamilies: map[string]TokenRule{
 			string(TokenPolicyEmail): {
-				Enabled:        true,
-				AllowedBridges: []string{string(BridgeEmail)},
-				BudgetGroup:    "email",
+				Enabled:      true,
+				AllowedGates: []string{string(GateEmail)},
+				BudgetGroup:  "email",
 			},
 		},
-		Bridges: map[string]BridgeRule{
-			string(BridgeEmail): {Enabled: true, AddressClaim: "email"},
+		Gates: map[string]GateRule{
+			string(GateEmail): {Enabled: true, AddressClaim: "email"},
 		},
 		Budgets: map[string]BudgetRule{
 			"email": {Limit: 1, WindowSeconds: 60},
@@ -189,13 +189,13 @@ func TestCompileRejectsProductionSoftwareWitnessDefault(t *testing.T) {
 		},
 		TokenFamilies: map[string]TokenRule{
 			string(TokenBurn): {
-				Enabled:        true,
-				AllowedBridges: []string{string(BridgeTEE)},
-				BudgetGroup:    "burn",
+				Enabled:      true,
+				AllowedGates: []string{string(GateTEE)},
+				BudgetGroup:  "burn",
 			},
 		},
-		Bridges: map[string]BridgeRule{
-			string(BridgeTEE): {Enabled: true},
+		Gates: map[string]GateRule{
+			string(GateTEE): {Enabled: true},
 		},
 		Budgets: map[string]BudgetRule{
 			"burn": {Limit: 1, WindowSeconds: 60},

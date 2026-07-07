@@ -2,6 +2,13 @@
 
 ## unreleased
 
+- tokenauth: the eligibility vocabulary is now "gate", replacing "bridge" —
+  `GateKind`/`GateRule`/`AllowedGates`, policy json fields
+  `gates`/`allowed_gates`/`gate_kind`, and `gate_*` check names. breaking
+  for policy files written against the old field names (compile rejects
+  unknown fields loudly). "gate" matches the mailbox/attestation gate
+  terminology used across the stack; nothing architectural called a bridge
+  ever existed in this repo
 - continuous releases: every push to main auto-bumps the patch version and
   cuts a github release — each platform binary (linux amd64/arm64, macos
   amd64/arm64, windows amd64) is built on a native github-hosted runner,
@@ -39,7 +46,7 @@
   ported to go — canonical email rules, keyed hmac rate-limit buckets
   (pinned byte-exact against reference-dumped values), and the single-use,
   binding-bound, attempt-limited challenge store; TEE-free by design, feeds
-  `tokenauth` as an eligibility bridge; smtp delivery and durable storage
+  `tokenauth` as an eligibility gate; smtp delivery and durable storage
   stay product work
 - new `cmd/tamayo` reference binary (`go install
   github.com/maceip/tamayo/cmd/tamayo@latest`): `keygen` writes an issuer

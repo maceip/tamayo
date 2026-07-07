@@ -262,19 +262,19 @@ func examplePolicy() tokenauth.Source {
 		TokenFamilies: map[string]tokenauth.TokenRule{
 			string(tokenauth.TokenBurn): {
 				Enabled:             true,
-				AllowedBridges:      []string{string(tokenauth.BridgeTEE)},
+				AllowedGates:        []string{string(tokenauth.GateTEE)},
 				BudgetGroup:         "burn",
 				RequiresAttestation: true,
 			},
 			string(tokenauth.TokenPrivateIdentity): {
 				Enabled:             true,
-				AllowedBridges:      []string{string(tokenauth.BridgeTEE)},
+				AllowedGates:        []string{string(tokenauth.GateTEE)},
 				BudgetGroup:         "private",
 				RequiresAttestation: true,
 			},
 		},
-		Bridges: map[string]tokenauth.BridgeRule{
-			string(tokenauth.BridgeTEE): {Enabled: true},
+		Gates: map[string]tokenauth.GateRule{
+			string(tokenauth.GateTEE): {Enabled: true},
 		},
 		Measurements: []tokenauth.MeasurementRule{{
 			ValueX: "dev-measurement",

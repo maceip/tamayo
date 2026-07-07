@@ -89,50 +89,50 @@ func (p *Policy) AuthorizeMint(req MintRequest, budgets BudgetStore, now time.Ti
 	}
 	pass("platform_allowed", req.Subject.Platform)
 
-	elig, bridge, ok := p.chooseEligibility(req.Eligibility, tok)
+	elig, gate, ok := p.chooseEligibility(req.Eligibility, tok)
 	if !ok {
-		return fail("eligible_bridge", "no verified eligibility bridge is allowed for this token family")
+		return fail("eligible_gate", "no verified eligibility gate is allowed for this token family")
 	}
-	pass("eligible_bridge", string(elig.BridgeKind))
-	if bridge.bucketClaim != "" {
-		claim := elig.Claims[bridge.bucketClaim]
+	pass("eligible_gate", string(elig.GateKind))
+	if gate.bucketClaim != "" {
+		claim := elig.Claims[gate.bucketClaim]
 		if claim == "" {
-			return fail("bridge_bucket_claim", fmt.Sprintf("bridge %q requires bucket claim %q", bridge.name, bridge.bucketClaim))
+			return fail("gate_bucket_claim", fmt.Sprintf("gate %q requires bucket claim %q", gate.name, gate.bucketClaim))
 		}
 		if claim != elig.BucketID {
-			return fail("bridge_bucket_matches", fmt.Sprintf("bridge %q bucket claim does not match bucket_id", bridge.name))
+			return fail("gate_bucket_matches", fmt.Sprintf("gate %q bucket claim does not match bucket_id", gate.name))
 		}
 	}
 	if tok.requiresAddressClaim {
-		claim := elig.Claims[bridge.addressClaim]
+		claim := elig.Claims[gate.addressClaim]
 		if claim == "" {
-			return fail("address_claim_present", fmt.Sprintf("token family %q requires bridge address claim %q", req.TokenFamily, bridge.addressClaim))
+			return fail("address_claim_present", fmt.Sprintf("token family %q requires gate address claim %q", req.TokenFamily, gate.addressClaim))
 		}
 		if strings.TrimSpace(req.Address) == "" {
 			return fail("address_present", fmt.Sprintf("token family %q requires request address", req.TokenFamily))
 		}
 		if !strings.EqualFold(claim, req.Address) {
-			return fail("address_matches_claim", "request address does not match verified bridge address claim")
+			return fail("address_matches_claim", "request address does not match verified gate address claim")
 		}
 	}
-	pass("bridge_claims", "")
+	pass("gate_claims", "")
 
-	if len(bridge.allowedHosts) > 0 {
+	if len(gate.allowedHosts) > 0 {
 		host := elig.Claims["host"]
 		if host == "" {
 			host = elig.Claims["domain"]
 		}
-		if _, ok := bridge.allowedHosts[host]; !ok {
-			return fail("bridge_host_allowed", fmt.Sprintf("host %q not allowed for bridge %q", host, bridge.name))
+		if _, ok := gate.allowedHosts[host]; !ok {
+			return fail("gate_host_allowed", fmt.Sprintf("host %q not allowed for gate %q", host, gate.name))
 		}
-		pass("bridge_host_allowed", host)
+		pass("gate_host_allowed", host)
 	}
 
 	budget, ok := p.budgets[tok.budgetGroup]
 	if !ok {
 		return fail("budget_defined", fmt.Sprintf("budget group %q is undefined", tok.budgetGroup))
 	}
-	budgetKey := string(elig.BridgeKind) + ":" + elig.BucketID + ":" + tok.budgetGroup
+	budgetKey := string(elig.GateKind) + ":" + elig.BucketID + ":" + tok.budgetGroup
 	if budgets != nil {
 		if err := budgets.Reserve(budgetKey, req.Count, budget.Limit, time.Duration(budget.WindowSeconds)*time.Second, now); err != nil {
 			return fail("budget_available", err.Error())
@@ -158,24 +158,24 @@ func (p *Policy) AuthorizeMint(req MintRequest, budgets BudgetStore, now time.Ti
 	}
 }
 
-func (p *Policy) chooseEligibility(all []Eligibility, tok compiledToken) (Eligibility, compiledBridge, bool) {
+func (p *Policy) chooseEligibility(all []Eligibility, tok compiledToken) (Eligibility, compiledGate, bool) {
 	for _, elig := range all {
 		if elig.BucketID == "" || !strings.EqualFold(elig.Assurance, AssuranceVerified) {
 			continue
 		}
-		if _, ok := tok.allowedBridges[elig.BridgeKind]; !ok {
+		if _, ok := tok.allowedGates[elig.GateKind]; !ok {
 			continue
 		}
-		bridge, ok := p.bridges[elig.BridgeKind]
-		if !ok || !bridge.enabled {
+		gate, ok := p.gates[elig.GateKind]
+		if !ok || !gate.enabled {
 			continue
 		}
 		if elig.Claims == nil {
 			elig.Claims = make(map[string]string)
 		}
-		return elig, bridge, true
+		return elig, gate, true
 	}
-	return Eligibility{}, compiledBridge{}, false
+	return Eligibility{}, compiledGate{}, false
 }
 
 func short(s string) string {

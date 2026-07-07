@@ -42,8 +42,8 @@ func Compile(src Source) (*Policy, error) {
 	if len(src.TokenFamilies) == 0 {
 		return nil, fmt.Errorf("policy must define token_families")
 	}
-	if len(src.Bridges) == 0 {
-		return nil, fmt.Errorf("policy must define bridges")
+	if len(src.Gates) == 0 {
+		return nil, fmt.Errorf("policy must define gates")
 	}
 	if len(src.Budgets) == 0 {
 		return nil, fmt.Errorf("policy must define budgets")
@@ -53,7 +53,7 @@ func Compile(src Source) (*Policy, error) {
 		mode:         src.Mode,
 		defaults:     src.Defaults,
 		tokens:       make(map[TokenFamily]compiledToken),
-		bridges:      make(map[BridgeKind]compiledBridge),
+		gates:        make(map[GateKind]compiledGate),
 		measurements: make(map[string]map[TokenFamily]struct{}),
 		budgets:      make(map[string]BudgetRule),
 	}
@@ -71,12 +71,12 @@ func Compile(src Source) (*Policy, error) {
 		p.budgets[name] = b
 	}
 
-	for name, b := range src.Bridges {
+	for name, b := range src.Gates {
 		if !validName(name) {
-			return nil, fmt.Errorf("bridge %q has invalid name", name)
+			return nil, fmt.Errorf("gate %q has invalid name", name)
 		}
-		cb := compiledBridge{
-			name:         BridgeKind(name),
+		cb := compiledGate{
+			name:         GateKind(name),
 			enabled:      b.Enabled,
 			bucketClaim:  b.BucketClaim,
 			addressClaim: b.AddressClaim,
@@ -85,11 +85,11 @@ func Compile(src Source) (*Policy, error) {
 		for _, h := range b.AllowedHosts {
 			h = strings.TrimSpace(h)
 			if h == "" {
-				return nil, fmt.Errorf("bridge %q has empty allowed host", name)
+				return nil, fmt.Errorf("gate %q has empty allowed host", name)
 			}
 			cb.allowedHosts[h] = struct{}{}
 		}
-		p.bridges[BridgeKind(name)] = cb
+		p.gates[GateKind(name)] = cb
 	}
 
 	for name, t := range src.TokenFamilies {
@@ -99,7 +99,7 @@ func Compile(src Source) (*Policy, error) {
 		ct := compiledToken{
 			name:                 TokenFamily(name),
 			enabled:              t.Enabled,
-			allowedBridges:       make(map[BridgeKind]struct{}),
+			allowedGates:         make(map[GateKind]struct{}),
 			allowedOrigins:       make(map[string]struct{}),
 			budgetGroup:          t.BudgetGroup,
 			maxBatch:             t.MaxBatch,
@@ -119,24 +119,24 @@ func Compile(src Source) (*Policy, error) {
 		if _, ok := p.budgets[ct.budgetGroup]; !ok {
 			return nil, fmt.Errorf("token family %q references unknown budget %q", name, ct.budgetGroup)
 		}
-		if ct.enabled && len(t.AllowedBridges) == 0 {
-			return nil, fmt.Errorf("enabled token family %q must list allowed_bridges", name)
+		if ct.enabled && len(t.AllowedGates) == 0 {
+			return nil, fmt.Errorf("enabled token family %q must list allowed_gates", name)
 		}
-		for _, bridge := range t.AllowedBridges {
-			if !validName(bridge) {
-				return nil, fmt.Errorf("token family %q references invalid bridge %q", name, bridge)
+		for _, gate := range t.AllowedGates {
+			if !validName(gate) {
+				return nil, fmt.Errorf("token family %q references invalid gate %q", name, gate)
 			}
-			cb, ok := p.bridges[BridgeKind(bridge)]
+			cb, ok := p.gates[GateKind(gate)]
 			if !ok {
-				return nil, fmt.Errorf("token family %q references unknown bridge %q", name, bridge)
+				return nil, fmt.Errorf("token family %q references unknown gate %q", name, gate)
 			}
 			if ct.enabled && !cb.enabled {
-				return nil, fmt.Errorf("enabled token family %q references disabled bridge %q", name, bridge)
+				return nil, fmt.Errorf("enabled token family %q references disabled gate %q", name, gate)
 			}
 			if ct.requiresAddressClaim && cb.addressClaim == "" {
-				return nil, fmt.Errorf("token family %q requires an address claim but bridge %q has none", name, bridge)
+				return nil, fmt.Errorf("token family %q requires an address claim but gate %q has none", name, gate)
 			}
-			ct.allowedBridges[BridgeKind(bridge)] = struct{}{}
+			ct.allowedGates[GateKind(gate)] = struct{}{}
 		}
 		for _, origin := range t.AllowedOrigins {
 			origin = strings.TrimSpace(origin)

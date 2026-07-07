@@ -19,13 +19,13 @@ func budgetTestPolicy(t *testing.T) *Policy {
 		TokenFamilies: map[string]TokenRule{
 			string(TokenBurn): {
 				Enabled:             true,
-				AllowedBridges:      []string{string(BridgeTEE)},
+				AllowedGates:        []string{string(GateTEE)},
 				BudgetGroup:         "burn",
 				RequiresAttestation: true,
 			},
 		},
-		Bridges: map[string]BridgeRule{
-			string(BridgeTEE): {Enabled: true},
+		Gates: map[string]GateRule{
+			string(GateTEE): {Enabled: true},
 		},
 		Measurements: []MeasurementRule{{
 			ValueX: "mayo-faest-runtime-measurement",
@@ -44,9 +44,9 @@ func budgetTestRequest(count int) MintRequest {
 			Platform: "tamago",
 		},
 		Eligibility: []Eligibility{{
-			BridgeKind: BridgeTEE,
-			BucketID:   "runtime-1",
-			Assurance:  AssuranceVerified,
+			GateKind:  GateTEE,
+			BucketID:  "runtime-1",
+			Assurance: AssuranceVerified,
 		}},
 		TokenFamily: TokenBurn,
 		Count:       count,

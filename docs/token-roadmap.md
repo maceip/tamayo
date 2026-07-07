@@ -32,7 +32,7 @@ Current implementation locations are tracked in
 | capability | what it does | implementation status |
 | --- | --- | --- |
 | Key transparency | Append-only, FAEST-128f-signed issuer key log with inclusion and consistency checks, so clients pin one long-lived log key instead of every issuer key and detect split-view or rewritten history. The spec draft requires it (MUST) for blind issuance deployments. | Landed in `transparency`, wire-compatible with the eat-pass log (verified against a reference-signed vector). Log distribution (`/kt` endpoint, gossip) is product transport. |
-| Mailbox eligibility gate | The EVP-comparable, TEE-free eligibility path: prove mailbox control via a single-use, binding-bound challenge code; the issuer sees only a keyed HMAC bucket, never the address. Feeds `tokenauth` as an eligibility bridge. | Landed in `mailbox`, bucket HMACs wire-compatible with eat-pass. Mail delivery (SMTP) and durable challenge storage are product work. |
+| Mailbox eligibility gate | The EVP-comparable, TEE-free eligibility path: prove mailbox control via a single-use, binding-bound challenge code; the issuer sees only a keyed HMAC bucket, never the address. Feeds `tokenauth` as an eligibility gate. | Landed in `mailbox`, bucket HMACs wire-compatible with eat-pass. Mail delivery (SMTP) and durable challenge storage are product work. |
 
 ## Invariants
 

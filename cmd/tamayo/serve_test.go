@@ -85,7 +85,7 @@ func TestServeBlindMintAndBurnSpend(t *testing.T) {
 		"blinded_b64":  []string{base64.RawURLEncoding.EncodeToString(target)},
 		"subject":      map[string]any{"value_x": "dev-measurement", "platform": "software-witness"},
 		"eligibility": []map[string]any{{
-			"bridge_kind": "tee", "bucket_id": "runtime-1", "assurance": "verified",
+			"gate_kind": "tee", "bucket_id": "runtime-1", "assurance": "verified",
 		}},
 	})
 	if status != http.StatusOK {
@@ -134,7 +134,7 @@ func TestServeBlindSignDenials(t *testing.T) {
 		"blinded_b64":  []string{base64.RawURLEncoding.EncodeToString(make([]byte, 8))},
 		"subject":      map[string]any{"value_x": "not-allowlisted"},
 		"eligibility": []map[string]any{{
-			"bridge_kind": "tee", "bucket_id": "runtime-1", "assurance": "verified",
+			"gate_kind": "tee", "bucket_id": "runtime-1", "assurance": "verified",
 		}},
 	})
 	if status != http.StatusForbidden {
@@ -146,7 +146,7 @@ func TestServeBlindSignDenials(t *testing.T) {
 	binding := tokenprofile.BindingOf([][]byte{[]byte("batch A")})
 	decision := s.policy.AuthorizeMint(tokenauth.MintRequest{
 		Subject:     tokenauth.Subject{ValueX: "dev-measurement", Platform: "software-witness"},
-		Eligibility: []tokenauth.Eligibility{{BridgeKind: tokenauth.BridgeTEE, BucketID: "runtime-1", Assurance: tokenauth.AssuranceVerified}},
+		Eligibility: []tokenauth.Eligibility{{GateKind: tokenauth.GateTEE, BucketID: "runtime-1", Assurance: tokenauth.AssuranceVerified}},
 		TokenFamily: tokenauth.TokenBurn,
 		Count:       1,
 		KeyVersion:  1,

@@ -18,7 +18,7 @@ truth.
 | repo | current token role | label | notes |
 | --- | --- | --- | --- |
 | `/Users/mac/tamayo` | MAYO, FAEST, PoMFRIT, ML-DSA primitives, token-profile packages, and issuer/verifier service APIs. | authoritative | Add shared token code here. Keep cgo-free and TamaGo-compatible (CI cross-builds all library packages for `GOOS=tamago`). |
-| `/Users/mac/tee-stack/eat-pass` | Rust product prototype with burn tokens, private identity tokens, mail gate, and Google EVT bridge. | reference | Freeze feature work. Use as behavior reference while porting. |
+| `/Users/mac/tee-stack/eat-pass` | Rust product prototype with burn tokens, private identity tokens, mail gate, and Google EVT interop service. | reference | Freeze feature work. Use as behavior reference while porting. |
 | `/Users/mac/confidential-agent` | Bootable agent/runtime plus a second Go token service under `internal/tokenservice`. | migration input, then duplicate | Move reusable token behavior into `tamayo`; keep only runtime composition here. |
 | `/Users/mac/tee-stack/unified-quote` and attestation repos | Runtime evidence and measurement verification language. | reference / dependency | Feed authorization policy before token minting. Do not mix token formats into these repos. |
 
