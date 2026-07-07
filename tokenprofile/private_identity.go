@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/maceip/tamayo/faest"
+	"github.com/maceip/tamayo/mldsa"
 )
 
 const (
@@ -83,7 +84,7 @@ func holderPubLen(alg byte) (int, error) {
 	case HolderAlgEd25519:
 		return ed25519.PublicKeySize, nil
 	case HolderAlgMLDSA44:
-		return 1312, nil
+		return mldsa.MLDSA44.PublicKeySize, nil
 	case HolderAlgFAEST128s:
 		return faestPublicKeyLen(faest.FAEST128s), nil
 	default:
@@ -207,7 +208,11 @@ func (i *Issuer) VerifyPrivateIdentityPresentation(p PrivateIdentityPresentation
 			return [32]byte{}, errors.New("ed25519 proof-of-possession rejected")
 		}
 	case HolderAlgMLDSA44:
-		return [32]byte{}, errors.New("ml-dsa-44 proof-of-possession is not implemented")
+		// Pure ML-DSA-44 with an empty context, matching the eat-pass PVT
+		// cnf-key convention (the Rust ml-dsa crate's default).
+		if !mldsa.MLDSA44.Verify(p.Token.Input.HolderPub, msg, p.Signature, nil) {
+			return [32]byte{}, errors.New("ml-dsa-44 proof-of-possession rejected")
+		}
 	case HolderAlgFAEST128s:
 		pk, err := parseFAEST128sPublicKey(p.Token.Input.HolderPub)
 		if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/maceip/tamayo/faest"
 	"github.com/maceip/tamayo/mayo"
+	"github.com/maceip/tamayo/mldsa"
 )
 
 func TestBurnTokenRoundTrip(t *testing.T) {
@@ -121,6 +122,46 @@ func TestPrivateIdentityPresentationFAEST128s(t *testing.T) {
 	pres.Signature[0] ^= 0x80
 	if _, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute); err == nil || !strings.Contains(err.Error(), "faest") {
 		t.Fatalf("tampered FAEST proof error = %v", err)
+	}
+}
+
+func TestPrivateIdentityPresentationMLDSA44(t *testing.T) {
+	issuer := testIssuer(t)
+	holderPub, holderSK, err := mldsa.MLDSA44.KeyGen(bytes.Repeat([]byte{0x20}, 32))
+	if err != nil {
+		t.Fatalf("MLDSA44.KeyGen: %v", err)
+	}
+
+	input := NewPrivateIdentityInput(issuer.KeyVersion(), issuer.TokenKeyID(), HolderAlgMLDSA44, holderPub)
+	token := PrivateIdentityToken{
+		Input:         input,
+		Authenticator: mintAuthenticator(t, issuer, input.Bytes()),
+	}
+	now := time.Unix(1_800_000_000, 0)
+	var nonce [32]byte
+	copy(nonce[:], bytes.Repeat([]byte{0x66}, 32))
+	msg := PrivateIdentityPresentationMessage("rp.example", nonce, token.Digest(), now.Unix())
+	sig, err := mldsa.MLDSA44.Sign(holderSK, msg, nil, bytes.Repeat([]byte{0x77}, 32))
+	if err != nil {
+		t.Fatalf("MLDSA44.Sign: %v", err)
+	}
+	pres := PrivateIdentityPresentation{
+		Token:     token,
+		Origin:    "rp.example",
+		Nonce:     nonce,
+		IssuedAt:  now.Unix(),
+		Signature: sig,
+	}
+	pseudonym, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute)
+	if err != nil {
+		t.Fatalf("VerifyPrivateIdentityPresentation ML-DSA: %v", err)
+	}
+	if pseudonym != token.PseudonymForOrigin("rp.example") {
+		t.Fatal("pseudonym mismatch")
+	}
+	pres.Signature[0] ^= 0x80
+	if _, err := issuer.VerifyPrivateIdentityPresentation(pres, now, time.Minute); err == nil || !strings.Contains(err.Error(), "ml-dsa") {
+		t.Fatalf("tampered ML-DSA proof error = %v", err)
 	}
 }
 
