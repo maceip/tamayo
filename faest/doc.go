@@ -20,6 +20,22 @@
 // Experimental and unaudited. Correctness rests on reference KATs, not a
 // security review.
 //
+// # Even-Mansour boundary
+//
+// The six exported parameter sets are the standard AES ones; the six
+// Even-Mansour (EM) sets are not implemented end to end. The EM building
+// blocks that do exist — the Rijndael-192/256 cipher (rijndael.go), the EM
+// witness extension (witness.go), and the OWF128EM/OWF192EM/OWF256EM
+// parameters — are each transpiled from faest-rs and byte-exact against its
+// vectors (rijndael_data.json, AesExtendedWitness.json), but the EM
+// prove/verify constraint path was never ported, so no EM set is exported
+// and no EM signature can be produced or checked (the constraint entry
+// points panic on an EM OWF rather than silently computing the AES
+// constraints). End-to-end EM sign vectors are already vendored in
+// FaestProve.json (skipped by TestFaestSignKAT); completing FAEST-EM means
+// porting the EM constraints from faest-rs, defining the six EM FaestParams
+// sets, and regenerating the EM NIST KAT sets with tools/faest_kat_gen.
+//
 // # Public entry points
 //
 //	FAEST128s, FAEST128f, FAEST192s, FAEST192f, FAEST256s, FAEST256f  // FaestParams

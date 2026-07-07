@@ -49,7 +49,10 @@ func TestFaestSignKAT(t *testing.T) {
 	n := 0
 	for _, v := range vecs {
 		if v.EM {
-			continue // Even-Mansour not yet ported
+			// The EM sign vectors are vendored and ready, but the EM
+			// constraint path is not ported (see the doc.go EM boundary
+			// note), so they cannot be checked yet.
+			continue
 		}
 		ps, pf := sets[v.Lambda][0], sets[v.Lambda][1]
 		sk := ints2bytes(v.Sk)

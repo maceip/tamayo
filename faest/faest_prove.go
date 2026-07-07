@@ -174,6 +174,9 @@ func (o OWFParams) encCstrntsProve(zk *ZKProofHasher, inputKeys, outputKeys []by
 }
 
 func (o OWFParams) owfConstraintsProve(zk *ZKProofHasher, w byteCommits, pk *PublicKey) {
+	if o.IsEM {
+		panic("faest: the EM constraint path is not implemented (see the doc.go EM boundary note)")
+	}
 	f := w.f
 
 	// First constraint (::5): the product of the two low witness bits.

@@ -192,10 +192,12 @@ func (o OWFParams) encCstrnts(zk *ZKVerifyHasher, input, output, w voleCommits, 
 }
 
 func (o OWFParams) owfConstraintsVerify(zk *ZKVerifyHasher, w voleCommits, delta []uint64, pk *PublicKey) {
+	if o.IsEM {
+		panic("faest: the EM constraint path is not implemented (see the doc.go EM boundary note)")
+	}
 	f := w.f
 	zk.MulAndUpdate(w.scalars[0], w.scalars[1])
 
-	// EM path not yet implemented; AES (non-EM) FAEST below.
 	owfInput := vcFromConstant(f, pk.OwfInput[:o.NStBytes()], delta)
 	k := o.keyExpCstrnts(zk, w.sub(0, o.LKe))
 
