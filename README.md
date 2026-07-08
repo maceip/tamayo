@@ -4,9 +4,6 @@ pure-go, cgo-free post-quantum crypto and anonymous tokens on the
 [tamago](https://github.com/usbarmory/tamago) bare-metal go runtime.
 interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo/)
 
-every token hides who you are — you only choose how much you're remembered:
-nothing at all with a one-time pass, or a stable per-site pseudonym.
-
 > **warning** - experimental, unaudited, not production-ready; "verified"
 > means byte-exact against the stipulated references, nothing more
 
