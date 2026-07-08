@@ -1,8 +1,7 @@
 # tamayo
 
 pure-go, cgo-free post-quantum crypto and anonymous tokens on the
-[tamago](https://github.com/usbarmory/tamago) bare-metal go runtime -
-tamago + mayo (tamago means "egg").
+[tamago](https://github.com/usbarmory/tamago) bare-metal go runtime.
 interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo/)
 
 > **warning** - experimental, unaudited, not production-ready; "verified"
