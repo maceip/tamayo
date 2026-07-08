@@ -36,3 +36,6 @@ package-lock.json
 /.refs/
 *.env
 .env
+
+# accidentally-buildable root binary (go build ./cmd/tamayo drops it here)
+/tamayo
