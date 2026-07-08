@@ -1,6 +1,6 @@
 name: Deploy Pages
 
-# Publishes docs/ (the hand-rolled tamagotchi PoMFRIT explainer) to GitHub
+# Publishes docs/ (the PoMFRIT delegation-story explainer) to GitHub
 # Pages. The Pages source is set to "GitHub Actions", so this workflow is the
 # only deploy path.
 on:

@@ -1,5 +1,4 @@
-// End-to-end verification for docs/index.html.
-// Checks the current public story page, not the archived Tamagotchi movie.
+// End-to-end verification for docs/index.html (the delegation-story explainer).
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer-core");
@@ -14,11 +13,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const root = path.resolve(__dirname, "../..");
   const indexPath = path.join(root, "docs/index.html");
-  const archivedPath = path.join(root, "docs/tamagotchi.html");
   const html = fs.readFileSync(indexPath, "utf8");
 
-  check("archived Tamagotchi page remains in repo", fs.existsSync(archivedPath));
-  check("public index does not link archived movie", !/tamagotchi\.html/i.test(html));
+  check("public index does not link the retired tamagotchi movie", !/tamagotchi\.html/i.test(html));
   check("public index does not load old d3 movie dependency", !/d3@7|cdn\.jsdelivr\.net\/npm\/d3/i.test(html));
   check("public index contains delegated software story", /Let the agent through/.test(html));
 
