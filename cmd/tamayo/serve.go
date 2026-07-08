@@ -17,7 +17,10 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/maceip/tamayo/emailtoken"
+	"github.com/maceip/tamayo/logging"
 	"github.com/maceip/tamayo/mailbox"
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
@@ -41,6 +44,7 @@ type server struct {
 
 	spent *tokenservice.MemorySpentStore
 	kt    *ktState
+	log   *slog.Logger
 
 	mu      sync.Mutex
 	seenPvt map[string]bool // by origin \x00 presentation nonce
@@ -81,6 +85,8 @@ func cmdServe(args []string) error {
 	codeTTL := fs.Duration("code-ttl", 10*time.Minute, "mailbox challenge code lifetime")
 	policyPub := fs.String("policy-pub", "", "comma-separated trusted operator keys (hex); requires a verifying <policy>.sig sidecar")
 	stateDir := fs.String("state-dir", "", "journal state (spends, nonces, budgets) here and replay on start (default: in-memory only)")
+	logLevel := fs.String("log-level", "info", "log level: debug, info, warn, error")
+	logFormat := fs.String("log-format", "text", "log format: text, json, or console (compact, timestamp-free)")
 	fs.Parse(args)
 	if *policyPath == "" {
 		return errors.New("serve: -policy is required (generate one with 'tamayo example-policy')")
@@ -143,6 +149,16 @@ func cmdServe(args []string) error {
 		return err
 	}
 
+	var logger *slog.Logger
+	switch *logFormat {
+	case "console":
+		logger = logging.NewConsole(os.Stderr, logging.ConsoleOptions{Level: logging.ParseLevel(*logLevel)})
+	case "json":
+		logger = logging.New(logging.Options{Level: logging.ParseLevel(*logLevel), JSON: true})
+	default:
+		logger = logging.New(logging.Options{Level: logging.ParseLevel(*logLevel)})
+	}
+
 	s := &server{
 		issuer:    issuer,
 		verifiers: verifiers,
@@ -152,6 +168,7 @@ func cmdServe(args []string) error {
 		maxSkew:   *maxSkew,
 		spent:     tokenservice.NewMemorySpentStore(),
 		seenPvt:   make(map[string]bool),
+		log:       logger,
 	}
 	if err := s.initKT(); err != nil {
 		return err
@@ -215,6 +232,10 @@ func cmdServe(args []string) error {
 		fmt.Printf("  evp issuer:   %s (EVT kid %s, discovery %s/.well-known/email-verification)\n",
 			s.evp.issuerID, s.evp.signer.KID(), s.evp.publicBase)
 	}
+	s.log.Info("serve starting",
+		"addr", *addr, "scheme", scheme, "key_version", issuer.KeyVersion(),
+		"token_key_id", hex.EncodeToString(id[:8]), "policy_mode", policy.Mode(),
+		"epochs", len(verifiers), "evp", s.evp != nil, "state_dir", *stateDir != "")
 	if *tlsCert != "" {
 		return http.ListenAndServeTLS(*addr, *tlsCert, *tlsKey, s.routes())
 	}
@@ -334,6 +355,7 @@ func (s *server) handleBlindSign(w http.ResponseWriter, r *http.Request) {
 		Binding:     binding[:],
 	}, s.budgets, now)
 	if !decision.Allow {
+		s.log.Warn("blind-sign denied", "family", req.TokenFamily, "count", len(blinded), "reason", decision.Reason)
 		writeJSON(w, http.StatusForbidden, map[string]any{"decision": decision})
 		return
 	}
@@ -344,9 +366,11 @@ func (s *server) handleBlindSign(w http.ResponseWriter, r *http.Request) {
 		Now:      now,
 	})
 	if err != nil {
+		s.log.Warn("blind-sign refused", "family", req.TokenFamily, "count", len(blinded), "err", err.Error())
 		writeJSON(w, http.StatusForbidden, map[string]any{"error": err.Error(), "decision": decision})
 		return
 	}
+	s.log.Info("blind-sign issued", "family", req.TokenFamily, "count", len(blinded), "key_version", s.issuer.KeyVersion())
 	out := make([]string, len(sigs))
 	for i, sig := range sigs {
 		out[i] = base64.RawURLEncoding.EncodeToString(sig)
@@ -385,17 +409,21 @@ func (s *server) handleVerifyBurn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := iss.VerifyBurnToken(token, sha256.Sum256(challenge)); err != nil {
+		s.log.Warn("burn verify rejected", "key_version", iss.KeyVersion(), "err", err.Error())
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
 	if err := s.spent.CheckAndMark(iss.KeyVersion(), token.Nonce); err != nil {
+		s.log.Warn("burn double-spend blocked", "key_version", iss.KeyVersion())
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
 	if err := s.journal.spend(iss.KeyVersion(), token.Nonce); err != nil {
+		s.log.Error("state journal write failed", "err", err.Error())
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "state journal: " + err.Error()})
 		return
 	}
+	s.log.Info("burn spent", "key_version", iss.KeyVersion())
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -443,10 +471,12 @@ func (s *server) handleVerifyPvt(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	if seen {
+		s.log.Warn("pvt nonce replay blocked", "origin", req.Origin)
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "presentation nonce already used for this origin"})
 		return
 	}
 	if err := s.journal.pvt(replayKey); err != nil {
+		s.log.Error("state journal write failed", "err", err.Error())
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "state journal: " + err.Error()})
 		return
 	}
@@ -464,8 +494,10 @@ func (s *server) handleVerifyPvt(w http.ResponseWriter, r *http.Request) {
 		Signature: signature,
 	}, time.Now(), s.maxSkew)
 	if err != nil {
+		s.log.Warn("pvt verify rejected", "origin", req.Origin, "key_version", iss.KeyVersion(), "err", err.Error())
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		return
 	}
+	s.log.Info("pvt presented", "origin", req.Origin, "key_version", iss.KeyVersion())
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "pseudonym_hex": hex.EncodeToString(pseudonym[:])})
 }

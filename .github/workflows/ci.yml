@@ -56,7 +56,7 @@ jobs:
             GOOS=tamago GOARCH=$arch GOOSPKG=github.com/usbarmory/tamago \
               "$TAMAGO" build ./gf16/ ./field/ ./mayo/ ./faest/ ./pomfrit/ ./mldsa/ \
                 ./tokenauth/ ./emailtoken/ ./tokenprofile/ ./tokenservice/ \
-                ./transparency/ ./mailbox/
+                ./transparency/ ./mailbox/ ./logging/
           done
       - name: Build the on-device demo (sifive_u)
         working-directory: cmd/qemudemo

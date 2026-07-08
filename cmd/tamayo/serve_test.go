@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maceip/tamayo/logging"
 	"github.com/maceip/tamayo/mayo"
 	"github.com/maceip/tamayo/tokenauth"
 	"github.com/maceip/tamayo/tokenprofile"
@@ -45,6 +46,7 @@ func testServer(t *testing.T) (*server, *httptest.Server, *tokenprofile.Issuer) 
 		maxSkew:   2 * time.Minute,
 		spent:     tokenservice.NewMemorySpentStore(),
 		seenPvt:   make(map[string]bool),
+		log:       logging.Nop(),
 	}
 	if err := s.initKT(); err != nil {
 		t.Fatalf("initKT: %v", err)
@@ -252,6 +254,7 @@ func TestKeyRotationOverlap(t *testing.T) {
 		maxSkew:   2 * time.Minute,
 		spent:     tokenservice.NewMemorySpentStore(),
 		seenPvt:   make(map[string]bool),
+		log:       logging.Nop(),
 	}
 	if err := s.initKT(); err != nil {
 		t.Fatal(err)

@@ -14,6 +14,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -122,15 +123,21 @@ func (s *server) handleEVPIssuance(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := s.evp.deliver(canonical, code); err != nil {
+			s.log.Error("evp code delivery failed", "err", err.Error())
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "code delivery: " + err.Error()})
 			return
 		}
+		// Never log the address: the mailbox is anonymity-relevant. The keyed
+		// bucket id is a non-reversible HMAC, safe to correlate on.
+		bucket := mailbox.BucketID(s.evp.gateKey, canonical)
+		s.log.Info("evp code sent", "bucket", hex.EncodeToString(bucket[:8]))
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "verification_code_sent"})
 		return
 	}
 
 	canonical, err = s.evp.store.Verify(canonical, body.Code, binding, now)
 	if err != nil {
+		s.log.Warn("evp code rejected", "err", err.Error())
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
 		return
 	}
@@ -138,8 +145,10 @@ func (s *server) handleEVPIssuance(w http.ResponseWriter, r *http.Request) {
 	// An EVT costs one permit out of this mailbox's per-window budget —
 	// the same bucket identity the blind rail charges.
 	bucket := mailbox.BucketID(s.evp.gateKey, canonical)
+	bucketID := hex.EncodeToString(bucket[:8])
 	budgetKey := mailbox.Platform + ":" + base64.RawURLEncoding.EncodeToString(bucket[:]) + ":" + evpBudgetGroup
 	if err := s.budgets.Reserve(budgetKey, 1, s.evp.budgetLimit, s.evp.budgetWindow, time.Unix(int64(now), 0)); err != nil {
+		s.log.Warn("evp budget exceeded", "bucket", bucketID)
 		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "issuance quota exceeded"})
 		return
 	}
@@ -158,6 +167,7 @@ func (s *server) handleEVPIssuance(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
+	s.log.Info("evt issued", "bucket", bucketID)
 	writeJSON(w, http.StatusOK, map[string]string{"issuance_token": evt})
 }
 

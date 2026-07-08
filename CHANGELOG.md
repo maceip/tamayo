@@ -2,6 +2,20 @@
 
 ## unreleased
 
+- new `logging` package: structured logging on stdlib `log/slog`, zero new
+  dependencies (preserves the one-dependency invariant) and tamago-buildable.
+  Host text/json handlers plus a compact, synchronous, timestamp-free
+  `ConsoleHandler` suited to bare-metal (no goroutines, no wall clock, UART
+  as console). Library packages stay logger-agnostic via `Nop()`/`Or()`;
+  only `cmd/tamayo` picks a handler. `serve` gains `-log-level` and
+  `-log-format {text,json,console}` and emits structured events at the
+  security-relevant points — startup, blind-sign allow/deny/refuse, burn
+  spend + double-spend, pvt present + nonce-replay, EVP code/EVT issuance
+  and budget denials. Privacy-preserving by construction: the EVP paths log
+  the keyed mailbox bucket-id prefix, never the email address. (Assessed the
+  facebookincubator go-belt observability framework for this and rejected it
+  — ~33 deps, tamago-hostile; slog is the right fit.)
+
 - faest: the six Even-Mansour parameter sets (FAESTEM128s/f, 192s/f, 256s/f)
   are now fully implemented and verified byte-exact against the FAEST NIST
   KAT (100 vectors each, sk/pk/sm/verify — the KAT surface is now 1200/1200).
