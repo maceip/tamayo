@@ -1439,6 +1439,8 @@ let stepIndex = 0;
 let tokenIndex = 0;
 let playing = true;
 let timer = null;
+let boardHovered = false;
+let boardVisible = true;
 
 const board = document.getElementById("sceneBoard");
 const stepCount = document.getElementById("stepCount");
@@ -1521,7 +1523,7 @@ function buildTokenButtons() {
 
 function scheduleAuto() {
   clearInterval(timer);
-  if (!playing) return;
+  if (!playing || boardHovered || !boardVisible) return;
   timer = setInterval(() => setStep(stepIndex + 1), 4800);
 }
 
@@ -1563,13 +1565,19 @@ scheduleAuto();
 document.getElementById("prevStep").addEventListener("click", () => setStep(stepIndex - 1, true));
 document.getElementById("nextStep").addEventListener("click", () => setStep(stepIndex + 1, true));
 playStory.addEventListener("click", toggleAuto);
-board.addEventListener("mouseenter", () => { if (playing) clearInterval(timer); });
-board.addEventListener("mouseleave", scheduleAuto);
+board.addEventListener("mouseenter", () => {
+  boardHovered = true;
+  clearInterval(timer);
+});
+board.addEventListener("mouseleave", () => {
+  boardHovered = false;
+  scheduleAuto();
+});
 
 if ("IntersectionObserver" in window) {
   const storyObserver = new IntersectionObserver(entries => {
-    if (!entries[0].isIntersecting) clearInterval(timer);
-    else scheduleAuto();
+    boardVisible = entries[0].isIntersecting;
+    scheduleAuto();
   }, { threshold: 0.35 });
   storyObserver.observe(board);
 }
