@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tamayo - limited proof for delegated software</title>
-<meta name="description" content="Tamayo shows how limited cryptographic passes can let legitimate user-approved agents work with services without handing over the master key.">
+<title>Universal Authorization</title>
+<meta name="description" content="Universal authorization beyond issuer trust: Tamayo turns checked facts into narrow cryptographic passes for user-approved software.">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maceip.github.io/tamayo/">
-<meta property="og:title" content="Tamayo - limited proof for delegated software">
-<meta property="og:description" content="A smooth visual story for one-use passes, private identity passes, policy-bound email, and Google email verification token compatibility.">
+<meta property="og:title" content="Universal Authorization">
+<meta property="og:description" content="Beyond issuer trust: cryptographic passes for user-approved software, EVT email validation, and bare-metal Go runtimes.">
 <meta property="og:image" content="https://maceip.github.io/tamayo/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Tamayo - limited proof for delegated software">
-<meta name="twitter:description" content="A visual story for proving enough, without turning every agent request into account takeover risk.">
+<meta name="twitter:title" content="Universal Authorization">
+<meta name="twitter:description" content="Beyond issuer trust: cryptographic passes for user-approved software without a new tracking handle.">
 <meta name="twitter:image" content="https://maceip.github.io/tamayo/og.png">
 <style>
   :root {
@@ -35,6 +35,16 @@
     --red: #e53d45;
     --navy: #0f2c5c;
     --shadow: 0 22px 80px rgba(21, 38, 73, .13);
+    --bb-speed: 4.8s;
+    --bb-glow: rgba(255,216,92,.26);
+    --bb-a: rgba(245,247,250,.96);
+    --bb-b: rgba(255,214,77,.94);
+    --bb-c: rgba(178,188,204,.88);
+    --t-resize-dur: 300ms;
+    --t-resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --t-enter-dur: 420ms;
+    --t-enter-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+    --t-blur: 6px;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -248,6 +258,12 @@
     color: rgba(16,24,39,.72);
     font-size: clamp(18px, 2.2vw, 24px);
   }
+  .hero-copy .hero-subtitle {
+    margin-top: 12px;
+    color: rgba(16,24,39,.8);
+    font-size: clamp(20px, 2.6vw, 32px);
+    letter-spacing: -.02em;
+  }
   .hero-actions {
     display: flex;
     flex-wrap: wrap;
@@ -272,6 +288,56 @@
     color: var(--navy);
     box-shadow: inset 0 0 0 1px rgba(15,44,92,.18);
   }
+
+
+  /* BorderBeam / transitions.dev ports for this static Pages build.
+     border-beam is a React wrapper; this page uses the same conic-beam layer directly.
+     transitions.dev patterns are namespaced under t-* and respect reduced motion below. */
+  .bb, .bb-line, .bb-pulse {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .bb::after, .bb-line::after, .bb-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from var(--bb-angle, 0deg), transparent 0 58%, var(--bb-a), var(--bb-b), var(--bb-c), transparent 83% 100%);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: bb-spin var(--bb-speed) linear infinite;
+    filter: saturate(1.25);
+  }
+  .bb-line::after {
+    inset: auto 0 0;
+    height: 2px;
+    padding: 0;
+    border-radius: 0;
+    background: linear-gradient(90deg, transparent, var(--bb-a), var(--bb-b), transparent);
+    mask: none;
+    animation: t-shimmer 3.4s linear infinite;
+  }
+  .bb-pulse::after { animation: bb-pulse 2.8s ease-in-out infinite; }
+  @property --bb-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  @keyframes bb-spin { to { --bb-angle: 360deg; } }
+  @keyframes bb-pulse { 0%, 100% { opacity: .32; filter: blur(.1px) saturate(1.1); } 50% { opacity: .9; filter: blur(.45px) saturate(1.5); } }
+
+  .t-card-resize { transition: transform var(--t-resize-dur) var(--t-resize-ease), box-shadow var(--t-resize-dur) var(--t-resize-ease), border-color var(--t-resize-dur) var(--t-resize-ease); }
+  .t-card-resize:hover { transform: translateY(-3px) scale(1.01); }
+  .t-panel-reveal { animation: t-panel-in var(--t-enter-dur) var(--t-enter-ease) both; }
+  .t-stagger > * { animation: t-panel-in var(--t-enter-dur) var(--t-enter-ease) both; }
+  .t-stagger > *:nth-child(2) { animation-delay: 70ms; }
+  .t-stagger > *:nth-child(3) { animation-delay: 140ms; }
+  .t-stagger > *:nth-child(4) { animation-delay: 210ms; }
+  .t-shimmer { background-image: linear-gradient(90deg, currentColor 0 35%, var(--blue) 45%, var(--pink) 55%, currentColor 68% 100%); background-size: 220% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: t-shimmer 4s linear infinite; }
+  .t-token-swap { transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease; }
+  .t-token-swap.is-swapping { opacity: .35; filter: blur(var(--t-blur)); transform: translateY(4px); }
+  @keyframes t-panel-in { from { opacity: 0; transform: translateY(12px); filter: blur(var(--t-blur)); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+  @keyframes t-shimmer { from { background-position: 220% 0; } to { background-position: -220% 0; } }
 
   .section {
     padding: clamp(58px, 10vw, 120px) clamp(18px, 5vw, 72px);
@@ -629,6 +695,22 @@
     cursor: pointer;
     font-weight: 800;
   }
+  .story-progress {
+    width: min(360px, 100%);
+    height: 6px;
+    margin-top: 22px;
+    border-radius: 999px;
+    background: rgba(15,44,92,.12);
+    overflow: hidden;
+  }
+  .story-progress span {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--green), var(--blue));
+    transition: width .45s ease;
+  }
   .dots {
     display: flex;
     flex-wrap: wrap;
@@ -644,6 +726,50 @@
     cursor: pointer;
   }
   .dot.active { background: var(--blue); }
+
+
+  .primitive-panel {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 18px;
+  }
+  .primitive-table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: var(--shadow);
+  }
+  .primitive-table th, .primitive-table td {
+    padding: 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    text-align: left;
+  }
+  .primitive-table th {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+  .primitive-table tr:last-child td { border-bottom: 0; }
+  .primitive-table b { color: var(--navy); }
+  .primitive-table a { color: var(--blue); font-weight: 800; text-decoration: none; }
+  .primitive-notes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .primitive-note {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    background: linear-gradient(180deg, #ffffff, #f7faff);
+  }
+  .primitive-note h3 { margin: 0; font-size: 22px; }
+  .primitive-note p { margin: 10px 0 0; color: var(--muted); }
 
   .token-layout {
     width: min(1180px, 100%);
@@ -734,6 +860,59 @@
     font-weight: 800;
   }
 
+
+  .token-note {
+    padding: 14px 18px;
+    background: #f7faff;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .token-note a { color: var(--blue); font-weight: 800; }
+
+  .runtime-model {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .runtime-card {
+    min-height: 460px;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(15,44,92,.12);
+    background: #fff;
+    box-shadow: 0 18px 54px rgba(21,38,73,.08);
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .runtime-card:hover { transform: translateY(-4px); box-shadow: 0 26px 70px rgba(21,38,73,.14); }
+  .runtime-card h3 { margin: 0 0 8px; font-size: 20px; }
+  .runtime-card a {
+    display: inline-flex;
+    width: fit-content;
+    border-radius: 999px;
+    padding: 7px 10px;
+    text-decoration: none;
+    font-weight: 900;
+    color: var(--navy);
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(15,44,92,.1);
+  }
+  .runtime-card span {
+    display: block;
+    margin: -2px 0 8px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .runtime-card.android { background: linear-gradient(180deg, #effaf4, #fff); }
+  .runtime-card.laptop { background: linear-gradient(180deg, #eef4ff, #fff); }
+  .runtime-card.cloud { background: linear-gradient(180deg, #fff5e4, #fff); }
+  .runtime-card.baremetal { background: linear-gradient(180deg, #fbebfa, #fff); }
+
   .principles {
     width: min(1180px, 100%);
     margin: 0 auto;
@@ -776,10 +955,15 @@
     .nav-links { display: none; }
     .hero { min-height: 92svh; align-items: end; }
     .floating-card { display: none; }
-    .story-grid, .token-layout, .principles { grid-template-columns: 1fr; }
+    .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes { grid-template-columns: 1fr; }
     .scene-board { min-height: 560px; }
     .story-copy { justify-content: flex-start; }
-    .token-facts { grid-template-columns: 1fr; }
+    .token-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .token-button { padding: 12px; }
+    .token-button strong { font-size: 14px; }
+    .token-button span { display: none; }
+    .token-visual { min-height: 220px; }
+    .token-facts { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 921px) and (max-width: 1300px) {
     .floating-card.device,
@@ -800,6 +984,9 @@
     .proof-panel { grid-template-columns: 1fr; bottom: 14px; }
     .proof-panel div { min-height: 58px; }
     .section { padding-inline: 16px; }
+    .primitive-table { display: block; overflow-x: auto; }
+    .token-facts { grid-template-columns: 1fr; }
+    .runtime-card { min-height: auto; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -809,6 +996,7 @@
       scroll-behavior: auto !important;
       transition-duration: .01ms !important;
     }
+    .bb::after, .bb-line::after, .bb-pulse::after, .t-panel-reveal, .t-stagger > *, .t-shimmer { animation: none !important; }
   }
 </style>
 </head>
@@ -816,9 +1004,12 @@
 <nav class="site-nav" aria-label="Main">
   <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Tamayo</span></div>
   <div class="nav-links">
+    <a href="#tamago">TamaGo</a>
+    <a href="#tee">TEE</a>
+    <a href="#primitives">Crypto</a>
+    <a href="#passes">Tokens</a>
+    <a href="#policy">Policy</a>
     <a href="#movie">Story</a>
-    <a href="#passes">Passes</a>
-    <a href="#crypto">Crypto</a>
     <a href="https://github.com/maceip/tamayo">GitHub</a>
   </div>
 </nav>
@@ -834,29 +1025,169 @@
     <div class="floating-card prompt"><strong>security prompt</strong><span>prove it again</span></div>
   </div>
   <div class="hero-copy">
-    <div class="eyebrow">limited proof for delegated software</div>
-    <h1>Let the agent through without handing over the master key.</h1>
+    <div class="eyebrow t-shimmer">beyond issuer trust</div>
+    <h1>Universal Authorization</h1>
+    <p class="hero-subtitle">beyond issuer trust</p>
     <p>
-      Tamayo turns checked facts into narrow passes: enough evidence for a service to trust a legitimate user-approved action, without making every request a tracking handle or account takeover risk.
+      Tamayo turns checked facts into narrow passes: enough evidence for a service to accept a user-approved action, without making every request a tracking handle or account takeover risk.
     </p>
     <div class="hero-actions">
-      <a class="button" href="#movie">Watch the story</a>
-      <a class="button secondary" href="#passes">Open the pass catalogue</a>
+      <a class="button bb-pulse" href="#tamago">Start at layer 1</a>
+      <a class="button secondary bb-line" href="#passes">Open the pass catalogue</a>
     </div>
   </div>
 </header>
 
 <main>
+  <section class="section" id="tamago">
+    <div class="section-head">
+      <h2>OSI Layer 1: TamaGo</h2>
+      <p>
+        TamaGo lets Go code run as firmware on supported hardware. There is no Linux process, libc layer, shell, package manager, or container runtime in the critical path. That matters for Tamayo because the code that checks policy and issues a pass can be measured as a small program instead of as an application buried inside a general-purpose operating system.
+      </p>
+    </div>
+
+    <div class="primitive-notes t-stagger">
+      <article class="primitive-note bb-pulse t-card-resize">
+        <h3>Go all the way down</h3>
+        <p>Tamayo keeps the cryptography cgo-free so the same packages can run under normal host Go during development and under GOOS=tamago when the deployment calls for bare metal.</p>
+      </article>
+      <article class="primitive-note bb-pulse t-card-resize">
+        <h3>A smaller thing to measure</h3>
+        <p>The issuer can write policy against a known runtime measurement. The promise is not magic hardware; it is a shorter, clearer path from source code to the binary allowed to mint a pass.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section dark" id="tee">
+    <div class="section-head">
+      <h2>OSI Layer 2: Trusted Execution Environments, Confidential VMs, and Secure Enclaves</h2>
+      <p>
+        Tamayo grew out of practical work on remote attestation, including Unified Quote flows and SGX deployments where the hard part was not naming an enclave. The hard part was deciding which measured program, signer, configuration, and update path should be trusted to act for a user.
+      </p>
+    </div>
+    <div class="principles">
+      <div class="principle bb-line t-card-resize">
+        <b>What attestation proves</b>
+        <p>A TEE or confidential VM can report a measurement for the code that is running. Tamayo treats that report as evidence for policy, not as a replacement for signatures, blind issuance, or verifier checks.</p>
+      </div>
+      <div class="principle bb-line t-card-resize">
+        <b>What SGX taught us</b>
+        <p>Enclaves are useful when the contract is explicit: which code, which signer, which version, and which data path. Tamayo keeps those fields visible so an issuer can accept one runtime and reject another.</p>
+      </div>
+      <div class="principle bb-line t-card-resize">
+        <b>Where it fits</b>
+        <p>Android attestation, laptop hardware keys, SGX, SEV-SNP, TDX, and bare-metal TamaGo can all feed the same decision: is this request coming from an approved execution environment for this token family?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="primitives">
+    <div class="section-head">
+      <h2>OSI Layer 3: Cryptography</h2>
+      <p>
+        We ported the following libraries from their authors’ repositories, brought over their validation tests, and implemented the supporting primitives they rely on:
+      </p>
+    </div>
+
+    <div class="primitive-panel t-stagger">
+      <table class="primitive-table bb">
+        <thead>
+          <tr><th>Primitive</th><th>What it is</th><th>Standalone use</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b><a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/faest/faest_sign.go">FAEST</a></b></td>
+            <td>A post-quantum signature family built from symmetric primitives and zero-knowledge proofs.</td>
+            <td>Import the Go package to sign runtime statements, policy files, or transparency-log heads.</td>
+            <td><a href="https://csrc.nist.gov/News/2026/nist-advances-9-candidates-to-the-3rd-round-of-pqc">NIST additional-signature round 3 candidate</a>.</td>
+          </tr>
+          <tr>
+            <td><b><a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/mayo/sign.go">MAYO</a></b></td>
+            <td>A compact multivariate signature family over GF(16).</td>
+            <td>Use MAYO signing directly, or use its preimage path inside blind signatures.</td>
+            <td><a href="https://csrc.nist.gov/News/2026/nist-advances-9-candidates-to-the-3rd-round-of-pqc">NIST additional-signature round 3 candidate</a>.</td>
+          </tr>
+          <tr>
+            <td><b><a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/pomfrit/blind.go">PoMFRIT</a></b></td>
+            <td>A One-More-MAYO blind-signature construction with verifier checks over the same Go primitives.</td>
+            <td>Build anonymous one-use credentials or other blind-issuance protocols.</td>
+            <td>Implemented and cross-checked against reference vectors in this repo.</td>
+          </tr>
+          <tr>
+            <td><b><a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/gf16/gf16.go">GF(16)</a> and <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/field/field.go">binary fields</a></b></td>
+            <td>Small and large finite-field arithmetic used by MAYO, FAEST, VOLE checks, and circuit code.</td>
+            <td>Reuse the field math for tests, experiments, or other proof systems without importing the token service.</td>
+            <td>Plain Go implementations with focused algebra and reference-vector tests.</td>
+          </tr>
+          <tr>
+            <td><b><a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/mldsa/mldsa.go">ML-DSA</a></b></td>
+            <td>The standardized module-lattice signature used where a FIPS-track signature is the right tool.</td>
+            <td>Bind holder presentations or sign email-token profiles without tying them to blind issuance.</td>
+            <td>Implemented with NIST ACVP-style vectors in the repository.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="passes">
+    <div class="section-head">
+      <h2>OSI Layer 6: Tokens</h2>
+      <p>
+        The useful split is simple: what the verifier learns, what stays hidden, and which checks the issuer runs before minting.
+      </p>
+    </div>
+
+    <div class="token-layout">
+      <div class="token-buttons" id="tokenButtons"></div>
+      <div class="token-detail bb t-token-swap" id="tokenDetail" aria-live="polite">
+        <div class="token-visual">
+          <div class="mini-pass">
+            <b id="tokenTitle">One-use pass</b>
+            <span id="tokenPlain">Let this request through once.</span>
+          </div>
+        </div>
+        <div class="token-facts">
+          <div class="fact"><b>Verifier learns</b><span id="tokenLearns">allowed once</span></div>
+          <div class="fact"><b>Stays hidden</b><span id="tokenHidden">stable identity</span></div>
+          <div class="fact"><b>Issuer sees</b><span id="tokenIssuer">issuance rule passed</span></div>
+          <div class="fact"><b>Best mental model</b><span id="tokenModel">drink ticket</span></div>
+        </div>
+        <div class="token-note" id="tokenNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="policy">
+    <div class="section-head">
+      <h2>OSI Layer 7: Policy</h2>
+      <p>
+        Policy is the point where the issuer says exactly what counts as enough evidence. It sits above the runtime and the cryptography: not because it is stronger, but because it names the business rule that must be true before a pass can be minted.
+      </p>
+    </div>
+    <div class="primitive-notes t-stagger">
+      <article class="primitive-note bb-pulse t-card-resize">
+        <h3>Inputs</h3>
+        <p>A policy can check token family, origin, email validation, runtime measurement, signer identity, assurance level, and per-user or per-bucket budgets.</p>
+      </article>
+      <article class="primitive-note bb-pulse t-card-resize">
+        <h3>Output</h3>
+        <p>The result is deliberately small: mint this kind of pass, for this purpose, under these limits. The verifier receives the pass; it does not receive the whole policy file or the private evidence behind it.</p>
+      </article>
+    </div>
+  </section>
+
   <section class="section dark" id="movie">
     <div class="section-head">
-      <h2>The modern internet sees help and calls it danger.</h2>
+      <h2>Real help still looks like risk.</h2>
       <p>
-        Money networks and reputation networks have good reasons to be suspicious. Users still need a way to delegate ordinary tasks without tripping every alarm.
+        PayPal and LinkedIn are not wrong to be suspicious. The missing piece is proof that a delegated action is narrow, approved, and not a new account handle.
       </p>
     </div>
 
     <div class="story-grid">
-      <div class="scene-board" id="sceneBoard" data-scene="normal-task" aria-label="Interactive story scene">
+      <div class="scene-board bb" id="sceneBoard" data-scene="normal-task" aria-label="Interactive story scene">
         <svg class="route-svg" viewBox="0 0 720 620" preserveAspectRatio="none" aria-hidden="true">
           <path d="M360 292 C230 220 160 180 112 154"></path>
           <path d="M360 292 C494 220 564 180 610 154"></path>
@@ -902,54 +1233,77 @@
             <span id="playLabel">Auto playing</span>
           </button>
         </div>
+        <div class="story-progress" aria-hidden="true"><span id="storyProgress"></span></div>
         <div class="dots" id="stepDots" aria-label="Story steps"></div>
       </div>
     </div>
   </section>
 
-  <section class="section" id="passes">
+  <section class="section" id="runtime">
     <div class="section-head">
-      <h2>Four passes, four different promises.</h2>
+      <h2>Runtime stack: from apps to bare metal.</h2>
       <p>
-        The important question is not the token name. It is what the verifier learns, what stays hidden, and where the service can use policy before issuing a pass.
+        TamaGo is a unikernel-style Go runtime for supported boards: Go code becomes the firmware and talks to hardware directly. That removes the host operating system from the trusted path, keeps the build small enough to inspect, and gives an issuer a clear measurement to put into policy. Tamayo still runs on Android, laptops, and cloud TEEs; bare metal is the lower layer when the job needs it.
       </p>
     </div>
 
-    <div class="token-layout">
-      <div class="token-buttons" id="tokenButtons"></div>
-      <div class="token-detail" aria-live="polite">
-        <div class="token-visual">
-          <div class="mini-pass">
-            <b id="tokenTitle">One-use pass</b>
-            <span id="tokenPlain">Let this request through once.</span>
-          </div>
-        </div>
-        <div class="token-facts">
-          <div class="fact"><b>Verifier learns</b><span id="tokenLearns">allowed once</span></div>
-          <div class="fact"><b>Stays hidden</b><span id="tokenHidden">stable identity</span></div>
-          <div class="fact"><b>Best mental model</b><span id="tokenModel">drink ticket</span></div>
-        </div>
-      </div>
+    <div class="runtime-model t-stagger" aria-label="Runtime stack comparison">
+      <article class="runtime-card bb-pulse t-card-resize android">
+        <h3>Android phone</h3>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/tokenauth/types.go">policy gate</a>
+        <span>Android Keystore / attestation feeds authorization evidence.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/emailtoken/evt.go">EVT rail</a>
+        <span>Email proof can use the browser-mediated EVT path.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/tokenservice/service.go">token service API</a>
+        <span>The product app supplies transport and storage.</span>
+      </article>
+      <article class="runtime-card bb-pulse t-card-resize laptop">
+        <h3>Windows laptop</h3>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/tokenprofile/private_identity.go">holder proof</a>
+        <span>Ed25519, FAEST-128s, or ML-DSA-44 can bind a presentation.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/tokenprofile/burn.go">anonymous rate-limited credential</a>
+        <span>One request can be accepted without a stable user handle.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/cmd/tamayo/serve.go">reference issuer</a>
+        <span>The demo server shows the contract, not the product shell.</span>
+      </article>
+      <article class="runtime-card bb-pulse t-card-resize cloud">
+        <h3>Cloud with TEE</h3>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/tokenauth/evaluate.go">measurement authorization</a>
+        <span>TEE claims become inputs to the issuer decision.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/transparency/transparency.go">key transparency</a>
+        <span>Clients can detect issuer key history changes.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/cmd/tamayo/state.go">state boundary</a>
+        <span>Durable spent-token and budget stores belong to deployments.</span>
+      </article>
+      <article class="runtime-card bb-pulse t-card-resize baremetal">
+        <h3>TamaGo bare metal</h3>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/cmd/qemudemo/main.go">QEMU demo</a>
+        <span>The PoMFRIT/MAYO path boots as a TamaGo target.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/logging/logging.go">small logging path</a>
+        <span>Plain Go logging works without a host service.</span>
+        <a href="https://github.com/maceip/tamayo/blob/f3e1bbf2dd53a75e39017fa89ef7a02bd0a64039/README.md">cgo-free library</a>
+        <span>The same package set builds for host Go and GOOS=tamago.</span>
+      </article>
     </div>
   </section>
 
   <section class="section dark" id="crypto">
     <div class="section-head">
-      <h2>The technical part answers the question the story creates.</h2>
+      <h2>Why the verifier can say yes</h2>
       <p>
         Why not just give the agent a password? Why does this not become another tracking ID? Why would a hard-mode service trust the pass at all?
       </p>
     </div>
     <div class="principles">
-      <div class="principle">
+      <div class="principle bb-line t-card-resize">
         <b>Blind issuance</b>
         <p>The issuer can approve a sealed pass without learning the final pass that a verifier will later see.</p>
       </div>
-      <div class="principle">
+      <div class="principle bb-line t-card-resize">
         <b>Zero knowledge</b>
         <p>The holder can prove the pass is valid without dumping the extra facts that were checked along the way.</p>
       </div>
-      <div class="principle">
+      <div class="principle bb-line t-card-resize">
         <b>Policy before minting</b>
         <p>A service can require email evidence, runtime measurement, or another rule before a pass is issued.</p>
       </div>
@@ -959,8 +1313,9 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <span>Tamayo is a Go, cgo-free crypto and token-profile library for limited proofs.</span>
+    <span>Tamayo is a Go, cgo-free crypto and token-profile library built for host Go and TamaGo.</span>
     <a href="https://github.com/maceip/tamayo">View the repository</a>
+    <a href="https://github.com/maceip/dialkit">dialkit</a>
   </div>
 </footer>
 
@@ -999,7 +1354,7 @@ const steps = [
   {
     scene: "bad-lanes",
     title: "Today the choices are too blunt.",
-    body: "Hand over the master key, accept a giant scope, drive a browser that gets blocked, or send the user back through another challenge loop.",
+    body: "Give the agent a password, approve a giant OAuth scope, drive a browser that gets blocked, or send the user back through another challenge loop.",
     tags: ["password handoff", "broad OAuth", "blocked automation"],
     pass: "too much access or too little trust",
   },
@@ -1007,7 +1362,7 @@ const steps = [
     scene: "third-lane",
     title: "Tamayo is the third lane.",
     body: "A trusted check becomes a limited pass. The agent can present that pass, and the service can verify the narrow fact it actually needs.",
-    tags: ["limited proof", "delegated action", "less linkage"],
+    tags: ["narrow proof", "delegated action", "less linkage"],
     pass: "enough proof to proceed",
   },
   {
@@ -1035,40 +1390,48 @@ const steps = [
 
 const tokens = [
   {
-    name: "One-use pass",
-    plain: "Let this request through once.",
+    name: "Anonymous rate-limited credential",
+    plain: "Let this request through once, within a budget.",
     learns: "allowed once",
     hidden: "stable identity",
+    issuer: "budget and policy result",
     model: "drink ticket",
-    button: "Burn token",
-    summary: "Anonymous one-use access. Spend it and it is done.",
+    button: "Anonymous rate-limited credential",
+    summary: "One-use access without a stable account handle.",
+    note: "This is the practical role of row 1: anonymous, one-use, and rate-limited by issuer policy.",
   },
   {
-    name: "Return pass",
+    name: "Private identity token",
     plain: "Remember me here, not everywhere.",
     learns: "same visitor at this site",
     hidden: "email and cross-site identity",
+    issuer: "token family and policy result",
     model: "venue wristband",
     button: "Private identity token",
     summary: "A relying-party-bound pseudonym for continuity without an email address.",
+    note: "Use this when continuity matters but an email address would reveal too much.",
   },
   {
-    name: "Email plus policy pass",
+    name: "Policy-bound email token",
     plain: "Show my email when the service really needs it.",
     learns: "email and issuance context",
     hidden: "unneeded account history",
+    issuer: "email proof plus required gate",
     model: "checked badge",
     button: "Policy-bound email token",
     summary: "Address-bearing email proof where issuance can require policy or runtime evidence.",
+    note: "This is for services that need the address and also need an issuer-side policy check.",
   },
   {
-    name: "Google-compatible email pass",
-    plain: "Speak the existing email-token language too.",
+    name: "EVT email validation token",
+    plain: "Speak the emerging email-token language too.",
     learns: "verified email address",
     hidden: "private-token machinery",
+    issuer: "email session and browser key",
     model: "email receipt",
-    button: "Google email verification token",
-    summary: "A compatibility rail for the Google email verification token format.",
+    button: "EVT email validation token",
+    summary: "Compatibility with the Email Verification Token flow.",
+    note: "EVT means Email Verification Token; see the current IETF draft: <a href=\"https://datatracker.ietf.org/doc/html/draft-hardt-email-verification-01\">draft-hardt-email-verification</a>.",
   },
 ];
 
@@ -1087,7 +1450,10 @@ const scenePassText = document.getElementById("scenePassText");
 const playStory = document.getElementById("playStory");
 const playLabel = document.getElementById("playLabel");
 const playIcon = document.getElementById("playIcon");
+const storyProgress = document.getElementById("storyProgress");
 const tokenButtons = document.getElementById("tokenButtons");
+const tokenDetail = document.getElementById("tokenDetail");
+const tokenNote = document.getElementById("tokenNote");
 
 function setStep(index, userAction = false) {
   stepIndex = (index + steps.length) % steps.length;
@@ -1097,6 +1463,7 @@ function setStep(index, userAction = false) {
   stepTitle.textContent = step.title;
   stepBody.textContent = step.body;
   scenePassText.textContent = step.pass;
+  storyProgress.style.width = `${((stepIndex + 1) / steps.length) * 100}%`;
   stepTags.replaceChildren(...step.tags.map(text => {
     const span = document.createElement("span");
     span.className = "tag";
@@ -1123,13 +1490,17 @@ function buildDots() {
 }
 
 function setToken(index) {
+  tokenDetail.classList.add("is-swapping");
+  window.setTimeout(() => tokenDetail.classList.remove("is-swapping"), 180);
   tokenIndex = (index + tokens.length) % tokens.length;
   const token = tokens[tokenIndex];
   document.getElementById("tokenTitle").textContent = token.name;
   document.getElementById("tokenPlain").textContent = token.plain;
   document.getElementById("tokenLearns").textContent = token.learns;
   document.getElementById("tokenHidden").textContent = token.hidden;
+  document.getElementById("tokenIssuer").textContent = token.issuer;
   document.getElementById("tokenModel").textContent = token.model;
+  tokenNote.innerHTML = token.note;
   [...tokenButtons.children].forEach((button, i) => {
     button.classList.toggle("active", i === tokenIndex);
     button.setAttribute("aria-pressed", i === tokenIndex ? "true" : "false");
@@ -1140,7 +1511,7 @@ function setToken(index) {
 function buildTokenButtons() {
   tokenButtons.replaceChildren(...tokens.map((token, i) => {
     const button = document.createElement("button");
-    button.className = "token-button";
+    button.className = "token-button bb-line t-card-resize";
     button.type = "button";
     button.innerHTML = `<strong>${token.button}</strong><span>${token.summary}</span>`;
     button.addEventListener("click", () => setToken(i));
@@ -1192,6 +1563,16 @@ scheduleAuto();
 document.getElementById("prevStep").addEventListener("click", () => setStep(stepIndex - 1, true));
 document.getElementById("nextStep").addEventListener("click", () => setStep(stepIndex + 1, true));
 playStory.addEventListener("click", toggleAuto);
+board.addEventListener("mouseenter", () => { if (playing) clearInterval(timer); });
+board.addEventListener("mouseleave", scheduleAuto);
+
+if ("IntersectionObserver" in window) {
+  const storyObserver = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) clearInterval(timer);
+    else scheduleAuto();
+  }, { threshold: 0.35 });
+  storyObserver.observe(board);
+}
 
 window.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") setStep(stepIndex + 1, true);
