@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Universal Authorization</title>
-<meta name="description" content="Universal authorization beyond issuer trust: Tamayo turns checked facts into narrow cryptographic passes for user-approved software.">
+<meta name="description" content="Universal authorization: Tamayo turns checked facts into narrow cryptographic passes for user-approved software.">
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://maceip.github.io/tamayo/">
 <meta property="og:title" content="Universal Authorization">
-<meta property="og:description" content="Beyond issuer trust: cryptographic passes for user-approved software, EVT email validation, and bare-metal Go runtimes.">
+<meta property="og:description" content="Cryptographic passes for user-approved software, EVT email validation, and bare-metal Go runtimes.">
 <meta property="og:image" content="https://maceip.github.io/tamayo/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Universal Authorization">
-<meta name="twitter:description" content="Beyond issuer trust: cryptographic passes for user-approved software without a new tracking handle.">
+<meta name="twitter:description" content="Cryptographic passes for user-approved software without a new tracking handle.">
 <meta name="twitter:image" content="https://maceip.github.io/tamayo/og.png">
 <style>
   :root {
@@ -122,7 +122,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: .5;
+    opacity: .78;
     filter: saturate(1.2);
   }
   .hero-scene::before,
@@ -193,39 +193,173 @@
     0%, 100% { opacity: .18; }
     50% { opacity: .7; }
   }
-  .floating-card {
+  .hero-orbit-field {
     position: absolute;
-    min-width: 142px;
-    padding: 12px 14px;
-    border: 1px solid rgba(15, 44, 92, .14);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, .58);
-    backdrop-filter: blur(18px) saturate(1.25);
-    box-shadow: 0 18px 50px rgba(35,104,255,.12);
-    animation: floatCard 7s ease-in-out infinite;
+    inset: 0;
+    overflow: hidden;
   }
-  .floating-card strong {
-    display: block;
-    font-size: 13px;
+  .auth-launcher {
+    position: absolute;
+    left: -72px;
+    top: 66%;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 74% 48%, rgba(255,214,77,.72), transparent 16%),
+      radial-gradient(circle, rgba(245,247,250,.44), transparent 68%);
+    filter: blur(.2px);
+    opacity: .42;
+  }
+  .auth-planet {
+    --planet-x: 50vw;
+    --planet-y: 50svh;
+    --planet-size: clamp(76px, 9vw, 128px);
+    --orbit-size: clamp(112px, 13vw, 176px);
+    position: absolute;
+    left: var(--planet-x);
+    top: var(--planet-y);
+    z-index: 1;
+    width: var(--planet-size);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    text-align: center;
     color: var(--navy);
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255,255,255,.95) 0 10%, transparent 11%),
+      radial-gradient(circle at 58% 64%, rgba(255,255,255,.22), transparent 36%),
+      linear-gradient(145deg, rgba(245,247,250,.95), rgba(255,214,77,.58) 46%, rgba(178,188,204,.62));
+    box-shadow:
+      inset -16px -18px 34px rgba(15,44,92,.12),
+      inset 12px 14px 22px rgba(255,255,255,.42),
+      0 18px 58px rgba(35,104,255,.12);
+    animation: planetDrift 20s ease-in-out infinite;
   }
-  .floating-card span {
+  .auth-planet::before {
+    content: "";
+    position: absolute;
+    inset: -18%;
+    border-radius: 50%;
+    border: 1px solid rgba(15,44,92,.13);
+    transform: rotate(-18deg) scaleY(.42);
+  }
+  .auth-planet strong {
+    display: block;
+    font-size: clamp(12px, 1.2vw, 15px);
+    line-height: 1.05;
+  }
+  .auth-planet span {
     display: block;
     margin-top: 4px;
-    font-size: 12px;
+    padding-inline: 8px;
     color: rgba(16,24,39,.68);
+    font-size: clamp(10px, 1vw, 12px);
+    line-height: 1.15;
   }
-  .floating-card.paypal { top: 18%; right: 6%; border-color: rgba(40, 120, 255, .48); }
-  .floating-card.linkedin { bottom: 17%; left: 3%; border-color: rgba(49, 196, 141, .44); animation-delay: 1.1s; }
-  .floating-card.device { top: 29%; left: 3%; border-color: rgba(242, 184, 75, .44); animation-delay: 2s; }
-  .floating-card.prompt { right: 6%; bottom: 30%; border-color: rgba(240, 91, 87, .5); animation-delay: 2.7s; }
-  @keyframes floatCard {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-14px); }
+  .auth-planet.finance { --planet-x: 85vw; --planet-y: 16svh; animation-delay: -3s; }
+  .auth-planet.identity {
+    --planet-x: 13vw;
+    --planet-y: 78svh;
+    background:
+      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
+      radial-gradient(circle at 62% 62%, rgba(255,255,255,.18), transparent 35%),
+      linear-gradient(145deg, rgba(245,247,250,.96), rgba(25,185,135,.46) 48%, rgba(178,188,204,.68));
+    animation-delay: -8s;
+  }
+  .auth-planet.device {
+    --planet-x: 28vw;
+    --planet-y: 14svh;
+    background:
+      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
+      radial-gradient(circle at 60% 60%, rgba(255,255,255,.2), transparent 36%),
+      linear-gradient(145deg, rgba(245,247,250,.95), rgba(35,104,255,.34) 50%, rgba(178,188,204,.74));
+    animation-delay: -13s;
+  }
+  .auth-planet.challenge {
+    --planet-x: 88vw;
+    --planet-y: 80svh;
+    background:
+      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
+      radial-gradient(circle at 64% 62%, rgba(255,255,255,.18), transparent 36%),
+      linear-gradient(145deg, rgba(245,247,250,.94), rgba(217,75,197,.26) 44%, rgba(178,188,204,.74));
+    animation-delay: -17s;
+  }
+  @keyframes planetDrift {
+    0%, 100% { transform: translate3d(-50%, -50%, 0); }
+    50% { transform: translate3d(-50%, calc(-50% - 12px), 0); }
+  }
+  .authorization-flight {
+    --planet-x: 50vw;
+    --planet-y: 50svh;
+    --orbit-size: 144px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: var(--orbit-size);
+    height: var(--orbit-size);
+    opacity: 0;
+    transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82);
+    animation: authorizationLaunch 13s cubic-bezier(.2,.72,.26,1) forwards;
+  }
+  .authorization-orbit {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(15,44,92,.1);
+    border-radius: 50%;
+    animation: satelliteOrbit 30s linear infinite;
+    animation-delay: 9.5s;
+  }
+  .authorization-satellite {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 17px;
+    height: 9px;
+    border-radius: 999px 999px 999px 3px;
+    background:
+      radial-gradient(circle at 76% 38%, rgba(255,255,255,.95) 0 17%, transparent 18%),
+      linear-gradient(90deg, rgba(245,247,250,.96), rgba(255,214,77,.9));
+    box-shadow: 0 0 18px rgba(255,214,77,.28);
+    transform: translate(-50%, -50%) rotate(10deg);
+  }
+  .authorization-satellite::before {
+    content: "";
+    position: absolute;
+    right: 13px;
+    top: 3px;
+    width: 34px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(255,214,77,.55), rgba(245,247,250,.75));
+    filter: blur(.4px);
+  }
+  .authorization-flight.malicious .authorization-orbit {
+    border-color: rgba(229,61,69,.3);
+  }
+  .authorization-flight.malicious .authorization-satellite {
+    background:
+      radial-gradient(circle at 76% 38%, rgba(255,255,255,.95) 0 17%, transparent 18%),
+      linear-gradient(90deg, rgba(255,112,112,.98), rgba(229,61,69,.96));
+    box-shadow: 0 0 24px rgba(229,61,69,.48);
+  }
+  .authorization-flight.malicious .authorization-satellite::before {
+    background: linear-gradient(90deg, transparent, rgba(229,61,69,.42), rgba(255,112,112,.72));
+  }
+  @keyframes authorizationLaunch {
+    0% { opacity: 0; transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82); }
+    10% { opacity: .86; }
+    58% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1); }
+    100% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1); }
+  }
+  @keyframes satelliteOrbit {
+    to { transform: rotate(360deg); }
   }
   .hero-copy {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     width: min(980px, 100%);
   }
   .eyebrow {
@@ -262,7 +396,7 @@
     margin-top: 12px;
     color: rgba(16,24,39,.8);
     font-size: clamp(20px, 2.6vw, 32px);
-    letter-spacing: -.02em;
+    letter-spacing: 0;
   }
   .hero-actions {
     display: flex;
@@ -751,7 +885,7 @@
   .primitive-table th {
     color: var(--muted);
     font-size: 13px;
-    letter-spacing: .02em;
+    letter-spacing: 0;
     text-transform: uppercase;
   }
   .primitive-table tr:last-child td { border-bottom: 0; }
@@ -954,7 +1088,11 @@
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
     .hero { min-height: 92svh; align-items: end; }
-    .floating-card { display: none; }
+    .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
+    .auth-planet.finance { --planet-x: 79vw; --planet-y: 15svh; }
+    .auth-planet.identity { --planet-x: 18vw; --planet-y: 79svh; }
+    .auth-planet.device { --planet-x: 30vw; --planet-y: 13svh; }
+    .auth-planet.challenge { --planet-x: 84vw; --planet-y: 78svh; }
     .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes { grid-template-columns: 1fr; }
     .scene-board { min-height: 560px; }
     .story-copy { justify-content: flex-start; }
@@ -966,11 +1104,19 @@
     .token-facts { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 921px) and (max-width: 1300px) {
-    .floating-card.device,
-    .floating-card.linkedin { display: none; }
+    .auth-planet.device { --planet-x: 29vw; --planet-y: 13svh; }
+    .auth-planet.identity { --planet-x: 13vw; --planet-y: 79svh; }
   }
   @media (max-width: 560px) {
     .hero { padding-inline: 18px; }
+    .hero-scene { opacity: .5; }
+    .auth-planet { --planet-size: 70px; --orbit-size: 98px; }
+    .auth-planet.finance { --planet-x: 78vw; --planet-y: 14svh; }
+    .auth-planet.identity { --planet-x: 16vw; --planet-y: 92svh; }
+    .auth-planet.device { --planet-x: 31vw; --planet-y: 13svh; }
+    .auth-planet.challenge { --planet-x: 86vw; --planet-y: 92svh; }
+    .auth-planet strong { font-size: 11px; }
+    .auth-planet span { display: none; }
     .hero-actions { align-items: stretch; }
     .button { width: 100%; text-align: center; }
     .scene-board { min-height: 430px; }
@@ -1019,15 +1165,16 @@
     <div class="hero-line one"></div>
     <div class="hero-line two"></div>
     <div class="hero-line three"></div>
-    <div class="floating-card paypal"><strong>PayPal task</strong><span>move my own money</span></div>
-    <div class="floating-card linkedin"><strong>LinkedIn task</strong><span>message real contacts</span></div>
-    <div class="floating-card device"><strong>device cloud</strong><span>phone, laptop, tablet, agent</span></div>
-    <div class="floating-card prompt"><strong>security prompt</strong><span>prove it again</span></div>
+    <div class="hero-orbit-field" id="heroOrbitField">
+      <div class="auth-launcher"></div>
+      <div class="auth-planet finance"><strong>money</strong><span>PayPal task</span></div>
+      <div class="auth-planet identity"><strong>identity</strong><span>LinkedIn task</span></div>
+      <div class="auth-planet device"><strong>device cloud</strong><span>phone, laptop, tablet, agent</span></div>
+      <div class="auth-planet challenge"><strong>challenge</strong><span>security prompt</span></div>
+    </div>
   </div>
   <div class="hero-copy">
-    <div class="eyebrow t-shimmer">beyond issuer trust</div>
     <h1>Universal Authorization</h1>
-    <p class="hero-subtitle">beyond issuer trust</p>
     <p>
       Tamayo turns checked facts into narrow passes: enough evidence for a service to accept a user-approved action, without making every request a tracking handle or account takeover risk.
     </p>
@@ -1441,6 +1588,9 @@ let playing = true;
 let timer = null;
 let boardHovered = false;
 let boardVisible = true;
+let authorizationLaunchCount = 0;
+let authorizationTimer = null;
+let lastAuthorizationLaunch = null;
 
 const board = document.getElementById("sceneBoard");
 const stepCount = document.getElementById("stepCount");
@@ -1456,6 +1606,9 @@ const storyProgress = document.getElementById("storyProgress");
 const tokenButtons = document.getElementById("tokenButtons");
 const tokenDetail = document.getElementById("tokenDetail");
 const tokenNote = document.getElementById("tokenNote");
+const heroOrbitField = document.getElementById("heroOrbitField");
+const heroPlanets = [...document.querySelectorAll(".auth-planet")];
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 function setStep(index, userAction = false) {
   stepIndex = (index + steps.length) % steps.length;
@@ -1552,7 +1705,49 @@ function syncState() {
     playing,
     scene: steps[stepIndex].scene,
     token: tokens[tokenIndex].button,
+    authorizationLaunchCount,
+    lastAuthorizationLaunch,
   };
+}
+
+function fireAuthorizationSatellite() {
+  if (!heroOrbitField || heroPlanets.length === 0 || document.hidden) return;
+  authorizationLaunchCount += 1;
+
+  const planet = heroPlanets[(authorizationLaunchCount - 1) % heroPlanets.length];
+  const styles = getComputedStyle(planet);
+  const dice = authorizationLaunchCount % 10 === 0 ? Math.floor(Math.random() * 6) + 1 : null;
+  const malicious = dice === 6;
+  const flight = document.createElement("span");
+  const orbit = document.createElement("span");
+  const satellite = document.createElement("span");
+
+  flight.className = malicious ? "authorization-flight malicious" : "authorization-flight";
+  orbit.className = "authorization-orbit";
+  satellite.className = "authorization-satellite";
+  flight.setAttribute("aria-hidden", "true");
+  flight.style.setProperty("--planet-x", styles.getPropertyValue("--planet-x").trim() || "50vw");
+  flight.style.setProperty("--planet-y", styles.getPropertyValue("--planet-y").trim() || "50svh");
+  flight.style.setProperty("--orbit-size", styles.getPropertyValue("--orbit-size").trim() || "144px");
+
+  orbit.appendChild(satellite);
+  flight.appendChild(orbit);
+  heroOrbitField.appendChild(flight);
+  window.setTimeout(() => flight.remove(), 43000);
+
+  lastAuthorizationLaunch = {
+    count: authorizationLaunchCount,
+    planet: [...planet.classList].find(name => name !== "auth-planet") || "planet",
+    dice,
+    malicious,
+  };
+  syncState();
+}
+
+function startAuthorizationSequence() {
+  if (reducedMotionQuery.matches || !heroOrbitField || heroPlanets.length === 0) return;
+  window.setTimeout(fireAuthorizationSatellite, 1400);
+  authorizationTimer = window.setInterval(fireAuthorizationSatellite, 8600);
 }
 
 buildDots();
@@ -1586,6 +1781,17 @@ window.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") setStep(stepIndex + 1, true);
   if (event.key === "ArrowLeft") setStep(stepIndex - 1, true);
 });
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    clearInterval(authorizationTimer);
+    authorizationTimer = null;
+  } else if (!authorizationTimer) {
+    startAuthorizationSequence();
+  }
+});
+
+startAuthorizationSequence();
 </script>
 </body>
 </html>
