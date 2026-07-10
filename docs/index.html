@@ -335,34 +335,115 @@
     pointer-events: none;
   }
   .authorization-satellite {
+    --sat-body-a: #ffffff;
+    --sat-body-b: #dfe8f5;
+    --sat-panel-a: #dff0ff;
+    --sat-panel-b: #3d84d7;
+    --sat-panel-c: #163b86;
+    --sat-line: rgba(15,44,92,.36);
+    --sat-glow: rgba(61,132,215,.28);
+    --thrust-hot: rgba(255,242,148,.96);
+    --thrust-mid: rgba(255,142,30,.82);
+    --thrust-edge: rgba(220,52,24,.36);
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 21px;
-    height: 12px;
+    width: 62px;
+    height: 34px;
     border: 0;
     padding: 0;
-    border-radius: 999px 999px 999px 3px;
+    border-radius: 0;
     cursor: pointer;
     pointer-events: auto;
-    background:
-      radial-gradient(circle at 76% 34%, rgba(255,247,191,.96) 0 13%, transparent 14%),
-      radial-gradient(circle at 24% 70%, rgba(255,189,44,.58), transparent 36%),
-      linear-gradient(135deg, #ffe66d 0%, #ff9f1c 32%, #df2e12 64%, #76000d 100%);
-    box-shadow: 0 0 22px rgba(255,119,28,.32), 0 0 8px rgba(118,0,13,.24);
+    background: transparent;
+    box-shadow: none;
     transform: translate(-50%, -50%) rotate(10deg);
     appearance: none;
   }
   .authorization-satellite::before {
     content: "";
     position: absolute;
-    right: 17px;
-    top: 4px;
-    width: 42px;
+    left: -8px;
+    top: 12px;
+    width: 28px;
+    height: 10px;
+    border-radius: 999px 0 0 999px;
+    background:
+      radial-gradient(circle at 82% 50%, var(--thrust-hot) 0 23%, transparent 24%),
+      linear-gradient(90deg, transparent 0 4%, var(--thrust-edge) 18%, var(--thrust-mid) 62%, var(--thrust-hot) 100%);
+    clip-path: polygon(100% 50%, 22% 0, 0 50%, 22% 100%);
+    filter: blur(.15px);
+    opacity: .92;
+  }
+  .authorization-satellite::after {
+    content: "";
+    position: absolute;
+    left: -2px;
+    top: 15px;
+    width: 15px;
     height: 4px;
     border-radius: 999px;
-    background: linear-gradient(90deg, transparent, rgba(118,0,13,.3), rgba(223,46,18,.68), rgba(255,159,28,.75), rgba(255,230,109,.7));
-    filter: blur(.55px);
+    background: rgba(255,245,170,.92);
+    box-shadow: 0 0 15px rgba(255,132,24,.5);
+  }
+  .satellite-panel,
+  .satellite-body,
+  .satellite-dish {
+    position: absolute;
+    display: block;
+    pointer-events: none;
+  }
+  .satellite-panel {
+    top: 11px;
+    width: 17px;
+    height: 11px;
+    border: 1px solid rgba(15,44,92,.18);
+    border-radius: 2px;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.34) 0 1px, transparent 1px 5px) 0 0 / 6px 100%,
+      linear-gradient(135deg, var(--sat-panel-a), var(--sat-panel-b) 48%, var(--sat-panel-c));
+    box-shadow: 0 0 12px var(--sat-glow);
+  }
+  .satellite-panel.left {
+    left: 10px;
+    transform: skewY(-10deg);
+  }
+  .satellite-panel.right {
+    left: 43px;
+    transform: skewY(10deg);
+  }
+  .satellite-body {
+    left: 28px;
+    top: 8px;
+    width: 16px;
+    height: 17px;
+    border: 1px solid var(--sat-line);
+    border-radius: 4px;
+    background:
+      radial-gradient(circle at 70% 32%, rgba(255,255,255,.95) 0 2px, transparent 2.5px),
+      linear-gradient(135deg, var(--sat-body-a), var(--sat-body-b));
+    box-shadow: 0 3px 12px rgba(15,44,92,.16), inset 0 0 0 1px rgba(255,255,255,.6);
+  }
+  .satellite-body::before,
+  .satellite-body::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    width: 7px;
+    height: 2px;
+    background: var(--sat-line);
+  }
+  .satellite-body::before { left: -7px; }
+  .satellite-body::after { right: -7px; }
+  .satellite-dish {
+    left: 39px;
+    top: 3px;
+    width: 12px;
+    height: 9px;
+    border-top: 2px solid var(--sat-line);
+    border-right: 2px solid var(--sat-line);
+    border-radius: 0 9px 0 0;
+    transform: rotate(-16deg);
   }
   .authorization-flight .authorization-satellite {
     left: 50%;
@@ -370,17 +451,29 @@
   }
   .authorization-track .authorization-satellite {
     left: 50%;
-    top: -4px;
+    top: -8px;
   }
   .authorization-satellite.malicious {
-    background:
-      radial-gradient(circle at 76% 34%, rgba(255,224,126,.96) 0 13%, transparent 14%),
-      radial-gradient(circle at 25% 70%, rgba(255,83,43,.7), transparent 34%),
-      linear-gradient(135deg, #ffb000 0%, #ff4b1f 30%, #b50018 63%, #2b0008 100%);
-    box-shadow: 0 0 0 2px rgba(181,0,24,.28), 0 0 28px rgba(229,61,69,.58);
+    --sat-body-a: #ffe1d7;
+    --sat-body-b: #b50018;
+    --sat-panel-a: #ffb000;
+    --sat-panel-b: #e52922;
+    --sat-panel-c: #51000c;
+    --sat-line: rgba(43,0,8,.72);
+    --sat-glow: rgba(229,61,69,.46);
+    --thrust-hot: rgba(255,238,122,.98);
+    --thrust-mid: rgba(255,75,31,.9);
+    --thrust-edge: rgba(181,0,24,.62);
   }
   .authorization-satellite.malicious::before {
-    background: linear-gradient(90deg, transparent, rgba(43,0,8,.34), rgba(181,0,24,.76), rgba(255,75,31,.78), rgba(255,176,0,.66));
+    width: 33px;
+    background:
+      radial-gradient(circle at 82% 50%, var(--thrust-hot) 0 22%, transparent 23%),
+      linear-gradient(90deg, transparent 0 4%, rgba(43,0,8,.3) 15%, var(--thrust-edge) 38%, var(--thrust-mid) 72%, var(--thrust-hot) 100%);
+  }
+  .authorization-satellite.malicious::after {
+    background: rgba(255,232,111,.95);
+    box-shadow: 0 0 16px rgba(229,61,69,.68), 0 0 5px rgba(43,0,8,.42);
   }
   .authorization-popover {
     position: absolute;
@@ -441,6 +534,28 @@
   .authorization-popover.is-visible {
     opacity: 1;
     transform: translate(-50%, calc(-100% - 2px)) scale(1);
+  }
+  .authorization-popover.is-below {
+    transform: translate(-50%, 8px) scale(.96);
+  }
+  .authorization-popover.is-below.is-visible {
+    transform: translate(-50%, 12px) scale(1);
+  }
+  .authorization-popover.is-blocked {
+    border-color: rgba(181,0,24,.26);
+    box-shadow: 0 12px 30px rgba(181,0,24,.18);
+  }
+  .authorization-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 17px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(181,0,24,.1);
+    color: #8f0012;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
   }
   .authorization-satellite:focus-visible {
     outline: 2px solid rgba(15,44,92,.72);
@@ -1692,7 +1807,7 @@ let lastAuthorizationLaunch = null;
 let authorizationTooltip = null;
 let authorizationTooltipTimer = null;
 const authorizationOrbits = new Map();
-const guaranteedBadLaunch = Math.floor(Math.random() * 3) + 1;
+const guaranteedBadLaunch = 1;
 
 const board = document.getElementById("sceneBoard");
 const stepCount = document.getElementById("stepCount");
@@ -1837,6 +1952,13 @@ function createAuthorizationSatellite(malicious) {
   satellite.className = malicious ? "authorization-satellite malicious" : "authorization-satellite";
   satellite.type = "button";
   satellite.setAttribute("aria-label", malicious ? "Blocked anonymous authorization pass" : "Anonymous authorization pass");
+  satellite.dataset.authStatus = malicious ? "blocked" : "anonymous";
+  satellite.innerHTML = `
+    <span class="satellite-panel left" aria-hidden="true"></span>
+    <span class="satellite-body" aria-hidden="true"></span>
+    <span class="satellite-panel right" aria-hidden="true"></span>
+    <span class="satellite-dish" aria-hidden="true"></span>
+  `;
   satellite.addEventListener("mouseenter", () => showAuthorizationTooltip(satellite));
   satellite.addEventListener("mouseleave", hideAuthorizationTooltip);
   satellite.addEventListener("focus", () => showAuthorizationTooltip(satellite));
@@ -1855,19 +1977,37 @@ function getAuthorizationTooltip() {
   authorizationTooltip.setAttribute("role", "tooltip");
   authorizationTooltip.innerHTML = `
     <span class="authorization-ticket" aria-hidden="true"></span>
-    <span>anonymous</span>
+    <span data-auth-tooltip-label>anonymous</span>
+    <span class="authorization-status" data-auth-tooltip-status hidden></span>
   `;
   heroOrbitField.appendChild(authorizationTooltip);
   return authorizationTooltip;
 }
 
-function showAuthorizationTooltip(satellite, sticky = false) {
+function updateAuthorizationTooltip(satellite) {
   const tooltip = getAuthorizationTooltip();
+  const status = satellite.dataset.authStatus;
+  const statusLabel = tooltip.querySelector("[data-auth-tooltip-status]");
+  tooltip.querySelector("[data-auth-tooltip-label]").textContent = "anonymous";
+  tooltip.classList.toggle("is-blocked", status === "blocked");
+  if (statusLabel) {
+    statusLabel.hidden = status !== "blocked";
+    statusLabel.textContent = status === "blocked" ? "blocked" : "";
+  }
+  return tooltip;
+}
+
+function showAuthorizationTooltip(satellite, sticky = false) {
+  const tooltip = updateAuthorizationTooltip(satellite);
   const fieldRect = heroOrbitField.getBoundingClientRect();
   const satRect = satellite.getBoundingClientRect();
   const rawLeft = satRect.left - fieldRect.left + satRect.width / 2;
-  tooltip.style.top = `${satRect.top - fieldRect.top - 12}px`;
   tooltip.classList.add("is-visible");
+  const placeBelow = satRect.top - fieldRect.top < tooltip.offsetHeight + 42;
+  tooltip.classList.toggle("is-below", placeBelow);
+  tooltip.style.top = placeBelow
+    ? `${satRect.bottom - fieldRect.top + 4}px`
+    : `${satRect.top - fieldRect.top - 12}px`;
   const tooltipHalf = tooltip.offsetWidth / 2;
   const minLeft = Math.min(tooltipHalf + 12, fieldRect.width / 2);
   const maxLeft = Math.max(fieldRect.width - tooltipHalf - 12, fieldRect.width / 2);
@@ -1933,6 +2073,11 @@ function fireAuthorizationSatellite() {
   flight.appendChild(satellite);
   heroOrbitField.appendChild(flight);
   flight.addEventListener("animationend", () => attachSatelliteToOrbit(flight, orbit, satellite, key, launchCount), { once: true });
+  if (malicious) {
+    window.setTimeout(() => {
+      if (satellite.isConnected) showAuthorizationTooltip(satellite, true);
+    }, 1200);
+  }
 
   lastAuthorizationLaunch = {
     count: authorizationLaunchCount,
