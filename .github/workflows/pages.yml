@@ -1,12 +1,14 @@
 name: Deploy Pages
 
-# Publishes docs/ (the PoMFRIT delegation-story explainer) to GitHub
-# Pages. The Pages source is set to "GitHub Actions", so this workflow is the
-# only deploy path.
+# Builds the Solid SPA in web/ and publishes the output as GitHub Pages.
 on:
   push:
     branches: [main]
-    paths: ["docs/**", ".github/workflows/pages.yml"]
+    paths:
+      - "web/**"
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+      - "scripts/publish-pages.sh"
   workflow_dispatch:
 
 permissions:
@@ -26,9 +28,40 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      # DialKit is file:../../dialkit locally; in CI check it out as a sibling.
+      - uses: actions/checkout@v4
+        with:
+          repository: maceip/dialkit
+          path: _dialkit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Point dialkit at CI checkout
+        working-directory: web
+        run: npm pkg set dependencies.dialkit=file:../_dialkit
+
+      - name: Build Solid Pages
+        working-directory: web
+        run: |
+          npm install
+          npm run build
+
+      - name: Stage docs artifact
+        run: |
+          mkdir -p docs-out
+          rsync -a web/dist/ docs-out/
+          for f in implementation-inventory.md known-gaps.md pq-email-profile.md token-roadmap.md; do
+            [[ -f "docs/$f" ]] && cp "docs/$f" "docs-out/$f" || true
+          done
+
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/
+          path: docs-out/
       - id: deployment
         uses: actions/deploy-pages@v5

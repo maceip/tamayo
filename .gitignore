@@ -20,22 +20,9 @@
 /tools/*.o
 
 # pages e2e verifier deps (tools/pages_verify)
-node_modules/
-package-lock.json
+/node_modules/
+/package-lock.json
 
-# AI-generated design reference scratch for the Pages explainer (~87 MB of
-# images) — keep out of git history
-/docs/style/
-
-# Editor / OS
-.DS_Store
-*.swp
-
-# Never commit local reference trees or secrets
-/.shape/
-/.refs/
-*.env
-.env
-
-# accidentally-buildable root binary (go build ./cmd/tamayo drops it here)
-/tamayo
+# Solid Pages app build outputs (lockfile is committed for CI)
+web/node_modules/
+web/dist/
