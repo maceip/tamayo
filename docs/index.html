@@ -297,11 +297,32 @@
     left: 0;
     top: 0;
     z-index: 2;
-    width: 32px;
-    height: 24px;
+    width: 58px;
+    height: 34px;
     opacity: 0;
     transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82);
     animation: authorizationLaunch 13s cubic-bezier(.2,.72,.26,1) forwards;
+    pointer-events: none;
+  }
+  .authorization-flight.malicious {
+    z-index: 4;
+    animation: authorizationBlockedLaunch 7.6s cubic-bezier(.18,.74,.22,1) forwards;
+  }
+  .authorization-flight.malicious::before {
+    content: "";
+    position: absolute;
+    left: -112px;
+    top: 11px;
+    width: 124px;
+    height: 12px;
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, transparent 0 5%, rgba(181,0,24,.16) 18%, rgba(255,75,31,.34) 64%, rgba(255,238,122,.52) 100%);
+    box-shadow:
+      0 0 0 2px rgba(181,0,24,.24),
+      0 0 18px rgba(229,61,69,.24);
+    filter: blur(.15px);
+    clip-path: polygon(0 50%, 8% 0, 100% 0, 100% 100%, 8% 100%);
     pointer-events: none;
   }
   .authorization-orbit {
@@ -335,21 +356,22 @@
     pointer-events: none;
   }
   .authorization-satellite {
-    --sat-body-a: #ffffff;
-    --sat-body-b: #dfe8f5;
-    --sat-panel-a: #dff0ff;
-    --sat-panel-b: #3d84d7;
-    --sat-panel-c: #163b86;
-    --sat-line: rgba(15,44,92,.36);
-    --sat-glow: rgba(61,132,215,.28);
+    --craft-body-a: #ffffff;
+    --craft-body-b: #dfe8f5;
+    --craft-wing-a: #e6f3ff;
+    --craft-wing-b: #7ab8ed;
+    --craft-wing-c: #204f9b;
+    --craft-line: rgba(15,44,92,.38);
+    --craft-shadow: rgba(61,132,215,.2);
     --thrust-hot: rgba(255,242,148,.96);
     --thrust-mid: rgba(255,142,30,.82);
     --thrust-edge: rgba(220,52,24,.36);
+    --thrust-outline: rgba(220,52,24,.2);
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 62px;
-    height: 34px;
+    width: 54px;
+    height: 30px;
     border: 0;
     padding: 0;
     border-radius: 0;
@@ -357,93 +379,112 @@
     pointer-events: auto;
     background: transparent;
     box-shadow: none;
+    filter: drop-shadow(0 5px 10px rgba(15,44,92,.14));
     transform: translate(-50%, -50%) rotate(10deg);
     appearance: none;
   }
   .authorization-satellite::before {
     content: "";
     position: absolute;
-    left: -8px;
-    top: 12px;
-    width: 28px;
+    left: -16px;
+    top: 10px;
+    width: 25px;
     height: 10px;
     border-radius: 999px 0 0 999px;
     background:
       radial-gradient(circle at 82% 50%, var(--thrust-hot) 0 23%, transparent 24%),
       linear-gradient(90deg, transparent 0 4%, var(--thrust-edge) 18%, var(--thrust-mid) 62%, var(--thrust-hot) 100%);
     clip-path: polygon(100% 50%, 22% 0, 0 50%, 22% 100%);
-    filter: blur(.15px);
+    box-shadow: 0 0 0 1px var(--thrust-outline), 0 0 14px rgba(255,132,24,.28);
+    filter: blur(.1px);
     opacity: .92;
   }
   .authorization-satellite::after {
     content: "";
     position: absolute;
-    left: -2px;
-    top: 15px;
-    width: 15px;
+    left: -6px;
+    top: 13px;
+    width: 10px;
     height: 4px;
     border-radius: 999px;
     background: rgba(255,245,170,.92);
     box-shadow: 0 0 15px rgba(255,132,24,.5);
   }
-  .satellite-panel,
-  .satellite-body,
-  .satellite-dish {
+  .authorization-craft-wing,
+  .authorization-craft-core,
+  .authorization-craft-key {
     position: absolute;
     display: block;
     pointer-events: none;
   }
-  .satellite-panel {
-    top: 11px;
-    width: 17px;
-    height: 11px;
-    border: 1px solid rgba(15,44,92,.18);
-    border-radius: 2px;
-    background:
-      linear-gradient(90deg, rgba(255,255,255,.34) 0 1px, transparent 1px 5px) 0 0 / 6px 100%,
-      linear-gradient(135deg, var(--sat-panel-a), var(--sat-panel-b) 48%, var(--sat-panel-c));
-    box-shadow: 0 0 12px var(--sat-glow);
-  }
-  .satellite-panel.left {
+  .authorization-craft-wing {
     left: 10px;
-    transform: skewY(-10deg);
+    width: 34px;
+    height: 7px;
+    border: 1px solid rgba(15,44,92,.18);
+    border-radius: 3px;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.42) 0 1px, transparent 1px 6px) 0 0 / 7px 100%,
+      linear-gradient(135deg, var(--craft-wing-a), var(--craft-wing-b) 52%, var(--craft-wing-c));
+    box-shadow: 0 0 12px var(--craft-shadow);
   }
-  .satellite-panel.right {
-    left: 43px;
-    transform: skewY(10deg);
+  .authorization-craft-wing.upper {
+    top: 3px;
+    transform: skewX(-14deg);
   }
-  .satellite-body {
-    left: 28px;
-    top: 8px;
-    width: 16px;
-    height: 17px;
-    border: 1px solid var(--sat-line);
-    border-radius: 4px;
+  .authorization-craft-wing.lower {
+    bottom: 3px;
+    transform: skewX(14deg);
+  }
+  .authorization-craft-core {
+    left: 21px;
+    top: 6px;
+    width: 24px;
+    height: 18px;
+    border: 2px solid var(--craft-line);
+    border-radius: 6px;
     background:
       radial-gradient(circle at 70% 32%, rgba(255,255,255,.95) 0 2px, transparent 2.5px),
-      linear-gradient(135deg, var(--sat-body-a), var(--sat-body-b));
-    box-shadow: 0 3px 12px rgba(15,44,92,.16), inset 0 0 0 1px rgba(255,255,255,.6);
+      linear-gradient(135deg, var(--craft-body-a), var(--craft-body-b));
+    box-shadow: 0 3px 12px rgba(15,44,92,.16), inset 0 0 0 1px rgba(255,255,255,.62);
   }
-  .satellite-body::before,
-  .satellite-body::after {
+  .authorization-craft-core::before {
     content: "";
     position: absolute;
-    top: 7px;
+    right: -8px;
+    top: 5px;
+    width: 7px;
+    height: 6px;
+    border: 2px solid var(--craft-line);
+    border-left: 0;
+    border-radius: 0 4px 4px 0;
+    background: var(--craft-body-b);
+  }
+  .authorization-craft-key {
+    left: 6px;
+    top: 6px;
+    width: 12px;
+    height: 7px;
+  }
+  .authorization-craft-key::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 5px;
+    border: 2px solid var(--craft-line);
+    border-radius: 50%;
+  }
+  .authorization-craft-key::after {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 3px;
     width: 7px;
     height: 2px;
-    background: var(--sat-line);
-  }
-  .satellite-body::before { left: -7px; }
-  .satellite-body::after { right: -7px; }
-  .satellite-dish {
-    left: 39px;
-    top: 3px;
-    width: 12px;
-    height: 9px;
-    border-top: 2px solid var(--sat-line);
-    border-right: 2px solid var(--sat-line);
-    border-radius: 0 9px 0 0;
-    transform: rotate(-16deg);
+    border-radius: 999px;
+    background: var(--craft-line);
   }
   .authorization-flight .authorization-satellite {
     left: 50%;
@@ -454,19 +495,21 @@
     top: -8px;
   }
   .authorization-satellite.malicious {
-    --sat-body-a: #ffe1d7;
-    --sat-body-b: #b50018;
-    --sat-panel-a: #ffb000;
-    --sat-panel-b: #e52922;
-    --sat-panel-c: #51000c;
-    --sat-line: rgba(43,0,8,.72);
-    --sat-glow: rgba(229,61,69,.46);
+    --craft-body-a: #ffe1d7;
+    --craft-body-b: #b50018;
+    --craft-wing-a: #ffbc2e;
+    --craft-wing-b: #e52922;
+    --craft-wing-c: #51000c;
+    --craft-line: rgba(43,0,8,.82);
+    --craft-shadow: rgba(229,61,69,.48);
     --thrust-hot: rgba(255,238,122,.98);
     --thrust-mid: rgba(255,75,31,.9);
     --thrust-edge: rgba(181,0,24,.62);
+    --thrust-outline: rgba(181,0,24,.56);
+    filter: drop-shadow(0 0 0 rgba(181,0,24,.6)) drop-shadow(0 0 13px rgba(229,61,69,.44));
   }
   .authorization-satellite.malicious::before {
-    width: 33px;
+    width: 30px;
     background:
       radial-gradient(circle at 82% 50%, var(--thrust-hot) 0 22%, transparent 23%),
       linear-gradient(90deg, transparent 0 4%, rgba(43,0,8,.3) 15%, var(--thrust-edge) 38%, var(--thrust-mid) 72%, var(--thrust-hot) 100%);
@@ -474,6 +517,12 @@
   .authorization-satellite.malicious::after {
     background: rgba(255,232,111,.95);
     box-shadow: 0 0 16px rgba(229,61,69,.68), 0 0 5px rgba(43,0,8,.42);
+  }
+  .authorization-satellite.malicious .authorization-craft-core,
+  .authorization-satellite.malicious .authorization-craft-wing {
+    box-shadow:
+      0 0 0 2px rgba(181,0,24,.22),
+      0 0 14px rgba(229,61,69,.34);
   }
   .authorization-popover {
     position: absolute;
@@ -566,6 +615,29 @@
     10% { opacity: .86; }
     58% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1); }
     100% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1); }
+  }
+  @keyframes authorizationBlockedLaunch {
+    0% {
+      opacity: 0;
+      transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82) rotate(0deg);
+    }
+    12% { opacity: .92; }
+    42%, 64% {
+      opacity: .98;
+      transform:
+        translate(calc(var(--planet-x) - 10vw), calc(var(--planet-y) + 9svh))
+        translate(-50%, -50%)
+        scale(1)
+        rotate(-3deg);
+    }
+    100% {
+      opacity: 0;
+      transform:
+        translate(calc(var(--planet-x) - 10vw), calc(var(--planet-y) + 58svh))
+        translate(-50%, -50%)
+        scale(.9)
+        rotate(28deg);
+    }
   }
   @keyframes satelliteOrbit {
     to { transform: rotate(360deg); }
@@ -1954,10 +2026,11 @@ function createAuthorizationSatellite(malicious) {
   satellite.setAttribute("aria-label", malicious ? "Blocked anonymous authorization pass" : "Anonymous authorization pass");
   satellite.dataset.authStatus = malicious ? "blocked" : "anonymous";
   satellite.innerHTML = `
-    <span class="satellite-panel left" aria-hidden="true"></span>
-    <span class="satellite-body" aria-hidden="true"></span>
-    <span class="satellite-panel right" aria-hidden="true"></span>
-    <span class="satellite-dish" aria-hidden="true"></span>
+    <span class="authorization-craft-wing upper" aria-hidden="true"></span>
+    <span class="authorization-craft-core" aria-hidden="true">
+      <span class="authorization-craft-key"></span>
+    </span>
+    <span class="authorization-craft-wing lower" aria-hidden="true"></span>
   `;
   satellite.addEventListener("mouseenter", () => showAuthorizationTooltip(satellite));
   satellite.addEventListener("mouseleave", hideAuthorizationTooltip);
@@ -2019,10 +2092,11 @@ function showAuthorizationTooltip(satellite, sticky = false) {
       if (openSatellite !== satellite) openSatellite.classList.remove("is-open");
     });
     satellite.classList.add("is-open");
+    const openDuration = satellite.dataset.authStatus === "blocked" ? 2600 : 1800;
     authorizationTooltipTimer = window.setTimeout(() => {
       satellite.classList.remove("is-open");
       if (authorizationTooltip) authorizationTooltip.classList.remove("is-visible");
-    }, 1800);
+    }, openDuration);
   }
 }
 
@@ -2051,6 +2125,15 @@ function attachSatelliteToOrbit(flight, orbit, satellite, key, launchCount) {
   }, 43000);
 }
 
+function removeBlockedFlight(flight, satellite) {
+  const tooltipBelongsToSatellite = satellite.classList.contains("is-open");
+  flight.remove();
+  satellite.classList.remove("is-open");
+  if (tooltipBelongsToSatellite && authorizationTooltip) {
+    authorizationTooltip.classList.remove("is-visible");
+  }
+}
+
 function fireAuthorizationSatellite() {
   if (!heroOrbitField || heroPlanets.length === 0 || document.hidden) return;
   authorizationLaunchCount += 1;
@@ -2062,7 +2145,7 @@ function fireAuthorizationSatellite() {
   const guaranteed = authorizationLaunchCount === guaranteedBadLaunch;
   const dice = !guaranteed && authorizationLaunchCount % 10 === 0 ? Math.floor(Math.random() * 6) + 1 : null;
   const malicious = guaranteed || dice === 6;
-  const orbit = getAuthorizationOrbit(planet, styles);
+  const orbit = malicious ? null : getAuthorizationOrbit(planet, styles);
   const flight = document.createElement("span");
   const satellite = createAuthorizationSatellite(malicious);
 
@@ -2072,11 +2155,13 @@ function fireAuthorizationSatellite() {
 
   flight.appendChild(satellite);
   heroOrbitField.appendChild(flight);
-  flight.addEventListener("animationend", () => attachSatelliteToOrbit(flight, orbit, satellite, key, launchCount), { once: true });
   if (malicious) {
+    flight.addEventListener("animationend", () => removeBlockedFlight(flight, satellite), { once: true });
     window.setTimeout(() => {
       if (satellite.isConnected) showAuthorizationTooltip(satellite, true);
-    }, 1200);
+    }, 3300);
+  } else if (orbit) {
+    flight.addEventListener("animationend", () => attachSatelliteToOrbit(flight, orbit, satellite, key, launchCount), { once: true });
   }
 
   lastAuthorizationLaunch = {
