@@ -41,6 +41,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # dialkit's prepare script runs tsup on install; its devDependencies
+      # must be installed in the CI checkout or the file: install fails.
+      - name: Install dialkit deps (runs its prepare build)
+        working-directory: _dialkit
+        run: npm ci
+
       - name: Point dialkit at CI checkout
         working-directory: web
         run: npm pkg set dependencies.dialkit=file:../_dialkit
