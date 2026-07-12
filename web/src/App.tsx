@@ -42,7 +42,10 @@ export default function App() {
         productionEnabled
         position="top-right"
         theme="system"
-        devSession={{ projectKey: 'tamayo-pages' }}
+        devSession={{
+          projectKey: 'tamayo-pages',
+          issueUrl: 'https://github.com/maceip/tamayo/issues/new',
+        }}
       />
     </>
   );
