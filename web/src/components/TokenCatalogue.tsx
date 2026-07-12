@@ -1,9 +1,10 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createMemo, createSelector, createSignal, For, Show } from 'solid-js';
 import { tokens } from '../data/tokens';
 
 export function TokenCatalogue() {
   const [index, setIndex] = createSignal(0);
-  const token = () => tokens[index()]!;
+  const isSelected = createSelector(index);
+  const token = createMemo(() => tokens[index()]!);
 
   return (
     <section class="section" id="passes">
@@ -23,8 +24,8 @@ export function TokenCatalogue() {
               <button
                 class="token-button bb-line t-card-resize"
                 type="button"
-                classList={{ active: i() === index() }}
-                aria-pressed={i() === index() ? 'true' : 'false'}
+                classList={{ active: isSelected(i()) }}
+                aria-pressed={isSelected(i()) ? 'true' : 'false'}
                 onClick={() => setIndex(i())}
               >
                 <strong>{t.button}</strong>

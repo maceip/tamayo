@@ -1,5 +1,6 @@
-import { For, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup } from 'solid-js';
 import { OSI_RACK_UNITS } from '../data/osiRack';
+import { createMediaQuery } from '../lib/media';
 
 const RACK_UNITS_TOP_DOWN = [...OSI_RACK_UNITS].reverse();
 
@@ -9,12 +10,15 @@ const RACK_UNITS_TOP_DOWN = [...OSI_RACK_UNITS].reverse();
  */
 export function OsiRack() {
   let sectionEl!: HTMLElement;
-  let rackEl!: HTMLDivElement;
 
-  onMount(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (reduced.matches) {
-      rackEl.style.setProperty('--explode', '0.35');
+  const prefersReducedMotion = createMediaQuery('(prefers-reduced-motion: reduce)');
+  const [explode, setExplode] = createSignal(0);
+
+  // Runs after mount (refs are set) and re-runs if the motion preference flips,
+  // tearing down the scroll listeners via the effect-scoped onCleanup.
+  createEffect(() => {
+    if (prefersReducedMotion()) {
+      setExplode(0.35);
       return;
     }
 
@@ -27,8 +31,7 @@ export function OsiRack() {
       const start = vh * 0.85;
       const end = vh * 0.25;
       const raw = (start - rect.top) / (start - end);
-      const explode = Math.min(1, Math.max(0, raw)) * 0.72; // “a little”
-      rackEl.style.setProperty('--explode', explode.toFixed(3));
+      setExplode(Math.min(1, Math.max(0, raw)) * 0.72); // “a little”
     };
 
     const onScroll = () => {
@@ -56,7 +59,7 @@ export function OsiRack() {
       </div>
 
       <div class="osi-rack-stage">
-        <div class="osi-rack" ref={rackEl} style={{ '--explode': '0', '--units': String(OSI_RACK_UNITS.length) }}>
+        <div class="osi-rack" style={{ '--explode': explode().toFixed(3), '--units': String(OSI_RACK_UNITS.length) }}>
           <div class="osi-rack-frame" aria-hidden="true">
             <span class="osi-rack-post left" />
             <span class="osi-rack-post right" />

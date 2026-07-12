@@ -1,4 +1,4 @@
-import { For, onCleanup, onMount } from 'solid-js';
+import { onCleanup, onMount } from 'solid-js';
 import { startHeroAuthorizationSequence } from '../lib/heroAuthorization';
 import { startPlanetParallax } from '../lib/heroParallax';
 
@@ -19,11 +19,6 @@ export function Hero(props: { scale?: number }) {
   let orbitField!: HTMLDivElement;
 
   onMount(() => {
-    orbitField.querySelectorAll<HTMLElement>('.auth-planet').forEach((el) => {
-      const s = randomPlanetScale();
-      el.style.setProperty('--planet-scale', String(s));
-    });
-
     const stopAuth = startHeroAuthorizationSequence(orbitField);
     const stopParallax = startPlanetParallax(heroEl, orbitField);
     onCleanup(() => {
@@ -52,17 +47,20 @@ export function Hero(props: { scale?: number }) {
         <div class="flow-cell c5" />
         <div class="hero-orbit-field" ref={orbitField}>
           <div class="auth-launcher" />
-          <For each={[...PLANETS]}>
-            {(p) => (
-              <div class={`auth-planet ${p.tone}`}>
-                <div class="auth-planet-body" aria-hidden="true" />
-                <div class="auth-planet-label">
-                  <strong>{p.title}</strong>
-                  <span>{p.sub}</span>
-                </div>
+          {/* Static list — plain map, no <For> bookkeeping. Scale is set at render
+              instead of a querySelectorAll pass after mount. */}
+          {PLANETS.map((p) => (
+            <div
+              class={`auth-planet ${p.tone}`}
+              style={{ '--planet-scale': randomPlanetScale().toFixed(3) }}
+            >
+              <div class="auth-planet-body" aria-hidden="true" />
+              <div class="auth-planet-label">
+                <strong>{p.title}</strong>
+                <span>{p.sub}</span>
               </div>
-            )}
-          </For>
+            </div>
+          ))}
         </div>
       </div>
       <div class="hero-copy">

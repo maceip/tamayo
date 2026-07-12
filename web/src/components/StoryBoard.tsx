@@ -1,41 +1,49 @@
-import { createEffect, createSignal, For, onCleanup, onMount } from 'solid-js';
+import { batch, createEffect, createMemo, createSelector, createSignal, For, on, onCleanup, onMount } from 'solid-js';
 import { steps } from '../data/story';
+import { createPageVisible } from '../lib/media';
 
 export function StoryBoard(props: { autoplay?: boolean }) {
+  let sectionEl!: HTMLElement;
   const [index, setIndex] = createSignal(0);
-  const [playing, setPlaying] = createSignal(props.autoplay !== false);
-  let timer: number | undefined;
+  // `undefined` means "follow the autoplay prop"; a user action overrides it.
+  const [userPlaying, setUserPlaying] = createSignal<boolean>();
+  // Transient suppressions — they gate the timer without touching user intent.
+  const [hovering, setHovering] = createSignal(false);
+  const [inView, setInView] = createSignal(false);
+  const pageVisible = createPageVisible();
 
-  const step = () => steps[index()]!;
+  const playing = () => userPlaying() ?? props.autoplay !== false;
+  const running = () => playing() && !hovering() && inView() && pageVisible();
+  const step = createMemo(() => steps[index()]!);
+  const isActive = createSelector(index);
 
-  const go = (next: number, userAction = false) => {
-    setIndex(((next % steps.length) + steps.length) % steps.length);
-    if (userAction) setPlaying(false);
-  };
-
-  const schedule = () => {
-    window.clearInterval(timer);
-    if (!playing()) return;
-    timer = window.setInterval(() => go(index() + 1), 5200);
-  };
-
-  createEffect(() => {
-    if (props.autoplay === false) setPlaying(false);
-    else if (props.autoplay === true) setPlaying(true);
-  });
-
-  createEffect(() => {
-    playing();
-    index();
-    schedule();
-  });
+  // The dial reclaims control whenever it changes; defer skips the mount run.
+  createEffect(on(() => props.autoplay, () => setUserPlaying(undefined), { defer: true }));
 
   onMount(() => {
+    const io = new IntersectionObserver(
+      ([entry]) => setInView(!!entry?.isIntersecting),
+      { threshold: 0.15 },
+    );
+    io.observe(sectionEl);
+    onCleanup(() => io.disconnect());
+  });
+
+  const go = (next: number) =>
+    batch(() => {
+      setIndex(((next % steps.length) + steps.length) % steps.length);
+      setUserPlaying(false);
+    });
+
+  createEffect(() => {
+    if (!running()) return;
+    index(); // restart the dwell timer whenever the step changes
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % steps.length), 5200);
     onCleanup(() => window.clearInterval(timer));
   });
 
   return (
-    <section class="section dark" id="movie">
+    <section class="section dark" id="movie" ref={sectionEl}>
       <div class="section-head">
         <h2>When an agent acts for you</h2>
         <p>
@@ -49,7 +57,8 @@ export function StoryBoard(props: { autoplay?: boolean }) {
           class="scene-board bb"
           data-scene={step().scene}
           aria-label="Story scene"
-          onMouseEnter={() => setPlaying(false)}
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
         >
           <svg class="route-svg" viewBox="0 0 720 620" preserveAspectRatio="none" aria-hidden="true">
             <path d="M360 292 C230 220 160 180 112 154" />
@@ -116,17 +125,17 @@ export function StoryBoard(props: { autoplay?: boolean }) {
             <For each={step().tags}>{(tag) => <span class="tag">{tag}</span>}</For>
           </div>
           <div class="story-controls">
-            <button class="icon-button" type="button" aria-label="Previous" onClick={() => go(index() - 1, true)}>
+            <button class="icon-button" type="button" aria-label="Previous" onClick={() => go(index() - 1)}>
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <button class="icon-button" type="button" aria-label="Next" onClick={() => go(index() + 1, true)}>
+            <button class="icon-button" type="button" aria-label="Next" onClick={() => go(index() + 1)}>
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
             <button
               class="play-button"
               type="button"
               aria-pressed={playing() ? 'true' : 'false'}
-              onClick={() => setPlaying(!playing())}
+              onClick={() => setUserPlaying(!playing())}
             >
               <span>{playing() ? 'Pause' : 'Play'}</span>
             </button>
@@ -140,10 +149,10 @@ export function StoryBoard(props: { autoplay?: boolean }) {
                 <button
                   class="dot"
                   type="button"
-                  classList={{ active: i() === index() }}
+                  classList={{ active: isActive(i()) }}
                   aria-label={`Step ${i() + 1}`}
-                  aria-current={i() === index() ? 'step' : 'false'}
-                  onClick={() => go(i(), true)}
+                  aria-current={isActive(i()) ? 'step' : 'false'}
+                  onClick={() => go(i())}
                 />
               )}
             </For>
