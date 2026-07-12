@@ -14,6 +14,7 @@ export function Nav() {
         <a href="#policy">Policy</a>
         <a href="#agents">Agents</a>
         <a href="#movie">Story</a>
+        <a href="#sigbird">SigBird</a>
         <a href="https://github.com/maceip/tamayo">GitHub</a>
       </div>
     </nav>

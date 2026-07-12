@@ -31,7 +31,7 @@ export const tokens: TokenCard[] = [
     model: 'venue wristband',
     button: 'Private identity token',
     summary: 'A relying-party-bound pseudonym for continuity without an email address.',
-    note: 'Use this when continuity matters but an email address would reveal too much.',
+    note: 'Use this when continuity matters but an email address would reveal too much. Shipping today in <a href="#sigbird">SigBird</a>, gating free signature-image hosting.',
   },
   {
     name: 'Policy-bound email token',

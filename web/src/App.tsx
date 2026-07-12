@@ -6,6 +6,7 @@ import { OsiRack } from './components/OsiRack';
 import { StaticSections, PolicySection, AgentsSection } from './components/StaticSections';
 import { TokenCatalogue } from './components/TokenCatalogue';
 import { StoryBoard } from './components/StoryBoard';
+import { CaseStudy } from './components/CaseStudy';
 import { Footer } from './components/Footer';
 
 function PageDials() {
@@ -28,6 +29,7 @@ function PageDials() {
         <PolicySection />
         <AgentsSection />
         <StoryBoard autoplay={page().storyAutoplay} />
+        <CaseStudy />
       </main>
       <Footer />
     </div>
