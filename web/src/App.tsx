@@ -5,6 +5,7 @@ import { Hero } from './components/Hero';
 import { DeployTiers } from './components/DeployTiers';
 import { StaticSections, AgentsSection } from './components/StaticSections';
 import { PolicySection } from './components/PolicySection';
+import { QuickStart } from './components/QuickStart';
 import { TokenCatalogue } from './components/TokenCatalogue';
 import { CaseStudy } from './components/CaseStudy';
 import { Footer } from './components/Footer';
@@ -25,6 +26,7 @@ function PageDials() {
         <DeployTiers />
         <AgentsSection />
         <PolicySection />
+        <QuickStart />
         <TokenCatalogue />
         <StaticSections />
         <CaseStudy />

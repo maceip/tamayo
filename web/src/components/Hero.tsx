@@ -68,6 +68,11 @@ export function Hero(props: { scale?: number }) {
       <div class="hero-copy">
         <h1 data-testid="tamayo-hero-title">Let your agents fly</h1>
       </div>
+      <p class="hero-desc">
+        Tamayo is a universal security framework for agents, whether Claude runs in a secure
+        enclave with remote attestation or on Betsy's laptop. Every action the agent takes
+        presents a signed, single-use pass instead of your identity.
+      </p>
       <aside class="hero-tui" aria-label="Simulated authorization log">
         <div class="hero-tui-bar">
           <span class="hero-tui-title">tamayo/authorization-log</span>
@@ -84,14 +89,17 @@ export function Hero(props: { scale?: number }) {
         </div>
         <div class="hero-tui-rows" ref={logEl} role="log" aria-live="off" aria-label="Recent authorization decisions" />
       </aside>
-      <p class="hero-desc">
-        Tamayo is a universal security framework for agents, whether Claude runs in a secure
-        enclave with remote attestation or on Betsy's laptop. Every action the agent takes
-        presents a signed, single-use pass instead of your identity.
-      </p>
       <div class="hero-actions">
-        <a class="button bb-pulse" href="#deployments">Where it runs</a>
-        <a class="button secondary bb-line" href="#passes">Token types</a>
+        <a class="push-btn primary" href="#quickstart">
+          <span class="push-shadow" aria-hidden="true" />
+          <span class="push-edge" aria-hidden="true" />
+          <span class="push-front">Quick start</span>
+        </a>
+        <a class="push-btn secondary" href="#deployments">
+          <span class="push-shadow" aria-hidden="true" />
+          <span class="push-edge" aria-hidden="true" />
+          <span class="push-front">How it's built</span>
+        </a>
       </div>
       <span class="sr-only" data-authorization-announcer role="status" aria-live="assertive" aria-atomic="true" />
     </header>

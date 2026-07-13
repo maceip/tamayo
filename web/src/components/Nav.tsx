@@ -9,6 +9,7 @@ export function Nav() {
         <a href="#deployments">Deployments</a>
         <a href="#agents">Agents</a>
         <a href="#policy">Policy</a>
+        <a href="#quickstart">Quick start</a>
         <a href="#passes">Tokens</a>
         <a href="#stack">Stack</a>
         <a href="#sigbird">Case study</a>

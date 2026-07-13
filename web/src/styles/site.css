@@ -96,6 +96,9 @@
 
   .hero {
     --hero-pad: clamp(18px, 5vw, 72px);
+    /* Where the flight field fades in: roughly halfway up the description
+       text (top padding + headline + gap + half the paragraph). */
+    --hero-flight-top: clamp(230px, 34svh, 330px);
     position: relative;
     min-height: 100svh;
     display: grid;
@@ -103,7 +106,7 @@
     align-content: start;
     row-gap: clamp(26px, 4svh, 42px);
     overflow: hidden;
-    /* Bottom padding reserves the flight range below the ticker. */
+    /* Bottom padding reserves the flight range; the ticker overlays its lower half. */
     padding: clamp(90px, 12svh, 128px) var(--hero-pad) clamp(170px, 26svh, 300px);
     color: var(--ink);
     background:
@@ -224,17 +227,22 @@
     overflow: hidden;
     contain: layout paint;
     --parallax-scroll: 0px;
+    /* Flight field fades in about halfway up the description text, so the
+       animation reads as starting just under the copy — and runs all the way
+       to the bottom edge, where it stays visible through the ticker. */
     -webkit-mask-image: linear-gradient(
       to bottom,
-      #000 0%,
-      #000 calc(100% - 140px),
-      transparent 100%
+      transparent 0,
+      transparent calc(var(--hero-flight-top) - 80px),
+      #000 var(--hero-flight-top),
+      #000 100%
     );
     mask-image: linear-gradient(
       to bottom,
-      #000 0%,
-      #000 calc(100% - 140px),
-      transparent 100%
+      transparent 0,
+      transparent calc(var(--hero-flight-top) - 80px),
+      #000 var(--hero-flight-top),
+      #000 100%
     );
   }
   .hero-defense-layer {
@@ -245,6 +253,20 @@
     contain: layout paint;
     pointer-events: none;
     --parallax-scroll: 0px;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--hero-flight-top) - 80px),
+      #000 var(--hero-flight-top),
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--hero-flight-top) - 80px),
+      #000 var(--hero-flight-top),
+      #000 100%
+    );
   }
   .auth-launcher {
     position: absolute;
@@ -1049,14 +1071,19 @@
   @keyframes satelliteOrbit {
     to { transform: rotate(360deg); }
   }
-  /* —— Hero authorization log: full-bleed terminal in flow, below the headline —— */
+  /* —— Hero authorization log: translucent terminal pinned to the hero's
+     bottom edge, overlaying the lower half of the flight field. —— */
   .hero-tui {
-    position: relative;
-    z-index: 3;
-    justify-self: stretch;
-    margin-inline: calc(var(--hero-pad) * -1);
-    border-block: 1px solid rgba(122, 184, 237, .22);
-    background: rgba(9, 13, 19, .98);
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    border-top: 1px solid rgba(122, 184, 237, .28);
+    /* ~70% opacity: satellites stay visible passing behind the log. */
+    background: rgba(9, 13, 19, .72);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
     color: #c7d3e4;
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     overflow: hidden;
@@ -1115,7 +1142,7 @@
     display: flex;
     flex-direction: column;
     padding: 2px 0 8px;
-    min-height: 138px;
+    min-height: 168px;
   }
   .hero-tui-row {
     position: relative;
@@ -1296,33 +1323,114 @@
     color: rgba(16,24,39,.72);
     font-size: clamp(18px, 2.2vw, 24px);
   }
-  /* Buttons ride on top of the flight field, pinned bottom-left. */
+  /* Buttons sit on top of the ticker, pinned to the hero's bottom-left. */
   .hero-actions {
     position: absolute;
     left: var(--hero-pad);
-    bottom: clamp(26px, 7svh, 70px);
-    z-index: 3;
+    bottom: 20px;
+    z-index: 8;
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
   }
-  .button {
-    border: 0;
+  /* —— 3D rubber "pushable" buttons (shadow + edge + spring-loaded front) —— */
+  .push-btn {
+    --lift: 7px;
+    --hover-lift: 9px;
+    --press: 2px;
+    position: relative;
+    display: inline-block;
+    border: none;
+    padding: 0;
+    background: transparent;
     border-radius: 999px;
-    padding: 13px 18px;
-    background: var(--navy);
-    color: #ffffff;
-    font-weight: 800;
     cursor: pointer;
     text-decoration: none;
-    box-shadow: 0 8px 24px rgba(0,0,0,.22);
-    transition: transform .18s ease, box-shadow .18s ease;
+    outline-offset: 4px;
+    -webkit-tap-highlight-color: transparent;
+    transition: filter 250ms ease;
   }
-  .button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.28); }
-  .button.secondary {
-    background: rgba(255,255,255,.52);
+  .push-btn:hover { filter: brightness(1.05); }
+  .push-shadow {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(7, 18, 40, .3);
+    filter: blur(3px);
+    will-change: transform;
+    transform: translateY(2px);
+    transition: transform 600ms cubic-bezier(.3, .7, .4, 1);
+  }
+  .push-edge {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: linear-gradient(
+      to left,
+      #050f22 0%,
+      #12305e 8%,
+      #12305e 92%,
+      #050f22 100%
+    );
+  }
+  .push-front {
+    display: block;
+    position: relative;
+    border-radius: 999px;
+    padding: 14px 26px;
+    background: linear-gradient(180deg, #1a4187, var(--navy) 55%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 16px;
+    /* Rubbery sheen: bright top edge, soft inner shading. */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .28),
+      inset 0 -4px 8px rgba(4, 12, 28, .35);
+    will-change: transform;
+    transform: translateY(calc(-1 * var(--lift)));
+    transition: transform 600ms cubic-bezier(.3, .7, .4, 1);
+  }
+  .push-btn:hover .push-front {
+    transform: translateY(calc(-1 * var(--hover-lift)));
+    transition: transform 250ms cubic-bezier(.3, .7, .4, 1.5);
+  }
+  .push-btn:hover .push-shadow {
+    transform: translateY(4px);
+    transition: transform 250ms cubic-bezier(.3, .7, .4, 1.5);
+  }
+  .push-btn:active .push-front {
+    transform: translateY(calc(-1 * var(--press)));
+    transition: transform 34ms;
+  }
+  .push-btn:active .push-shadow {
+    transform: translateY(1px);
+    transition: transform 34ms;
+  }
+  /* Secondary: same rubber, about half the travel. */
+  .push-btn.secondary {
+    --lift: 4px;
+    --hover-lift: 5px;
+    --press: 1px;
+  }
+  .push-btn.secondary .push-shadow { background: rgba(21, 38, 73, .22); }
+  .push-btn.secondary .push-edge {
+    background: linear-gradient(
+      to left,
+      #9daec6 0%,
+      #cfd9e8 8%,
+      #cfd9e8 92%,
+      #9daec6 100%
+    );
+  }
+  .push-btn.secondary .push-front {
+    padding: 12px 20px;
+    background: linear-gradient(180deg, #ffffff, #eef2f8 60%);
     color: var(--navy);
-    box-shadow: inset 0 0 0 1px rgba(15,44,92,.18);
+    font-size: 15px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .9),
+      inset 0 0 0 1px rgba(15, 44, 92, .14),
+      inset 0 -3px 6px rgba(21, 38, 73, .1);
   }
 
 
@@ -2369,6 +2477,49 @@
     box-shadow: var(--shadow);
     padding: 18px 18px 16px;
   }
+  /* —— Quick start: three terminal steps —— */
+  .qs-grid {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .qs-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .qs-step .pol-code { font-size: 12px; }
+  .qs-note {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .qs-note code, .qs-library code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--dark-soft);
+    color: var(--navy);
+    font-size: .92em;
+  }
+  .qs-library {
+    width: min(1180px, 100%);
+    margin: 18px auto 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .qs-library a { color: var(--blue); font-weight: 800; }
   .pol-title {
     margin: 0 0 12px;
     font-size: 17px;
@@ -2761,7 +2912,7 @@
     .auth-planet.identity { --planet-x: 18vw; --planet-y: 84svh; }
     .auth-planet.device { --planet-x: 30vw; --planet-y: 66svh; }
     .auth-planet.challenge { --planet-x: 84vw; --planet-y: 82svh; }
-    .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes, .agent-stats, .crypto-provenance, .case-grid { grid-template-columns: 1fr; }
+    .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes, .agent-stats, .crypto-provenance, .case-grid, .qs-grid { grid-template-columns: 1fr; }
     .case-wire-row { grid-template-columns: 1fr; gap: 4px; }
     .hw-table { display: block; overflow-x: auto; }
     .scene-board { min-height: 560px; }
@@ -2787,8 +2938,10 @@
     .auth-planet.challenge { --planet-x: 86vw; --planet-y: 84svh; }
     .auth-planet-label strong { font-size: 11px; }
     .auth-planet-label span { display: none; }
-    .hero-actions { right: 18px; flex-direction: column; align-items: stretch; }
-    .button { width: 100%; text-align: center; }
+    /* Buttons stay compact side by side on top of the ticker. */
+    .hero-actions { gap: 8px; }
+    .push-front { padding: 11px 16px; font-size: 14px; }
+    .push-btn.secondary .push-front { padding: 10px 14px; font-size: 13px; }
     .scene-board { min-height: 430px; }
     .actor { width: 104px; height: 104px; }
     .agent-node { width: 92px; height: 70px; }
