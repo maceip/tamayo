@@ -66,15 +66,6 @@ export function Hero(props: { scale?: number }) {
       </div>
       <div class="hero-copy">
         <h1 data-testid="tamayo-hero-title">Let your agents fly</h1>
-        <p>
-          Tamayo is a universal security framework for agents, whether Claude runs in a secure
-          enclave with remote attestation or on Betsy's laptop. Every action the agent takes
-          presents a signed, single-use pass instead of your identity.
-        </p>
-        <div class="hero-actions">
-          <a class="button bb-pulse" href="#deployments">Where it runs</a>
-          <a class="button secondary bb-line" href="#passes">Token types</a>
-        </div>
       </div>
       <aside class="hero-tui" aria-label="Simulated authorization log">
         <div class="hero-tui-bar">
@@ -92,6 +83,15 @@ export function Hero(props: { scale?: number }) {
         </div>
         <div class="hero-tui-rows" ref={logEl} />
       </aside>
+      <p class="hero-desc">
+        Tamayo is a universal security framework for agents, whether Claude runs in a secure
+        enclave with remote attestation or on Betsy's laptop. Every action the agent takes
+        presents a signed, single-use pass instead of your identity.
+      </p>
+      <div class="hero-actions">
+        <a class="button bb-pulse" href="#deployments">Where it runs</a>
+        <a class="button secondary bb-line" href="#passes">Token types</a>
+      </div>
     </header>
   );
 }

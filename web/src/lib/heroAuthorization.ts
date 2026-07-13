@@ -203,7 +203,9 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
         window.setTimeout(() => resolveLogRow(row, outcome), 700 + Math.random() * 1800);
       }
       scheduleAmbient();
-    }, 3400 + Math.random() * 4200);
+      // Slow enough that satellite-backed rows (the hoverable ones) survive
+      // several evictions before scrolling off the board.
+    }, 6500 + Math.random() * 4500);
   };
 
   const stopTimers = () => {

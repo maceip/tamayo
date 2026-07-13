@@ -93,7 +93,7 @@
     row-gap: clamp(26px, 4svh, 42px);
     overflow: hidden;
     /* Bottom padding reserves the flight range below the ticker. */
-    padding: clamp(90px, 12svh, 128px) var(--hero-pad) 34svh;
+    padding: clamp(90px, 12svh, 128px) var(--hero-pad) clamp(170px, 26svh, 300px);
     color: var(--ink);
     background:
       linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.94)),
@@ -1004,11 +1004,23 @@
     font-size: clamp(20px, 2.6vw, 32px);
     letter-spacing: 0;
   }
+  .hero-desc {
+    position: relative;
+    z-index: 3;
+    width: min(1240px, 100%);
+    margin: 0;
+    color: rgba(16,24,39,.72);
+    font-size: clamp(18px, 2.2vw, 24px);
+  }
+  /* Buttons ride on top of the flight field, pinned bottom-left. */
   .hero-actions {
+    position: absolute;
+    left: var(--hero-pad);
+    bottom: clamp(26px, 7svh, 70px);
+    z-index: 3;
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 34px;
   }
   .button {
     border: 0;
@@ -2441,20 +2453,28 @@
   @media (max-width: 920px) {
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
-    /* No ticker on mobile, so recenter the copy instead of top-aligning. */
     .hero {
-      min-height: 92svh;
-      align-content: center;
-      row-gap: 0;
-      padding-top: 86px;
-      padding-bottom: 70px;
+      min-height: 96svh;
+      padding-top: 78px;
+      padding-bottom: 140px;
+      row-gap: 22px;
     }
-    .hero-tui { display: none; }
+    /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
+    .hero-tui-row {
+      grid-template-columns: 62px 1fr 1.2fr 78px;
+      gap: 9px;
+      padding-inline: 14px;
+      font-size: 11px;
+    }
+    .tui-client, .tui-desk, .tui-score { display: none; }
+    .hero-tui-cols span:nth-child(2),
+    .hero-tui-cols span:nth-child(5),
+    .hero-tui-cols span:nth-child(6) { display: none; }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
-    .auth-planet.finance { --planet-x: 79vw; --planet-y: 15svh; }
-    .auth-planet.identity { --planet-x: 18vw; --planet-y: 79svh; }
-    .auth-planet.device { --planet-x: 30vw; --planet-y: 13svh; }
-    .auth-planet.challenge { --planet-x: 84vw; --planet-y: 78svh; }
+    .auth-planet.finance { --planet-x: 79vw; --planet-y: 70svh; }
+    .auth-planet.identity { --planet-x: 18vw; --planet-y: 84svh; }
+    .auth-planet.device { --planet-x: 30vw; --planet-y: 66svh; }
+    .auth-planet.challenge { --planet-x: 84vw; --planet-y: 82svh; }
     .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes, .agent-stats, .crypto-provenance, .case-grid { grid-template-columns: 1fr; }
     .case-wire-row { grid-template-columns: 1fr; gap: 4px; }
     .hw-table { display: block; overflow-x: auto; }
@@ -2475,13 +2495,13 @@
     .hero { padding-inline: 18px; }
     .hero-scene { opacity: .5; }
     .auth-planet { --planet-size: 70px; --orbit-size: 98px; }
-    .auth-planet.finance { --planet-x: 78vw; --planet-y: 14svh; }
-    .auth-planet.identity { --planet-x: 16vw; --planet-y: 92svh; }
-    .auth-planet.device { --planet-x: 31vw; --planet-y: 13svh; }
-    .auth-planet.challenge { --planet-x: 86vw; --planet-y: 92svh; }
+    .auth-planet.finance { --planet-x: 78vw; --planet-y: 68svh; }
+    .auth-planet.identity { --planet-x: 16vw; --planet-y: 86svh; }
+    .auth-planet.device { --planet-x: 31vw; --planet-y: 64svh; }
+    .auth-planet.challenge { --planet-x: 86vw; --planet-y: 84svh; }
     .auth-planet-label strong { font-size: 11px; }
     .auth-planet-label span { display: none; }
-    .hero-actions { align-items: stretch; }
+    .hero-actions { right: 18px; flex-direction: column; align-items: stretch; }
     .button { width: 100%; text-align: center; }
     .scene-board { min-height: 430px; }
     .actor { width: 104px; height: 104px; }
