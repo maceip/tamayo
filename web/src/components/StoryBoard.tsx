@@ -47,8 +47,8 @@ export function StoryBoard(props: { autoplay?: boolean }) {
       <div class="section-head">
         <h2>When an agent acts for you</h2>
         <p>
-          A normal request fans out across devices. Services see automation. Tamayo turns a checked
-          fact into a pass the agent can present.
+          A normal request fans out across devices; services see automation. Tamayo turns a
+          checked fact into a pass the agent can present.
         </p>
       </div>
 

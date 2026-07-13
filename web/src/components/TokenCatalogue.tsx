@@ -12,8 +12,7 @@ export function TokenCatalogue() {
         <h2>OSI Layer 6: Tokens</h2>
         <p>
           Wire formats in <code>tokenprofile</code> and <code>emailtoken</code>: what the verifier
-          learns, what stays hidden, and which checks the issuer runs before minting. Product UI is
-          not in these packages.
+          learns, what stays hidden, and what the issuer checks before minting.
         </p>
       </div>
 

@@ -13,8 +13,7 @@ export function CaseStudy() {
         <p>
           <a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a> is a mail client that
           hosts signature images for free — a spam magnet, gated by a tamayo private-identity
-          token. We got the integration wrong twice before we got it right. Here is the honest
-          version, mistakes included.
+          token. We got it wrong twice first. Here is the honest version.
         </p>
       </div>
 

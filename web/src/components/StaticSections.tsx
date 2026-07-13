@@ -22,10 +22,9 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 1: TamaGo</h2>
           <p>
-            Physical layer. TamaGo runs Go as firmware — no Linux process, libc, shell, package
-            manager, or container in the critical path. Tamayo’s crypto packages are cgo-free and
-            cross-build for <code>GOOS=tamago</code> on amd64, arm, arm64, and riscv64. The issuer
-            can measure a small program instead of an app buried in a general-purpose OS.
+            TamaGo runs Go as firmware — no Linux, libc, or shell in the critical path. Tamayo’s
+            crypto is cgo-free and cross-builds for <code>GOOS=tamago</code> on amd64, arm, arm64,
+            and riscv64, so the issuer measures a small program, not an app buried in an OS.
           </p>
         </div>
 
@@ -78,10 +77,9 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 2: Trusted Execution Environments, Confidential VMs, and Secure Enclaves</h2>
           <p>
-            Link layer for trust. Tamayo grew out of remote attestation work (Unified Quote flows,
-            SGX) where the hard part was not naming an enclave — it was deciding which measured
-            program, signer, configuration, and update path may act for a user. Those fields feed
-            <code> tokenauth</code> before a pass is minted.
+            Tamayo grew out of remote attestation work, where the hard part is deciding which
+            measured program, signer, configuration, and update path may act for a user. Those
+            fields feed <code>tokenauth</code> before a pass is minted.
           </p>
         </div>
         <div class="principles">
@@ -114,10 +112,9 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 3: Cryptography</h2>
           <p>
-            Passes that authorize spend can outlive classical signature assumptions. Agents and
-            long-lived credentials raise harvest-now / forge-later risk, so Tamayo’s signing stack is
-            post-quantum where it matters: NIST additional-signature candidates plus FIPS 204 ML-DSA,
-            all pure Go, no cgo.
+            Passes that authorize spend can outlive classical signature assumptions. Tamayo’s
+            signing stack is post-quantum where it matters: NIST additional-signature candidates
+            plus FIPS 204 ML-DSA — pure Go, no cgo.
           </p>
         </div>
 
@@ -220,8 +217,8 @@ export function StaticSections() {
           <h2>Runs Everywhere</h2>
           <p>
             OSI Layer 4 — transport. The same cgo-free packages compose on phones, laptops, cloud
-            TEEs, and bare metal. Product code owns HTTP, storage, and UI; Tamayo owns crypto plus
-            mint/verify APIs. Each column is what we build, require, or configure for that runtime.
+            TEEs, and bare metal. Product code owns HTTP, storage, and UI; Tamayo owns crypto and
+            mint/verify.
           </p>
         </div>
         <div class="runtime-legend" aria-hidden="true">
@@ -265,10 +262,10 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 5: Issuance session</h2>
           <p>
-            Session layer. A password or broad OAuth grant is the wrong shape for an agent. Issuance
-            uses the PoMFRIT one-more-MAYO path (<code>sign_1</code> blind → <code>sign_2</code>{' '}
-            issuer preimage → <code>sign_3</code> VOLE proof → verify) so the holder gets a narrow
-            pass without turning every check into a permanent account handle.
+            A password or broad OAuth grant is the wrong shape for an agent. Issuance runs the
+            PoMFRIT one-more-MAYO blind path (<code>sign_1</code> → <code>sign_2</code> →{' '}
+            <code>sign_3</code> → verify), so the holder gets a narrow pass without a permanent
+            account handle.
           </p>
         </div>
         <div class="principles">
@@ -305,9 +302,8 @@ export function PolicySection() {
       <div class="section-head">
         <h2>OSI Layer 7: Policy</h2>
         <p>
-          Application layer. <code>tokenauth</code> compiles JSON policy into a mint decision: which
-          evidence is enough before a pass exists. The verifier receives the pass — not the policy
-          file.
+          <code>tokenauth</code> compiles JSON policy into a mint decision: which evidence is
+          enough before a pass exists. The verifier receives the pass — never the policy file.
         </p>
       </div>
       <div class="primitive-notes t-stagger">
@@ -336,8 +332,8 @@ export function AgentsSection() {
       <div class="section-head">
         <h2>OSI Layer 8: Agents</h2>
         <p>
-          Software that browses, remembers, calls tools, writes code, and runs it. A session cookie
-          is the wrong credential: agents need a narrow pass per privileged action.
+          Software that browses, remembers, calls tools, and runs code. A session cookie is the
+          wrong credential — agents need a narrow pass per privileged action.
         </p>
       </div>
 
