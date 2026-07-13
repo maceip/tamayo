@@ -1,6 +1,6 @@
 import { batch, createEffect, createMemo, createSelector, createSignal, For, on, onCleanup, onMount } from 'solid-js';
 import { steps } from '../data/story';
-import { createPageVisible } from '../lib/media';
+import { createMediaQuery, createPageVisible } from '../lib/media';
 
 export function StoryBoard(props: { autoplay?: boolean }) {
   let sectionEl!: HTMLElement;
@@ -11,9 +11,10 @@ export function StoryBoard(props: { autoplay?: boolean }) {
   const [hovering, setHovering] = createSignal(false);
   const [inView, setInView] = createSignal(false);
   const pageVisible = createPageVisible();
+  const reducedMotion = createMediaQuery('(prefers-reduced-motion: reduce)');
 
   const playing = () => userPlaying() ?? props.autoplay !== false;
-  const running = () => playing() && !hovering() && inView() && pageVisible();
+  const running = () => playing() && !reducedMotion() && !hovering() && inView() && pageVisible();
   const step = createMemo(() => steps[index()]!);
   const isActive = createSelector(index);
 

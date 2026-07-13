@@ -1,4 +1,4 @@
-/** Planet parallax — rAF-throttled, clamped so craft never cross the OSI Layer 1 header. */
+/** Planet parallax — rAF-throttled and clamped above the OSI Layer 1 header. */
 
 const FACTORS: Record<string, number> = {
   finance: 0.22,
@@ -7,28 +7,26 @@ const FACTORS: Record<string, number> = {
   challenge: 0.26,
 };
 
-function planetKey(el: Element): string {
-  return [...el.classList].find((name) => name !== 'auth-planet') || 'planet';
+function planetKey(element: Element): string {
+  return [...element.classList].find((name) => name !== 'auth-planet') || 'planet';
 }
 
 export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () => void {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (reduced.matches) return () => {};
-
+  const defenseLayer = hero.querySelector<HTMLElement>('[data-authorization-defense-layer]');
   const planets = [...field.querySelectorAll<HTMLElement>('.auth-planet')];
   for (const planet of planets) {
-    const key = planetKey(planet);
-    planet.style.setProperty('--parallax-factor', String(FACTORS[key] ?? 0.2));
+    planet.style.setProperty('--parallax-factor', String(FACTORS[planetKey(planet)] ?? 0.2));
   }
 
   let raf = 0;
   let scrolling = false;
   let scrollEndTimer = 0;
+  let listening = false;
 
   const measureMax = () => {
     const tamago = document.getElementById('tamago');
     if (!tamago) return hero.offsetHeight * 0.35;
-    // Room between hero top and OSI Layer 1 header — planets must not cross this.
     const room = tamago.offsetTop - hero.offsetTop - 96;
     return Math.max(0, room * 0.55);
   };
@@ -40,12 +38,7 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
     const scrolled = Math.max(0, window.scrollY - hero.offsetTop);
     const shift = Math.min(scrolled * 0.42, maxShift);
     field.style.setProperty('--parallax-scroll', `${shift}px`);
-
-    // Keep live orbits locked to the same parallax as their planet
-    field.querySelectorAll<HTMLElement>('.authorization-orbit').forEach((orbit) => {
-      const key = orbit.dataset.planet || 'planet';
-      orbit.style.setProperty('--parallax-factor', String(FACTORS[key] ?? 0.2));
-    });
+    defenseLayer?.style.setProperty('--parallax-scroll', `${shift}px`);
   };
 
   const onScroll = () => {
@@ -58,7 +51,6 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
       scrolling = false;
       hero.classList.remove('is-scrolling');
     }, 120);
-
     if (!raf) raf = window.requestAnimationFrame(apply);
   };
 
@@ -67,16 +59,47 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
     apply();
   };
 
-  apply();
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onResize, { passive: true });
-
-  return () => {
+  const stopListening = () => {
+    if (!listening) return;
     window.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', onResize);
+    listening = false;
     window.clearTimeout(scrollEndTimer);
     if (raf) window.cancelAnimationFrame(raf);
+    raf = 0;
+    scrolling = false;
     hero.classList.remove('is-scrolling');
+  };
+
+  const startListening = () => {
+    if (listening || reduced.matches) return;
+    listening = true;
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
+    onResize();
+  };
+
+  const onReducedMotion = (event: MediaQueryListEvent) => {
+    if (event.matches) {
+      stopListening();
+      field.style.setProperty('--parallax-scroll', '0px');
+      defenseLayer?.style.setProperty('--parallax-scroll', '0px');
+    } else {
+      startListening();
+    }
+  };
+
+  reduced.addEventListener('change', onReducedMotion);
+  startListening();
+  if (reduced.matches) {
+    field.style.setProperty('--parallax-scroll', '0px');
+    defenseLayer?.style.setProperty('--parallax-scroll', '0px');
+  }
+
+  return () => {
+    stopListening();
+    reduced.removeEventListener('change', onReducedMotion);
     field.style.removeProperty('--parallax-scroll');
+    defenseLayer?.style.removeProperty('--parallax-scroll');
   };
 }

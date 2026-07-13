@@ -41,6 +41,17 @@
   }
   button, input { font: inherit; }
   a { color: inherit; }
+  .sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
 
   .site-nav {
     position: fixed;
@@ -101,12 +112,42 @@
       radial-gradient(760px 560px at 10% 78%, rgba(229, 61, 69, .12), transparent 64%),
       #ffffff;
   }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    background:
+      radial-gradient(circle at 58% 34%, rgba(255, 28, 48, .08), rgba(181, 0, 24, .2) 54%, rgba(70, 0, 10, .3)),
+      linear-gradient(180deg, rgba(255, 36, 46, .08), rgba(133, 0, 18, .2));
+  }
+  .hero.is-under-attack::after {
+    animation: authorizationHeroAlert .34s ease-in-out infinite alternate;
+  }
+  @keyframes authorizationHeroAlert {
+    from { opacity: .22; }
+    to { opacity: .68; }
+  }
+  html.authorization-alert body {
+    animation: authorizationScreenShake .58s steps(2, end);
+  }
+  @keyframes authorizationScreenShake {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    12% { transform: translate3d(-4px, 2px, 0); }
+    24% { transform: translate3d(5px, -3px, 0); }
+    36% { transform: translate3d(-5px, -1px, 0); }
+    48% { transform: translate3d(4px, 3px, 0); }
+    60% { transform: translate3d(-3px, -2px, 0); }
+    72% { transform: translate3d(3px, 1px, 0); }
+    84% { transform: translate3d(-2px, 1px, 0); }
+  }
   .hero-scene {
     position: absolute;
     inset: 0;
     pointer-events: none;
     opacity: .78;
-    filter: saturate(1.2);
     contain: paint;
   }
   .hero-scene::before,
@@ -137,8 +178,8 @@
     animation-direction: alternate-reverse;
   }
   @keyframes bridgeFlow {
-    0% { background-position: 0% 50%, 16% 52%, 34% 48%, 52% 51%, 0 0; transform: translateX(-4%) rotate(-9deg) scaleX(1); }
-    100% { background-position: 36% 50%, 54% 52%, 72% 48%, 96% 51%, 0 0; transform: translateX(4%) rotate(-7deg) scaleX(1.04); }
+    0% { opacity: .4; transform: translate3d(-4%, 0, 0) rotate(-9deg) scaleX(1); }
+    100% { opacity: .56; transform: translate3d(4%, 0, 0) rotate(-7deg) scaleX(1.04); }
   }
   .flow-cell {
     position: absolute;
@@ -196,6 +237,15 @@
       transparent 100%
     );
   }
+  .hero-defense-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    overflow: hidden;
+    contain: layout paint;
+    pointer-events: none;
+    --parallax-scroll: 0px;
+  }
   .auth-launcher {
     position: absolute;
     left: -72px;
@@ -222,7 +272,6 @@
     width: var(--planet-size);
     color: var(--navy);
     transform: translate3d(-50%, calc(-50% + (var(--parallax-factor) * var(--parallax-scroll))), 0);
-    animation: planetBob 20s ease-in-out infinite;
   }
   .auth-planet-body {
     position: relative;
@@ -238,6 +287,8 @@
       inset -16px -18px 34px rgba(15,44,92,.12),
       inset 12px 14px 22px rgba(255,255,255,.42),
       0 18px 58px rgba(35,104,255,.12);
+    animation: planetSurfacePulse 20s ease-in-out infinite;
+    will-change: transform;
   }
   .auth-planet-body::before {
     content: "";
@@ -291,11 +342,10 @@
     background: none;
     border: none;
   }
-  .auth-planet.finance { --planet-x: 85vw; --planet-y: 66svh; animation-delay: -3s; }
+  .auth-planet.finance { --planet-x: 85vw; --planet-y: 66svh; }
   .auth-planet.identity {
     --planet-x: 13vw;
     --planet-y: 82svh;
-    animation-delay: -8s;
   }
   .auth-planet.identity .auth-planet-body {
     background:
@@ -306,7 +356,6 @@
   .auth-planet.device {
     --planet-x: 28vw;
     --planet-y: 64svh;
-    animation-delay: -13s;
   }
   .auth-planet.device .auth-planet-body {
     background:
@@ -317,7 +366,6 @@
   .auth-planet.challenge {
     --planet-x: 88vw;
     --planet-y: 80svh;
-    animation-delay: -17s;
   }
   .auth-planet.challenge .auth-planet-body {
     background:
@@ -325,28 +373,49 @@
       radial-gradient(circle at 64% 62%, rgba(255,255,255,.18), transparent 36%),
       linear-gradient(145deg, rgba(245,247,250,.94), rgba(217,75,197,.26) 44%, rgba(178,188,204,.74));
   }
-  /* Idle bob uses box-shadow only so it doesn't override parallax translate */
-  @keyframes planetBob {
-    0%, 100% { filter: brightness(1); }
-    50% { filter: brightness(1.04); }
+  .auth-planet.finance .auth-planet-body { animation-delay: -3s; }
+  .auth-planet.identity .auth-planet-body { animation-delay: -8s; }
+  .auth-planet.device .auth-planet-body { animation-delay: -13s; }
+  .auth-planet.challenge .auth-planet-body { animation-delay: -17s; }
+  @keyframes planetSurfacePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.018); }
   }
   .authorization-flight {
     --planet-x: 50vw;
     --planet-y: 50svh;
     --miss-x: 8vw;
+    --orbit-radius: 72px;
+    --parallax-factor: .2;
+    --threat-planet-y: var(--planet-y);
     position: absolute;
     left: 0;
     top: 0;
     z-index: 2;
     width: 56px;
-    height: 28px;
+    height: 44px;
     opacity: 0;
-    transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82);
-    animation: authorizationLaunch 22s cubic-bezier(.2,.72,.26,1) forwards;
+    transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82);
+    animation: authorizationApproach 6.8s cubic-bezier(.2,.72,.26,1) forwards;
     pointer-events: none;
+    will-change: transform, opacity;
   }
-  .authorization-flight.failed {
-    animation: authorizationMiss 18s cubic-bezier(.22,.7,.2,1) forwards;
+  .authorization-flight.denied {
+    animation-name: authorizationDeniedApproach;
+    animation-duration: 5.6s;
+  }
+  .authorization-flight.denied.is-rejected {
+    animation: authorizationDeniedFall 2.4s cubic-bezier(.22,.58,.36,1) forwards;
+  }
+  .authorization-flight.malicious {
+    animation-name: authorizationThreatApproach;
+    animation-duration: 5.2s;
+  }
+  .authorization-flight.malicious.is-targeted {
+    animation: authorizationTargetHold 1.8s linear forwards;
+  }
+  .authorization-flight.malicious.is-blasted {
+    animation: authorizationBlast 1.35s cubic-bezier(.3,.02,.42,1) forwards;
   }
   .authorization-orbit {
     --planet-x: 50vw;
@@ -379,8 +448,8 @@
     inset: 0;
     border-radius: 50%;
     animation: satelliteOrbit 48s linear infinite;
-    animation-delay: var(--orbit-delay, 0s);
     pointer-events: none;
+    will-change: transform;
   }
 
   /* CubeSat / bus-and-panels craft — angular on purpose (not a round head + soft trail). */
@@ -395,8 +464,8 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 52px;
-    height: 22px;
+    width: 56px;
+    height: 44px;
     border: 0;
     padding: 0;
     margin: 0;
@@ -419,7 +488,7 @@
   }
   .authorization-track .authorization-satellite {
     left: 50%;
-    top: -6px;
+    top: 0;
     /* Face along the orbit path without a “swimming” nose-forward look */
     transform: translate(-50%, -50%) rotate(0deg);
   }
@@ -493,7 +562,7 @@
 
   /*
    * Booster flame — flight only.
-   * Multi-layer nozzle + morphing flame tongues + sparks so it never reads as a
+   * Multi-layer nozzle + pulsing flame tongues + sparks so it never reads as a
    * static soft “chem trail” behind a round body.
    */
   .sat-booster {
@@ -509,6 +578,13 @@
   }
   .authorization-satellite.is-flying .sat-booster {
     opacity: 1;
+  }
+  .authorization-satellite.is-coasting .sat-booster {
+    opacity: 1;
+  }
+  .authorization-satellite.is-coasting .sat-flame,
+  .authorization-satellite.is-coasting .sat-spark {
+    display: none;
   }
   .authorization-satellite.is-orbiting .sat-booster,
   .authorization-track .sat-booster {
@@ -542,7 +618,6 @@
     transform: translateY(-50%);
     background: linear-gradient(90deg, transparent 0%, #ff6a1a 35%, #ffb020 78%, #ffe56a 100%);
     clip-path: polygon(100% 30%, 100% 70%, 55% 92%, 18% 78%, 0 50%, 22% 22%, 58% 8%);
-    filter: blur(0.35px);
     opacity: .9;
     animation: satFlameOuter 0.14s steps(2, end) infinite;
   }
@@ -587,32 +662,14 @@
   .sat-spark-c { animation: satSpark 0.42s linear infinite 0.22s; top: 62%; background: #fff6c8; width: 1.5px; height: 1.5px; }
 
   @keyframes satFlameOuter {
-    0% {
-      transform: translateY(-50%) scaleX(1) scaleY(1);
-      clip-path: polygon(100% 30%, 100% 70%, 55% 92%, 18% 78%, 0 50%, 22% 22%, 58% 8%);
-    }
-    50% {
-      transform: translateY(-50%) scaleX(1.18) scaleY(0.82);
-      clip-path: polygon(100% 26%, 100% 74%, 60% 86%, 10% 70%, 0 42%, 16% 18%, 50% 6%);
-    }
-    100% {
-      transform: translateY(-50%) scaleX(0.92) scaleY(1.12);
-      clip-path: polygon(100% 34%, 100% 66%, 48% 96%, 24% 80%, 0 58%, 28% 28%, 62% 14%);
-    }
+    0% { transform: translateY(-50%) scaleX(1) scaleY(1); opacity: .82; }
+    50% { transform: translateY(-50%) scaleX(1.18) scaleY(0.82); opacity: .96; }
+    100% { transform: translateY(-50%) scaleX(0.92) scaleY(1.12); opacity: .86; }
   }
   @keyframes satFlameMid {
-    0% {
-      transform: translateY(-50%) scaleX(1) scaleY(1.05);
-      clip-path: polygon(100% 28%, 100% 72%, 48% 88%, 12% 62%, 0 50%, 14% 35%, 52% 12%);
-    }
-    50% {
-      transform: translateY(-50%) scaleX(1.22) scaleY(0.78);
-      clip-path: polygon(100% 32%, 100% 68%, 42% 90%, 6% 55%, 0 40%, 20% 22%, 58% 8%);
-    }
-    100% {
-      transform: translateY(-50%) scaleX(0.88) scaleY(1.15);
-      clip-path: polygon(100% 24%, 100% 76%, 55% 84%, 18% 68%, 0 55%, 10% 30%, 46% 16%);
-    }
+    0% { transform: translateY(-50%) scaleX(1) scaleY(1.05); opacity: .9; }
+    50% { transform: translateY(-50%) scaleX(1.22) scaleY(0.78); opacity: 1; }
+    100% { transform: translateY(-50%) scaleX(0.88) scaleY(1.15); opacity: .88; }
   }
   @keyframes satFlameCore {
     0% { transform: translateY(-50%) scaleX(1) scaleY(1); opacity: 1; }
@@ -628,34 +685,33 @@
   .sat-spark-b { --spark-y: 4px; }
   .sat-spark-c { --spark-y: -1px; }
 
-  .authorization-satellite.malicious .sat-flame-outer {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-outer {
     background: linear-gradient(90deg, transparent 0%, #b50018 30%, #ff4b1f 70%, #ffb000 100%);
   }
-  .authorization-satellite.malicious .sat-flame-mid {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-mid {
     background: linear-gradient(90deg, transparent 0%, #ff4b1f 30%, #ffb000 75%, #fff0a0 100%);
   }
-  .authorization-satellite.malicious .sat-flame-core {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-core {
     background: linear-gradient(90deg, rgba(255,255,255,0), #fff 40%, #ffd0a0 100%);
   }
-  .authorization-satellite.malicious .sat-spark {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-spark {
     background: #ffb070;
     box-shadow: 0 0 3px #e53d45;
   }
 
-  /* Failed: sputtering, weaker burn */
-  .authorization-satellite.failed .sat-flame-outer {
+  /* A denied craft sputters on approach, then all flame stops before it falls. */
+  .authorization-satellite.denied.is-flying .sat-flame-outer {
     animation-duration: 0.28s;
     opacity: .55;
-    filter: grayscale(0.25) blur(0.45px);
   }
-  .authorization-satellite.failed .sat-flame-mid {
+  .authorization-satellite.denied.is-flying .sat-flame-mid {
     animation-duration: 0.22s;
     opacity: .5;
   }
-  .authorization-satellite.failed .sat-flame-core {
+  .authorization-satellite.denied.is-flying .sat-flame-core {
     animation: satFlameSputter 0.5s steps(3, end) infinite;
   }
-  .authorization-satellite.failed .sat-spark-c {
+  .authorization-satellite.denied.is-flying .sat-spark-c {
     display: none;
   }
   @keyframes satFlameSputter {
@@ -664,7 +720,7 @@
     60%, 100% { opacity: .85; transform: translateY(-50%) scaleX(0.9); }
   }
 
-  .authorization-satellite.malicious {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .authorization-satellite {
     --sat-metal-a: #ffe8e4;
     --sat-metal-b: #e8a090;
     --sat-metal-c: #8a3030;
@@ -674,15 +730,15 @@
     --sat-glow: rgba(229, 61, 69, .35);
     filter: drop-shadow(0 0 6px var(--sat-glow));
   }
-  .authorization-satellite.malicious .sat-bay {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-bay {
     background: linear-gradient(135deg, #ffb000, #e53d45 55%, #5a0010);
   }
-  .authorization-satellite.malicious .sat-bus {
+  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-bus {
     border-color: rgba(181, 0, 24, .55);
   }
 
-  /* Failed (not malicious): muted craft that misses capture and fades out */
-  .authorization-satellite.failed {
+  /* Denied (not malicious): muted craft that coasts away without thrust. */
+  .authorization-satellite.denied {
     --sat-metal-a: #eef1f4;
     --sat-metal-b: #b0b8c4;
     --sat-metal-c: #6a7382;
@@ -691,18 +747,15 @@
     --sat-panel-line: rgba(220, 230, 240, .4);
     filter: drop-shadow(0 3px 6px rgba(15, 44, 92, .12));
   }
-  .authorization-satellite.failed .sat-bay {
+  .authorization-satellite.denied .sat-bay {
     background: linear-gradient(135deg, #c5d0dc, #7a8799 60%, #3a4658);
-  }
-  .authorization-flight.failed .authorization-satellite {
-    transition: filter 2s ease;
   }
 
   .authorization-popover {
     position: absolute;
     left: 0;
     top: 0;
-    z-index: 5;
+    z-index: 7;
     display: flex;
     align-items: center;
     gap: 7px;
@@ -721,8 +774,13 @@
     transition: opacity 80ms ease, transform 80ms ease;
     white-space: nowrap;
   }
-  .authorization-popover.is-failed {
+  .authorization-popover.is-denied {
     border-color: rgba(90, 107, 130, .35);
+  }
+  .authorization-popover.is-threat,
+  .authorization-popover.is-neutralized {
+    border-color: rgba(229, 61, 69, .5);
+    box-shadow: 0 0 0 2px rgba(229, 61, 69, .12), 0 14px 34px rgba(122, 0, 17, .24);
   }
   .authorization-popover .authorization-status {
     font-size: 10px;
@@ -731,10 +789,11 @@
     text-transform: uppercase;
     letter-spacing: .04em;
   }
-  .authorization-popover.is-blocked .authorization-status {
+  .authorization-popover.is-threat .authorization-status,
+  .authorization-popover.is-neutralized .authorization-status {
     color: var(--red);
   }
-  .authorization-popover.is-failed .authorization-status {
+  .authorization-popover.is-denied .authorization-status {
     color: #5a6b82;
   }
   .authorization-ticket {
@@ -774,47 +833,217 @@
     opacity: 1;
     transform: translate(-50%, calc(-100% - 2px)) scale(1);
   }
+  .authorization-popover.is-below {
+    transform: translate(-50%, -5px) scale(.96);
+  }
+  .authorization-popover.is-below.is-visible {
+    transform: translate(-50%, 2px) scale(1);
+  }
+  .authorization-popover:is(.is-threat, .is-neutralized) .authorization-ticket {
+    background:
+      radial-gradient(circle at 0 50%, transparent 0 3px, #ff8e72 3.5px),
+      radial-gradient(circle at 100% 50%, transparent 0 3px, #ff8e72 3.5px),
+      linear-gradient(135deg, #ffe0bc, #ff5a36 52%, #9f0019);
+    box-shadow: inset 0 0 0 1px rgba(118,0,13,.35), 0 0 10px rgba(229,61,69,.45);
+  }
   .authorization-satellite:focus-visible {
     outline: 2px solid rgba(15,44,92,.72);
     outline-offset: 4px;
   }
-  @keyframes authorizationLaunch {
-    0% { opacity: 0; transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82) rotate(-12deg); }
-    10% { opacity: .86; }
-    58% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1) rotate(-4deg); }
-    100% { opacity: .96; transform: translate(var(--planet-x), var(--planet-y)) translate(-50%, -50%) scale(1) rotate(0deg); }
+
+  .authorization-threat-reticle,
+  .authorization-defense-beam,
+  .authorization-blast-burst {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    pointer-events: none;
+    opacity: 0;
   }
-  /* Approach the node, miss capture, tumble down while fading translucent */
-  @keyframes authorizationMiss {
-    0% {
-      opacity: 0;
-      transform: translate(-14vw, 66svh) translate(-50%, -50%) scale(.82) rotate(-10deg);
-      filter: none;
-    }
-    8% { opacity: .92; }
-    42% {
-      opacity: .88;
-      transform: translate(
-        calc(var(--planet-x) + (var(--miss-x) * 0.35)),
-        calc(var(--planet-y) - 3vh)
-      ) translate(-50%, -50%) scale(1) rotate(8deg);
-      filter: none;
-    }
-    58% {
-      opacity: .55;
-      transform: translate(
-        calc(var(--planet-x) + var(--miss-x)),
-        calc(var(--planet-y) + 6vh)
-      ) translate(-50%, -50%) scale(.92) rotate(22deg);
-      filter: grayscale(0.25);
+  .authorization-threat-reticle {
+    z-index: 5;
+    width: 68px;
+    height: 68px;
+    border: 2px solid rgba(229, 61, 69, .9);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(.72);
+    box-shadow: 0 0 0 5px rgba(229,61,69,.08), inset 0 0 18px rgba(229,61,69,.22);
+  }
+  .authorization-threat-reticle::before,
+  .authorization-threat-reticle::after {
+    content: "";
+    position: absolute;
+    background: #e53d45;
+    box-shadow: 0 0 5px rgba(229,61,69,.7);
+  }
+  .authorization-threat-reticle::before { left: 50%; top: -9px; width: 2px; height: 84px; }
+  .authorization-threat-reticle::after { left: -9px; top: 50%; width: 84px; height: 2px; }
+  .authorization-flight.is-targeted .authorization-threat-reticle {
+    opacity: 1;
+    animation: authorizationTargetLock .42s steps(2, end) infinite alternate;
+  }
+  @keyframes authorizationTargetLock {
+    from { transform: translate(-50%, -50%) scale(.78) rotate(0deg); }
+    to { transform: translate(-50%, -50%) scale(1) rotate(12deg); }
+  }
+  .authorization-defense-beam {
+    z-index: 4;
+    width: min(46vw, 620px);
+    height: 4px;
+    transform-origin: right center;
+    transform: translate(-100%, -50%) rotate(-24deg) scaleX(0);
+    background: linear-gradient(90deg, transparent, rgba(255,216,92,.9) 30%, #fff 78%, #ff4a34);
+    box-shadow: 0 0 6px #fff, 0 0 18px rgba(229,61,69,.78);
+  }
+  .authorization-flight.is-blasted .authorization-defense-beam {
+    animation: authorizationDefenseBeam .4s ease-out both;
+  }
+  @keyframes authorizationDefenseBeam {
+    0% { opacity: 0; transform: translate(-100%, -50%) rotate(-24deg) scaleX(0); }
+    24%, 62% { opacity: 1; transform: translate(-100%, -50%) rotate(-24deg) scaleX(1); }
+    100% { opacity: 0; transform: translate(-100%, -50%) rotate(-24deg) scaleX(1); }
+  }
+  .authorization-blast-burst {
+    z-index: 6;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(.2);
+    background: radial-gradient(circle, #fff 0 8%, #ffe56a 18%, #ff6a1a 44%, rgba(181,0,24,.5) 62%, transparent 72%);
+  }
+  .authorization-flight.is-blasted .authorization-blast-burst {
+    animation: authorizationBlastBurst .64s ease-out both;
+  }
+  @keyframes authorizationBlastBurst {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+    22% { opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+  }
+  .authorization-flight.is-blasted .sat-panel-left {
+    animation: authorizationDebrisLeft .9s ease-out both;
+  }
+  .authorization-flight.is-blasted .sat-panel-right {
+    animation: authorizationDebrisRight .9s ease-out both;
+  }
+  @keyframes authorizationDebrisLeft {
+    to { opacity: 0; transform: translate3d(-30px, 24px, 0) rotate(-130deg) scale(.6); }
+  }
+  @keyframes authorizationDebrisRight {
+    to { opacity: 0; transform: translate3d(34px, -18px, 0) rotate(150deg) scale(.55); }
+  }
+
+  @keyframes authorizationApproach {
+    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-12deg); }
+    10% { opacity: .9; }
+    72% {
+      opacity: .96;
+      transform: translate3d(
+        calc(var(--planet-x) - 5vw),
+        calc(var(--planet-y) - var(--orbit-radius) + 5vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(.96) rotate(-7deg);
     }
     100% {
-      opacity: 0.08;
-      transform: translate(
-        calc(var(--planet-x) + var(--miss-x) + 4vw),
-        calc(var(--planet-y) + 34vh)
-      ) translate(-50%, -50%) scale(.62) rotate(55deg);
-      filter: grayscale(0.55);
+      opacity: .98;
+      transform: translate3d(
+        var(--planet-x),
+        calc(var(--planet-y) - var(--orbit-radius) + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(0deg);
+    }
+  }
+  @keyframes authorizationDeniedApproach {
+    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-10deg); }
+    10% { opacity: .9; }
+    74% {
+      opacity: .95;
+      transform: translate3d(
+        calc(var(--planet-x) - 4vw),
+        calc(var(--planet-y) - var(--orbit-radius) + 4vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(.96) rotate(-5deg);
+    }
+    100% {
+      opacity: .96;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .22)),
+        calc(var(--planet-y) - var(--orbit-radius) + 1vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(8deg);
+    }
+  }
+  @keyframes authorizationDeniedFall {
+    0% {
+      opacity: .96;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .22)),
+        calc(var(--planet-y) - var(--orbit-radius) + 1vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(8deg);
+    }
+    34% {
+      opacity: .72;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .7)),
+        calc(var(--planet-y) - var(--orbit-radius) + 10vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(.92) rotate(42deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(
+        calc(var(--planet-x) + var(--miss-x) + 6vw),
+        calc(var(--planet-y) - var(--orbit-radius) + 46vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(.62) rotate(124deg);
+    }
+  }
+  @keyframes authorizationThreatApproach {
+    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-11deg); }
+    10% { opacity: .92; }
+    100% {
+      opacity: 1;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .1)),
+        calc(var(--threat-planet-y) - var(--orbit-radius) - 1vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(2deg);
+    }
+  }
+  @keyframes authorizationTargetHold {
+    from, to {
+      opacity: 1;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .1)),
+        calc(var(--threat-planet-y) - var(--orbit-radius) - 1vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(2deg);
+    }
+  }
+  @keyframes authorizationBlast {
+    0% {
+      opacity: 1;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .1)),
+        calc(var(--threat-planet-y) - var(--orbit-radius) - 1vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1) rotate(2deg);
+    }
+    20% {
+      opacity: .98;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * .1)),
+        calc(var(--threat-planet-y) - var(--orbit-radius) - 2vh + (var(--parallax-factor) * var(--parallax-scroll))),
+        0
+      ) translate(-50%, -50%) scale(1.28) rotate(18deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(
+        calc(var(--planet-x) + (var(--miss-x) * 1.2)),
+        -22svh,
+        0
+      ) translate(-50%, -50%) scale(.2) rotate(210deg);
     }
   }
   @keyframes satelliteOrbit {
@@ -827,8 +1056,7 @@
     justify-self: stretch;
     margin-inline: calc(var(--hero-pad) * -1);
     border-block: 1px solid rgba(122, 184, 237, .22);
-    background: rgba(9, 13, 19, .93);
-    backdrop-filter: blur(8px);
+    background: rgba(9, 13, 19, .98);
     color: #c7d3e4;
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     overflow: hidden;
@@ -848,6 +1076,22 @@
   .hero-tui-title::before {
     content: "❯ ";
     color: var(--green);
+  }
+  .hero.is-under-attack .hero-tui {
+    border-top-color: rgba(255, 66, 78, .8);
+    box-shadow: inset 0 8px 28px rgba(181, 0, 24, .18);
+  }
+  .hero.is-under-attack .hero-tui-title::before {
+    content: "[!] ";
+    color: #ff5362;
+  }
+  .hero.is-under-attack .hero-tui-title::after {
+    content: " / DEFENSE GRID: TARGET LOCK";
+    color: #ff5362;
+  }
+  .hero.is-under-attack .hero-tui-live::before {
+    background: #ff5362;
+    box-shadow: 0 0 10px rgba(255,83,98,.9);
   }
   .hero-tui-live {
     display: inline-flex;
@@ -874,8 +1118,9 @@
     min-height: 138px;
   }
   .hero-tui-row {
+    position: relative;
     display: grid;
-    grid-template-columns: 82px 1.15fr .95fr 1.35fr 82px 64px 96px;
+    grid-template-columns: 82px 1.15fr .95fr 1.35fr 82px 64px 150px;
     gap: 14px;
     align-items: center;
     padding: 2px clamp(16px, 4vw, 46px);
@@ -928,11 +1173,33 @@
     font-size: 10.5px;
     letter-spacing: .08em;
   }
-  .hero-tui-row[data-status="flight"] .tui-status { color: #8fa4c0; }
-  .hero-tui-row[data-status="flight"] .tui-status::after { content: "…"; }
-  .hero-tui-row[data-status="good"] .tui-status { color: #4ecf9d; }
-  .hero-tui-row[data-status="failed"] .tui-status { color: #e6b45c; }
-  .hero-tui-row[data-status="malicious"] .tui-status { color: #f2707a; }
+  .hero-tui-row[data-status="pending"] .tui-status { color: #8fa4c0; }
+  .hero-tui-row[data-status="pending"] .tui-status::after { content: "…"; }
+  .hero-tui-row[data-status="approved"] .tui-status { color: #4ecf9d; }
+  .hero-tui-row[data-status="denied"] .tui-status { color: #e6b45c; }
+  .hero-tui-row[data-status="threat"] {
+    color: #fff1f2;
+    background: linear-gradient(90deg, rgba(181,0,24,.08), rgba(229,61,69,.34), rgba(181,0,24,.08));
+    box-shadow: inset 4px 0 0 #ff5362;
+    animation: heroThreatRowPulse .36s steps(2, end) infinite alternate;
+  }
+  .hero-tui-row[data-status="threat"] .tui-status { color: #ff8390; }
+  .hero-tui-row[data-status="threat"] .tui-status::before { content: "[!] "; color: #fff; }
+  .hero-tui-row[data-status="neutralized"] {
+    background: linear-gradient(90deg, transparent, rgba(78,207,157,.14), transparent);
+    box-shadow: inset 4px 0 0 #4ecf9d;
+    animation: heroThreatCleared .7s ease both;
+  }
+  .hero-tui-row[data-status="neutralized"] .tui-status { color: #7cf0bd; }
+  .hero-tui-row[data-status="neutralized"] .tui-status::before { content: "[✓] "; }
+  @keyframes heroThreatRowPulse {
+    from { opacity: .82; }
+    to { opacity: 1; }
+  }
+  @keyframes heroThreatCleared {
+    from { background-color: rgba(229,61,69,.28); }
+    to { background-color: transparent; }
+  }
 
   /* Hovering a log line lights the row; rows tied to a live satellite also
      ring the craft out in the scene. */
@@ -944,6 +1211,14 @@
     background: rgba(78, 207, 157, .12);
     box-shadow: inset 3px 0 0 #4ecf9d;
   }
+  .hero-tui-row[data-status="threat"].has-sat:hover {
+    background: rgba(229, 61, 69, .3);
+    box-shadow: inset 4px 0 0 #ff5362;
+  }
+  .hero-tui-row[data-status="denied"].has-sat:hover {
+    background: rgba(230, 180, 92, .14);
+    box-shadow: inset 3px 0 0 #e6b45c;
+  }
   .authorization-satellite.is-spotted { z-index: 6; }
   .authorization-satellite.is-spotted::after {
     content: "";
@@ -954,6 +1229,15 @@
     box-shadow: 0 0 0 6px rgba(25, 185, 135, .16), 0 0 28px rgba(25, 185, 135, .4);
     animation: satSpot 1.1s ease-in-out infinite;
     pointer-events: none;
+  }
+  .authorization-satellite[data-auth-status="threat"].is-spotted::after,
+  .authorization-satellite[data-auth-status="neutralized"].is-spotted::after {
+    border-color: rgba(229, 61, 69, .92);
+    box-shadow: 0 0 0 6px rgba(229,61,69,.16), 0 0 30px rgba(229,61,69,.52);
+  }
+  .authorization-satellite[data-auth-status="denied"].is-spotted::after {
+    border-color: rgba(230, 180, 92, .92);
+    box-shadow: 0 0 0 6px rgba(230,180,92,.14), 0 0 26px rgba(230,180,92,.38);
   }
   @keyframes satSpot {
     0%, 100% { transform: scale(1); opacity: 1; }
@@ -2461,15 +2745,17 @@
     }
     /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
     .hero-tui-row {
-      grid-template-columns: 62px 1fr 1.2fr 78px;
+      grid-template-columns: 62px minmax(0, .8fr) minmax(0, 1fr) 118px;
       gap: 9px;
       padding-inline: 14px;
       font-size: 11px;
     }
+    .tui-status { font-size: 9px; letter-spacing: .02em; }
     .tui-client, .tui-desk, .tui-score { display: none; }
     .hero-tui-cols span:nth-child(2),
     .hero-tui-cols span:nth-child(5),
     .hero-tui-cols span:nth-child(6) { display: none; }
+    .authorization-flight.malicious { --threat-planet-y: min(var(--planet-y), 70svh); }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
     .auth-planet.finance { --planet-x: 79vw; --planet-y: 70svh; }
     .auth-planet.identity { --planet-x: 18vw; --planet-y: 84svh; }
@@ -2532,11 +2818,16 @@
   .hero.is-away .hero-scene::after,
   .hero.is-away .flow-cell,
   .hero.is-away .hero-line,
-  .hero.is-away .auth-planet,
+  .hero.is-away .auth-planet-body,
   .hero.is-away .authorization-flight,
   .hero.is-away .authorization-track,
   .hero.is-away .sat-flame,
-  .hero.is-away .sat-spark {
+  .hero.is-away .sat-spark,
+  .hero.is-away .authorization-threat-reticle,
+  .hero.is-away .authorization-defense-beam,
+  .hero.is-away .authorization-blast-burst,
+  .hero.is-away .is-blasted .sat-panel,
+  .hero.is-away::after {
     animation-play-state: paused !important;
   }
   .hero.is-scrolling .auth-planet {
@@ -2555,4 +2846,12 @@
     .hero-orbit-field {
       --parallax-scroll: 0px !important;
     }
+    html.authorization-alert body,
+    .hero.is-under-attack::after,
+    .authorization-threat-reticle,
+    .authorization-defense-beam,
+    .authorization-blast-burst {
+      animation: none !important;
+    }
+    .hero.is-under-attack::after { opacity: .28; }
   }

@@ -37,7 +37,7 @@ export function Hero(props: { scale?: number }) {
 
   return (
     <header class="hero" ref={heroEl} style={scaleStyle()}>
-      <div class="hero-scene" aria-label="Authorization request animation">
+      <div class="hero-scene" role="group" aria-label="Authorization request animation">
         <div class="hero-line one" />
         <div class="hero-line two" />
         <div class="hero-line three" />
@@ -64,6 +64,7 @@ export function Hero(props: { scale?: number }) {
           ))}
         </div>
       </div>
+      <div class="hero-defense-layer" data-authorization-defense-layer />
       <div class="hero-copy">
         <h1 data-testid="tamayo-hero-title">Let your agents fly</h1>
       </div>
@@ -81,7 +82,7 @@ export function Hero(props: { scale?: number }) {
           <span>score</span>
           <span>status</span>
         </div>
-        <div class="hero-tui-rows" ref={logEl} />
+        <div class="hero-tui-rows" ref={logEl} role="log" aria-live="off" aria-label="Recent authorization decisions" />
       </aside>
       <p class="hero-desc">
         Tamayo is a universal security framework for agents, whether Claude runs in a secure
@@ -92,6 +93,7 @@ export function Hero(props: { scale?: number }) {
         <a class="button bb-pulse" href="#deployments">Where it runs</a>
         <a class="button secondary bb-line" href="#passes">Token types</a>
       </div>
+      <span class="sr-only" data-authorization-announcer role="status" aria-live="assertive" aria-atomic="true" />
     </header>
   );
 }
