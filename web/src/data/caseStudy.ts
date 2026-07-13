@@ -33,7 +33,7 @@ export const caseIterations: CaseIteration[] = [
       {
         label: 'model',
         text:
-          'One round trip, no client-side crypto: the gateway generated the holder keypair and mailed the seed back with the token. It compiled, the demo worked, the tests passed.',
+          'One round trip, no client-side crypto: the gateway generated the holder keypair and mailed the seed back with the token. The demo worked and nothing in the test suite objected.',
       },
       {
         label: 'broke',
@@ -118,4 +118,4 @@ export const wireMath: { expr: string; note: string }[] = [
 ];
 
 export const caseLesson =
-  'Both wrong versions compiled, passed tests, and looked reasonable in review. That\u2019s the problem with vibe-coding authorization: the bugs don\u2019t fail tests, they fail audits. Both came down to the client picking a value the server needed to control \u2014 key custody in attempt 1, the rate-limit bucket in attempt 2. tokenauth now refuses to compile a production policy that leaves the budget bucket up to the caller, so the next model that tries this gets a compile error instead of a shipped vulnerability.';
+  'Both wrong versions passed tests and looked reasonable in review, which is the problem: authorization bugs like these only show up when someone attacks the design. Both came down to the client picking a value the server needed to control (key custody in attempt 1, the rate-limit bucket in attempt 2). tokenauth now refuses to compile a production policy that leaves the budget bucket up to the caller, so the next model that tries this gets stopped at build time.';

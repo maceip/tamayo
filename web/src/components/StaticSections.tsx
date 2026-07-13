@@ -123,11 +123,11 @@ export function PolicySection() {
   return (
     <section class="section" id="policy">
       <div class="section-head">
-        <h2>The policy file is the security review</h2>
+        <h2>One policy file</h2>
         <p>
           <code>tokenauth</code> compiles JSON policy into a mint decision: which evidence is
-          enough before a pass exists. One file states what every tier accepts, so the review
-          happens where the decision is made. The verifier receives the pass, never the policy.
+          enough before a pass exists. What each tier accepts sits in one file your security team
+          can actually read and diff. The verifier receives the pass, never the policy.
         </p>
       </div>
       <div class="primitive-notes t-stagger">
@@ -157,7 +157,7 @@ export function AgentsSection() {
         <h2>Agents spend credentials at machine speed</h2>
         <p>
           Software that browses, remembers, calls tools, and runs code. A session cookie is the
-          wrong credential for that — each privileged action needs its own narrow pass.
+          wrong credential for that. Each privileged action needs its own narrow pass.
         </p>
       </div>
 

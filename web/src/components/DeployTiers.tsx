@@ -53,8 +53,8 @@ export function DeployTiers() {
         <p>
           An agent rollout never lands on one kind of machine. The same quarter puts agents on an
           intern's unmanaged laptop and next to the payment service. You don't want five security
-          products for that. Tamayo is one policy language where the tiers differ only in the
-          evidence a mint demands.
+          products for that. Tamayo covers all five tiers with one policy language; what changes
+          between tiers is how much evidence a mint demands.
         </p>
       </div>
 
@@ -88,8 +88,8 @@ export function DeployTiers() {
           <h3>The same packages at every tier</h3>
           <p>
             <code>tokenauth</code>, <code>tokenservice</code>, and the crypto underneath are
-            cgo-free Go. The build that runs on the intern's laptop is the build that runs inside
-            the enclave; only the policy file changes.
+            cgo-free Go. The same build runs on the intern's laptop and inside the enclave. Only
+            the policy file changes.
           </p>
         </article>
         <article class="primitive-note bb-pulse t-card-resize">
