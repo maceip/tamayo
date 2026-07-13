@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/web"
 npm install
+npm run typecheck
 npm run build
 
 mkdir -p "$ROOT/docs"

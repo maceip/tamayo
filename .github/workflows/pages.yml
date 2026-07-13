@@ -55,6 +55,7 @@ jobs:
         working-directory: web
         run: |
           npm install
+          npm run typecheck
           npm run build
 
       - name: Stage docs artifact

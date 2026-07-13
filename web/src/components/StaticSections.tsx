@@ -46,6 +46,7 @@ export function StaticSections() {
 
       <div class="primitive-panel t-stagger" style={{ 'margin-top': '18px' }}>
         <table class="primitive-table bb">
+          <caption class="sr-only">Cryptographic primitives, uses, and standards status</caption>
           <thead>
             <tr><th>Primitive</th><th>What it is</th><th>Standalone use</th><th>Status</th></tr>
           </thead>

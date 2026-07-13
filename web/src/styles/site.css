@@ -447,6 +447,7 @@
     --threat-planet-y: var(--planet-y);
     --authorization-hold-x: var(--planet-x);
     --authorization-hold-y: calc(var(--planet-y) - var(--orbit-radius) + (var(--parallax-factor) * var(--parallax-scroll)));
+    --authorization-hold-rotation: 0deg;
     position: absolute;
     left: 0;
     top: 0;
@@ -462,6 +463,7 @@
   .authorization-flight.denied {
     --authorization-hold-x: calc(var(--planet-x) + (var(--miss-x) * .22));
     --authorization-hold-y: calc(var(--planet-y) - var(--orbit-radius) + 1vh + (var(--parallax-factor) * var(--parallax-scroll)));
+    --authorization-hold-rotation: 8deg;
     animation-name: authorizationDeniedApproach;
     animation-duration: 5.6s;
   }
@@ -471,6 +473,7 @@
   .authorization-flight.malicious {
     --authorization-hold-x: calc(var(--planet-x) + (var(--miss-x) * .1));
     --authorization-hold-y: calc(var(--threat-planet-y) - var(--orbit-radius) - 1vh + (var(--parallax-factor) * var(--parallax-scroll)));
+    --authorization-hold-rotation: 2deg;
     animation-name: authorizationThreatApproach;
     animation-duration: 5.2s;
   }
@@ -1098,28 +1101,28 @@
         var(--authorization-hold-x),
         var(--authorization-hold-y),
         0
-      ) translate(-50%, -50%) scale(1) rotate(0deg);
+      ) translate(-50%, -50%) scale(1) rotate(var(--authorization-hold-rotation));
     }
     24% {
       transform: translate3d(
         calc(var(--authorization-hold-x) - 3px),
         calc(var(--authorization-hold-y) + 2px),
         0
-      ) translate(-50%, -50%) scale(1.012) rotate(-1.5deg);
+      ) translate(-50%, -50%) scale(1.012) rotate(calc(var(--authorization-hold-rotation) - 1.5deg));
     }
     52% {
       transform: translate3d(
         calc(var(--authorization-hold-x) + 2px),
         calc(var(--authorization-hold-y) - 3px),
         0
-      ) translate(-50%, -50%) scale(.996) rotate(1deg);
+      ) translate(-50%, -50%) scale(.996) rotate(calc(var(--authorization-hold-rotation) + 1deg));
     }
     76% {
       transform: translate3d(
         calc(var(--authorization-hold-x) + 1px),
         calc(var(--authorization-hold-y) + 2px),
         0
-      ) translate(-50%, -50%) scale(1.006) rotate(-.5deg);
+      ) translate(-50%, -50%) scale(1.006) rotate(calc(var(--authorization-hold-rotation) - .5deg));
     }
   }
   @keyframes authorizationDeniedApproach {
@@ -1363,7 +1366,9 @@
     text-transform: uppercase;
     cursor: pointer;
   }
-  .tui-threat-action:hover { filter: brightness(1.16) saturate(1.18); }
+  @media (hover: hover) and (pointer: fine) {
+    .tui-threat-action:hover { filter: brightness(1.16) saturate(1.18); }
+  }
   .tui-threat-action:focus-visible {
     outline: 3px solid #fff;
     outline-offset: 3px;
@@ -1398,25 +1403,24 @@
 
   /* Hovering a log line lights the row; rows tied to a live satellite also
      ring the craft out in the scene. */
-  .hero-tui-rows .hero-tui-row:hover {
-    background: rgba(122, 184, 237, .1);
-  }
   .hero-tui-row.has-sat { cursor: pointer; }
   .hero-tui-row.has-sat:focus-visible {
     outline: 2px solid #7ab8ed;
     outline-offset: -2px;
   }
-  .hero-tui-row.has-sat:hover {
-    background: rgba(78, 207, 157, .12);
-    box-shadow: inset 3px 0 0 #4ecf9d;
-  }
-  .hero-tui-row[data-status="threat"].has-sat:hover {
-    background: rgba(229, 61, 69, .3);
-    box-shadow: inset 4px 0 0 #ff5362;
-  }
-  .hero-tui-row[data-status="denied"].has-sat:hover {
-    background: rgba(230, 180, 92, .14);
-    box-shadow: inset 3px 0 0 #e6b45c;
+  @media (hover: hover) and (pointer: fine) {
+    .hero-tui-row.has-sat:hover {
+      background: rgba(78, 207, 157, .12);
+      box-shadow: inset 3px 0 0 #4ecf9d;
+    }
+    .hero-tui-row[data-status="threat"].has-sat:hover {
+      background: rgba(229, 61, 69, .3);
+      box-shadow: inset 4px 0 0 #ff5362;
+    }
+    .hero-tui-row[data-status="denied"].has-sat:hover {
+      background: rgba(230, 180, 92, .14);
+      box-shadow: inset 3px 0 0 #e6b45c;
+    }
   }
   .authorization-satellite.is-spotted { z-index: 6; }
   .authorization-satellite.is-spotted::after {
@@ -1643,7 +1647,9 @@
   @keyframes bb-pulse { 0%, 100% { opacity: .32; filter: blur(.1px) saturate(1.1); } 50% { opacity: .9; filter: blur(.45px) saturate(1.5); } }
 
   .t-card-resize { transition: transform var(--t-resize-dur) var(--t-resize-ease), box-shadow var(--t-resize-dur) var(--t-resize-ease), border-color var(--t-resize-dur) var(--t-resize-ease); }
-  .t-card-resize:hover { transform: translateY(-3px) scale(1.01); }
+  @media (hover: hover) and (pointer: fine) {
+    .t-card-resize:is(button, a, [role="button"]):hover { transform: translateY(-3px) scale(1.01); }
+  }
   .t-panel-reveal { animation: t-panel-in var(--t-enter-dur) var(--t-enter-ease) both; }
   .t-stagger > * { animation: t-panel-in var(--t-enter-dur) var(--t-enter-ease) both; }
   .t-stagger > *:nth-child(2) { animation-delay: 70ms; }
@@ -2392,8 +2398,10 @@
   .tier-table tbody tr:nth-child(4) { --tier: #f0b23f; }
   .tier-table tbody tr:nth-child(5) { --tier: #e5484d; }
   .tier-table tbody tr:nth-child(even) { background: rgba(15, 44, 92, .025); }
-  .tier-table tbody tr:hover {
-    background: color-mix(in srgb, var(--tier) 6%, #ffffff);
+  @media (hover: hover) and (pointer: fine) {
+    .tier-table tbody tr:hover {
+      background: color-mix(in srgb, var(--tier) 6%, #ffffff);
+    }
   }
   .tier-table td:first-child b {
     display: inline-flex;
@@ -2448,7 +2456,9 @@
     cursor: pointer;
     transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
   }
-  .token-button:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(17,19,21,.1); }
+  @media (hover: hover) and (pointer: fine) {
+    .token-button:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(17,19,21,.1); }
+  }
   .token-button.active { border-color: var(--blue); box-shadow: 0 16px 42px rgba(40,120,255,.15); }
   .token-button strong {
     display: block;
@@ -3043,7 +3053,7 @@
   .case-lesson a { color: var(--blue); font-weight: 800; }
 
   .footer {
-    padding: 36px clamp(18px, 5vw, 72px);
+    padding: 36px clamp(18px, 5vw, 72px) calc(36px + env(safe-area-inset-bottom));
     background: #090a0b;
     color: rgba(247,248,245,.72);
   }
@@ -3134,11 +3144,12 @@
      an unfolded foldable keeps tablet density and gains a persistent rail. */
   .pol-mobile-switcher { display: none; }
   .section,
-  .hero { scroll-margin-block-start: 84px; }
+  .hero { scroll-margin-block-start: calc(84px + env(safe-area-inset-top)); }
 
   @media (max-width: 920px) {
     .site-nav {
       position: fixed;
+      z-index: 10010;
       padding-top: calc(12px + env(safe-area-inset-top));
       padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
     }
@@ -3209,9 +3220,11 @@
     }
     .nav-mobile-menu a strong { font-size: 14px; }
     .dialkit-panel[data-position="bottom-right"] {
+      top: calc(72px + env(safe-area-inset-top));
       right: max(12px, env(safe-area-inset-right));
-      bottom: max(12px, env(safe-area-inset-bottom));
+      bottom: auto;
     }
+    .tui-threat-action { min-height: 44px; }
   }
 
   @media (max-width: 640px) {
@@ -3220,11 +3233,19 @@
       display: none !important;
     }
     .hero {
-      min-height: max(112svh, 900px);
+      min-height: 100svh;
       padding-top: calc(82px + env(safe-area-inset-top));
       padding-bottom: calc(310px + env(safe-area-inset-bottom));
       row-gap: 18px;
     }
+    .auth-planet {
+      --planet-size: clamp(62px, calc(64px * var(--planet-scale)), 100px);
+      --orbit-size: clamp(92px, calc(88px * var(--planet-scale)), 112px);
+    }
+    .auth-planet.finance { --planet-x: calc(100vw - 94px); }
+    .auth-planet.identity { --planet-x: 90px; }
+    .auth-planet.device { --planet-x: 32vw; }
+    .auth-planet.challenge { --planet-x: calc(100vw - 90px); }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
       min-height: 92px;
@@ -3238,8 +3259,8 @@
         "token token"
         "audience audience";
       gap: 5px 12px;
-      min-height: 92px;
-      padding: 10px max(16px, env(safe-area-inset-left)) 11px;
+      min-height: calc(92px + env(safe-area-inset-bottom));
+      padding: 10px max(16px, env(safe-area-inset-right)) calc(11px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       font-size: 12px;
       line-height: 1.35;
       white-space: normal;
@@ -3279,22 +3300,32 @@
     .hero-tui-row .tui-desk,
     .hero-tui-row .tui-score { display: none; }
     .hero.is-under-attack .hero-tui-title::after { content: " / TARGET LOCK"; }
+    .hero-tui-bar {
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
     .tui-threat-action {
       min-width: 118px;
       min-height: 44px;
       padding-inline: 10px;
     }
     .hero-actions {
-      position: relative;
-      left: auto;
-      right: auto;
-      bottom: auto;
-      width: 100%;
-      flex-direction: column;
+      position: absolute;
+      left: max(18px, env(safe-area-inset-left));
+      right: max(18px, env(safe-area-inset-right));
+      bottom: calc(132px + env(safe-area-inset-bottom));
+      width: auto;
+      flex-wrap: nowrap;
       align-items: stretch;
-      padding-inline: 0;
     }
-    .hero-actions .button { min-height: 48px; }
+    .hero-actions .push-btn { flex: 1 1 0; min-width: 0; }
+    .hero-actions .push-front {
+      min-height: 48px;
+      display: grid;
+      place-items: center;
+      padding-inline: 12px;
+      text-align: center;
+    }
 
     .tier-table,
     .tier-table tbody,
@@ -3411,7 +3442,8 @@
       padding-left: var(--fold-rail-width);
     }
     .site-nav { left: var(--fold-rail-width); }
-    .nav-menu-button { display: none; }
+    .nav-menu-button,
+    .nav-mobile-menu { display: none; }
     .fold-rail {
       position: fixed;
       inset: 0 auto 0 0;
@@ -3468,10 +3500,19 @@
     }
     .section { padding-inline: clamp(26px, 4vw, 42px); }
     .hero { --hero-pad: clamp(28px, 4vw, 42px); }
+    .hero h1 { font-size: min(8vw, 72px); }
+    .auth-planet {
+      --planet-size: clamp(70px, calc(70px * var(--planet-scale)), 112px);
+      --orbit-size: clamp(104px, calc(100px * var(--planet-scale)), 136px);
+    }
+    .auth-planet.identity { --planet-x: 104px; }
+    .auth-planet.challenge { --planet-x: calc(100vw - var(--fold-rail-width) - 104px); }
     .principles,
     .primitive-notes,
     .agent-stats,
-    .case-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .case-grid,
+    .qs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .qs-grid .qs-step:last-child { grid-column: 1 / -1; }
     .token-buttons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .pol-compare { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .pol-real-grid { grid-template-columns: 1.08fr .92fr; }
@@ -3496,6 +3537,9 @@
   @media (hover: none), (pointer: coarse) {
     .t-card-resize:hover,
     .button:hover { transform: none; }
+    .push-btn:hover { filter: none; }
+    .push-btn:hover .push-front { transform: translateY(calc(-1 * var(--lift))); }
+    .push-btn:hover .push-shadow { transform: translateY(2px); }
     .bb::after,
     .bb-line::after,
     .bb-pulse::after,
@@ -3504,13 +3548,24 @@
     .chip-ring { animation-play-state: paused; }
   }
 
+  .section.is-offscreen .bb::after,
+  .section.is-offscreen .bb-line::after,
+  .section.is-offscreen .bb-pulse::after,
+  .section.is-offscreen .t-stagger > *,
+  .section.is-offscreen .deck-grid,
+  .section.is-offscreen .deck-chip,
+  .section.is-offscreen .chip-ring {
+    animation-play-state: paused !important;
+  }
+
   /* Scroll / off-screen: pause expensive hero motion so the page stays smooth */
   .hero.is-scrolling .hero-scene::before,
   .hero.is-scrolling .hero-scene::after,
   .hero.is-scrolling .flow-cell,
   .hero.is-scrolling .hero-line,
   .hero.is-scrolling .sat-flame,
-  .hero.is-scrolling .sat-spark {
+  .hero.is-scrolling .sat-spark,
+  .hero.is-scrolling .sat-rcs {
     animation-play-state: paused !important;
   }
   .hero.is-away .hero-scene::before,
@@ -3522,6 +3577,7 @@
   .hero.is-away .authorization-track,
   .hero.is-away .sat-flame,
   .hero.is-away .sat-spark,
+  .hero.is-away .sat-rcs,
   .hero.is-away .authorization-threat-reticle,
   .hero.is-away .authorization-defense-beam,
   .hero.is-away .authorization-blast-burst,
@@ -3552,5 +3608,5 @@
     .authorization-blast-burst {
       animation: none !important;
     }
-    .hero.is-under-attack::after { opacity: .28; }
+    .hero.is-under-attack::after { opacity: .58; }
   }

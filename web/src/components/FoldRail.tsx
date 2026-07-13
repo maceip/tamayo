@@ -46,6 +46,7 @@ export function FoldRail() {
               <a
                 href={item.href}
                 classList={{ active: active() === id }}
+                aria-label={item.label}
                 aria-current={active() === id ? 'location' : undefined}
               >
                 <span class="fold-rail-index" aria-hidden="true">

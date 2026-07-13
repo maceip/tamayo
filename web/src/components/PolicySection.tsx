@@ -50,6 +50,20 @@ const SB_NOTES = [
 export function PolicySection() {
   const compact = createMediaQuery('(max-width: 640px)');
   const [mobilePanel, setMobilePanel] = createSignal<'iam' | 'tokenauth' | 'live'>('tokenauth');
+  const mobilePanels = ['iam', 'tokenauth', 'live'] as const;
+  const moveMobilePanel = (event: KeyboardEvent) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const current = mobilePanels.indexOf(mobilePanel());
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? mobilePanels.length - 1
+        : (current + (event.key === 'ArrowRight' ? 1 : -1) + mobilePanels.length) % mobilePanels.length;
+    const panel = mobilePanels[next]!;
+    setMobilePanel(panel);
+    document.getElementById(`policy-tab-${panel}`)?.focus();
+  };
 
   return (
     <section class="section" id="policy">
@@ -67,26 +81,37 @@ export function PolicySection() {
         </p>
       </div>
 
-      <div class="pol-mobile-switcher" role="tablist" aria-label="Policy examples">
+      <div
+        class="pol-mobile-switcher"
+        role="tablist"
+        aria-label="Policy examples"
+        onKeyDown={moveMobilePanel}
+      >
         <button
           type="button"
+          id="policy-tab-iam"
           role="tab"
           aria-selected={mobilePanel() === 'iam' ? 'true' : 'false'}
           aria-controls="policy-panel-iam"
+          tabIndex={mobilePanel() === 'iam' ? 0 : -1}
           onClick={() => setMobilePanel('iam')}
         >Cloud IAM</button>
         <button
           type="button"
+          id="policy-tab-tokenauth"
           role="tab"
           aria-selected={mobilePanel() === 'tokenauth' ? 'true' : 'false'}
           aria-controls="policy-panel-tokenauth"
+          tabIndex={mobilePanel() === 'tokenauth' ? 0 : -1}
           onClick={() => setMobilePanel('tokenauth')}
         >tokenauth</button>
         <button
           type="button"
+          id="policy-tab-live"
           role="tab"
           aria-selected={mobilePanel() === 'live' ? 'true' : 'false'}
           aria-controls="policy-panel-live"
+          tabIndex={mobilePanel() === 'live' ? 0 : -1}
           onClick={() => setMobilePanel('live')}
         >Live policy</button>
       </div>
@@ -96,6 +121,7 @@ export function PolicySection() {
           class="pol-panel bb t-card-resize"
           id="policy-panel-iam"
           role={compact() ? 'tabpanel' : undefined}
+          aria-labelledby={compact() ? 'policy-tab-iam' : undefined}
           hidden={compact() && mobilePanel() !== 'iam'}
         >
           <h3 class="pol-title bad-side">How cloud IAM says "let the agent work"</h3>
@@ -113,6 +139,7 @@ export function PolicySection() {
           class="pol-panel bb t-card-resize"
           id="policy-panel-tokenauth"
           role={compact() ? 'tabpanel' : undefined}
+          aria-labelledby={compact() ? 'policy-tab-tokenauth' : undefined}
           hidden={compact() && mobilePanel() !== 'tokenauth'}
         >
           <h3 class="pol-title good-side">The same intent in tokenauth</h3>
@@ -130,6 +157,7 @@ export function PolicySection() {
         class="pol-panel pol-real bb t-stagger"
         id="policy-panel-live"
         role={compact() ? 'tabpanel' : undefined}
+        aria-labelledby={compact() ? 'policy-tab-live' : undefined}
         hidden={compact() && mobilePanel() !== 'live'}
       >
         <h3 class="pol-title">

@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createMediaQuery } from '../lib/media';
 
 export const SECTION_LINKS = [
   { href: '#deployments', label: 'Deployments', short: 'Run' },
@@ -12,7 +13,13 @@ export const SECTION_LINKS = [
 
 export function Nav() {
   const [open, setOpen] = createSignal(false);
+  const compactNav = createMediaQuery('(max-width: 920px)');
+  const foldRail = createMediaQuery('(min-width: 700px) and (max-width: 900px) and (min-height: 700px)');
   let menuButton!: HTMLButtonElement;
+
+  createEffect(() => {
+    if (!compactNav() || foldRail()) setOpen(false);
+  });
 
   onMount(() => {
     const closeOnEscape = (event: KeyboardEvent) => {

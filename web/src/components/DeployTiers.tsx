@@ -60,6 +60,7 @@ export function DeployTiers() {
 
       <div class="hw-table-wrap t-stagger">
         <table class="hw-table bb tier-table">
+          <caption class="sr-only">Deployment tiers, evidence requirements, and credential impact</caption>
           <thead>
             <tr>
               <th>Tier</th>
