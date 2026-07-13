@@ -955,8 +955,10 @@
   }
   h1 {
     margin: 0;
-    max-width: 880px;
-    font-size: clamp(46px, 9vw, 112px);
+    /* Sized so "Let your agents fly" (~9.9em in Inter bold) stays on one line
+       at every viewport: 8.6vw of text ≈ 85vw of width, under the 90vw available. */
+    white-space: nowrap;
+    font-size: min(8.6vw, 88px);
     line-height: .92;
     color: var(--ink);
   }
