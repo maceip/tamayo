@@ -14,25 +14,25 @@ type Tier = {
  */
 const TIERS: Tier[] = [
   {
-    name: 'Laptops that don\u2019t matter',
+    name: 'Unmanaged laptops',
     where: 'Contractors, interns, BYOD. No hardware you can rely on.',
     evidence: 'Software witness, per-source budgets, short expiry.',
     blast: 'One single-use pass, probably already spent.',
   },
   {
-    name: 'Laptops that do matter',
+    name: 'Hardware-backed laptops',
     where: 'Admins, release engineers, executives. TPM or secure enclave present.',
     evidence: 'Holder keys in hardware; device attestation checked at mint.',
     blast: 'A pass bound to a key that never left the machine.',
   },
   {
-    name: 'Cloud that doesn\u2019t matter',
+    name: 'Ephemeral cloud',
     where: 'CI runners, scrapers, batch jobs.',
     evidence: 'Workload identity, one token per action, budget per job.',
     blast: 'A burst that hits its budget cap and stops.',
   },
   {
-    name: 'Cloud that does matter',
+    name: 'Confidential cloud',
     where: 'Services near money or customer data.',
     evidence: 'SEV-SNP / TDX quotes as mint inputs; policy names allowed measurements and signers.',
     blast: 'An attacker has to be the measured workload first.',
@@ -93,7 +93,7 @@ export function DeployTiers() {
           </p>
         </article>
         <article class="primitive-note bb-pulse t-card-resize">
-          <h3>Downgrades are compile errors</h3>
+          <h3>Weak policies fail the build</h3>
           <p>
             A production policy that accepts dev-grade evidence, or leaves a rate-limit bucket up
             to the caller, fails at <code>tokenauth.Compile</code>. Tier decisions live in one

@@ -67,6 +67,18 @@ type LogRowSpec = {
   at?: Date;
 };
 
+// Row → satellite link so hovering a log line can spotlight its craft.
+const rowSatellites = new WeakMap<HTMLElement, HTMLElement>();
+
+function linkRowToSatellite(row: HTMLElement, satellite: HTMLElement): void {
+  rowSatellites.set(row, satellite);
+  row.classList.add('has-sat');
+  row.addEventListener('mouseenter', () => {
+    if (satellite.isConnected) satellite.classList.add('is-spotted');
+  });
+  row.addEventListener('mouseleave', () => satellite.classList.remove('is-spotted'));
+}
+
 function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   const audience =
     AUDIENCES.find((a) => a.domain === spec.audienceDomain) ?? pick(AUDIENCES);
@@ -84,7 +96,11 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
     <span class="tui-score" data-band="${scoreBand(score)}">${score}</span>
     <span class="tui-status">${LOG_STATUS_TEXT[spec.status]}</span>
   `;
-  while (log.children.length >= MAX_LOG_ROWS) log.firstElementChild?.remove();
+  while (log.children.length >= MAX_LOG_ROWS) {
+    const evicted = log.firstElementChild as HTMLElement | null;
+    if (evicted) rowSatellites.get(evicted)?.classList.remove('is-spotted');
+    evicted?.remove();
+  }
   log.appendChild(row);
   return row;
 }
@@ -321,6 +337,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const logRow = log
       ? appendLogRow(log, { audienceDomain: PLANET_AUDIENCE[key], outcome, status: 'flight' })
       : null;
+    if (logRow) linkRowToSatellite(logRow, satellite);
 
     const missSide = count % 2 === 0 ? '1' : '-1';
     flight.className =

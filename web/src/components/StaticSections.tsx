@@ -119,42 +119,11 @@ export function StaticSections() {
   );
 }
 
-export function PolicySection() {
-  return (
-    <section class="section" id="policy">
-      <div class="section-head">
-        <h2>One policy file</h2>
-        <p>
-          <code>tokenauth</code> compiles JSON policy into a mint decision: which evidence is
-          enough before a pass exists. What each tier accepts sits in one file your security team
-          can actually read and diff. The verifier receives the pass, never the policy.
-        </p>
-      </div>
-      <div class="primitive-notes t-stagger">
-        <article class="primitive-note bb-pulse t-card-resize">
-          <h3>Inputs</h3>
-          <p>
-            Token family, origin, email / address proof, runtime measurement, signer identity,
-            assurance level, and per-user or per-bucket budgets (reserve / deny / rollover).
-          </p>
-        </article>
-        <article class="primitive-note bb-pulse t-card-resize">
-          <h3>Output</h3>
-          <p>
-            Mint this token family, for this purpose, under these limits — or deny. Your app
-            supplies transport and storage; Tamayo makes the mint decision.
-          </p>
-        </article>
-      </div>
-    </section>
-  );
-}
-
 export function AgentsSection() {
   return (
     <section class="section dark" id="agents">
       <div class="section-head">
-        <h2>Agents spend credentials at machine speed</h2>
+        <h2>Agents spend credentials at machine speed. Is your authorization stack ready?</h2>
         <p>
           Software that browses, remembers, calls tools, and runs code. A session cookie is the
           wrong credential for that. Each privileged action needs its own narrow pass.

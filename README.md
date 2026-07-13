@@ -21,10 +21,10 @@ changes is the evidence a mint demands:
 
 | tier | evidence policy can demand |
 |---|---|
-| laptops that don't matter (byod, contractors) | software witness, per-source budgets, short expiry |
-| laptops that do matter (tpm / secure enclave) | hardware-held holder keys, device attestation at mint |
-| cloud that doesn't matter (ci, scrapers, batch) | workload identity, one token per action, budget per job |
-| cloud that does matter (money, pii) | sev-snp / tdx quotes as mint inputs, named measurements + signers |
+| unmanaged laptops (byod, contractors) | software witness, per-source budgets, short expiry |
+| hardware-backed laptops (tpm / secure enclave) | hardware-held holder keys, device attestation at mint |
+| ephemeral cloud (ci, scrapers, batch) | workload identity, one token per action, budget per job |
+| confidential cloud (money, pii) | sev-snp / tdx quotes as mint inputs, named measurements + signers |
 | critical, bare metal | tamago in a tee - no linux, libc, or shell; measure the whole binary |
 
 a production policy that accepts dev-grade evidence, or leaves a

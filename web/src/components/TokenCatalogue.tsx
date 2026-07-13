@@ -11,8 +11,9 @@ export function TokenCatalogue() {
       <div class="section-head">
         <h2>Token types</h2>
         <p>
-          Wire formats in <code>tokenprofile</code> and <code>emailtoken</code>: what the verifier
-          learns, what stays hidden, and what the issuer checks before minting.
+          Four wire formats in <code>tokenprofile</code> and <code>emailtoken</code>. The family
+          name below is the exact string that appears in policy files and log lines: what the
+          verifier learns, what stays hidden, and what the issuer checks before minting.
         </p>
       </div>
 
@@ -27,17 +28,27 @@ export function TokenCatalogue() {
                 aria-pressed={isSelected(i()) ? 'true' : 'false'}
                 onClick={() => setIndex(i())}
               >
-                <strong>{t.button}</strong>
+                <strong>{t.name}</strong>
+                <code class="token-family">{t.family}</code>
                 <span>{t.summary}</span>
               </button>
             )}
           </For>
         </div>
         <div class="token-detail bb t-token-swap" aria-live="polite">
-          <div class="token-visual">
-            <div class="mini-pass">
+          <div class="token-deck" data-tone={token().tone}>
+            <div class="deck-grid" aria-hidden="true" />
+            <div class="deck-chip" aria-hidden="true">
+              <span class="chip-ring" />
+              <span class="chip-core"><code>{token().family}</code></span>
+            </div>
+            <div class="deck-plate">
               <b>{token().name}</b>
               <span>{token().plain}</span>
+            </div>
+            <div class="deck-readout" aria-hidden="true">
+              <span>family = {token().family}</span>
+              <span>stack &nbsp;= {token().stack}</span>
             </div>
           </div>
           <div class="token-facts">
