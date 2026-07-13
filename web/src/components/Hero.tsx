@@ -17,9 +17,10 @@ function randomPlanetScale(): number {
 export function Hero(props: { scale?: number }) {
   let heroEl!: HTMLElement;
   let orbitField!: HTMLDivElement;
+  let logEl!: HTMLDivElement;
 
   onMount(() => {
-    const stopAuth = startHeroAuthorizationSequence(orbitField);
+    const stopAuth = startHeroAuthorizationSequence(orbitField, logEl);
     const stopParallax = startPlanetParallax(heroEl, orbitField);
     onCleanup(() => {
       stopAuth();
@@ -74,6 +75,13 @@ export function Hero(props: { scale?: number }) {
           <a class="button secondary bb-line" href="#passes">Token types</a>
         </div>
       </div>
+      <aside class="hero-log" aria-label="Simulated authorization log">
+        <div class="hero-log-head">
+          <span>authorization log</span>
+          <span class="hero-log-live" aria-hidden="true">live</span>
+        </div>
+        <div class="hero-log-rows" ref={logEl} />
+      </aside>
     </header>
   );
 }

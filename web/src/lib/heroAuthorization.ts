@@ -6,6 +6,56 @@ function planetKey(planet: HTMLElement): string {
   return [...planet.classList].find((name) => name !== 'auth-planet') || 'planet';
 }
 
+// Departures-board log: one row per launched pass, status resolving in step
+// with the flight. This is what makes the scene legible as authorization
+// traffic instead of ornament.
+const PLANET_LOG: Record<string, { target: string; family: string }> = {
+  finance: { target: 'paypal.com', family: 'burn' },
+  identity: { target: 'linkedin.com', family: 'private_identity' },
+  device: { target: 'cloud-browser', family: 'evt' },
+  challenge: { target: 'sso-challenge', family: 'policy_email' },
+};
+
+const LOG_STATUS_TEXT: Record<'flight' | AuthOutcome, string> = {
+  flight: 'in flight',
+  good: 'verified',
+  failed: 'failed',
+  malicious: 'blocked',
+};
+
+const MAX_LOG_ROWS = 6;
+
+function logTime(date: Date): string {
+  return date.toTimeString().slice(0, 8);
+}
+
+function appendLogRow(
+  log: HTMLElement,
+  key: string,
+  status: 'flight' | AuthOutcome,
+  at = new Date(),
+): HTMLElement {
+  const meta = PLANET_LOG[key] ?? { target: key, family: 'burn' };
+  const row = document.createElement('div');
+  row.className = 'hero-log-row';
+  row.dataset.status = status;
+  row.innerHTML = `
+    <span class="hero-log-time">${logTime(at)}</span>
+    <span class="hero-log-req">${meta.family} → ${meta.target}</span>
+    <span class="hero-log-status">${LOG_STATUS_TEXT[status]}</span>
+  `;
+  while (log.children.length >= MAX_LOG_ROWS) log.firstElementChild?.remove();
+  log.appendChild(row);
+  return row;
+}
+
+function resolveLogRow(row: HTMLElement | null, outcome: AuthOutcome): void {
+  if (!row || !row.isConnected) return;
+  row.dataset.status = outcome;
+  const status = row.querySelector('.hero-log-status');
+  if (status) status.textContent = LOG_STATUS_TEXT[outcome];
+}
+
 function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
   const satellite = document.createElement('button');
   const classes = ['authorization-satellite', 'is-flying'];
@@ -45,9 +95,23 @@ function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
   return satellite;
 }
 
-export function startHeroAuthorizationSequence(field: HTMLElement): () => void {
+export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLElement | null): () => void {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const planets = [...field.querySelectorAll<HTMLElement>('.auth-planet')];
+
+  // Seed the board with settled traffic so it reads as an ongoing log, not
+  // an empty widget waiting for the first launch.
+  if (log) {
+    const now = Date.now();
+    ([
+      ['identity', 'good', 41_000],
+      ['finance', 'good', 27_000],
+      ['challenge', 'malicious', 12_000],
+    ] as const).forEach(([key, outcome, ago]) => {
+      appendLogRow(log, key, outcome, new Date(now - ago));
+    });
+  }
+
   if (reduced.matches || planets.length === 0) return () => {};
 
   const hero = field.closest('.hero') as HTMLElement | null;
@@ -187,6 +251,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement): () => void {
     if (outcome === 'good') goodCount += 1;
     if (outcome === 'failed') failedCount += 1;
 
+    const logRow = log ? appendLogRow(log, key, 'flight') : null;
+
     const missSide = count % 2 === 0 ? '1' : '-1';
     flight.className =
       outcome === 'malicious'
@@ -213,17 +279,22 @@ export function startHeroAuthorizationSequence(field: HTMLElement): () => void {
       flight.addEventListener('animationend', () => flight.remove(), { once: true });
       window.setTimeout(() => {
         if (satellite.isConnected) showTooltip(satellite, true);
+        resolveLogRow(logRow, 'malicious');
       }, 3300);
     } else if (outcome === 'failed') {
       flight.addEventListener('animationend', () => flight.remove(), { once: true });
       window.setTimeout(() => {
         if (satellite.isConnected) showTooltip(satellite, true);
+        resolveLogRow(logRow, 'failed');
       }, 4200);
     } else {
       const orbit = getOrbit(planet, styles);
       flight.addEventListener(
         'animationend',
-        () => attachToOrbit(flight, orbit, satellite, key, count),
+        () => {
+          attachToOrbit(flight, orbit, satellite, key, count);
+          resolveLogRow(logRow, 'good');
+        },
         { once: true },
       );
     }

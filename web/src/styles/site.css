@@ -816,6 +816,93 @@
   @keyframes satelliteOrbit {
     to { transform: rotate(360deg); }
   }
+  /* —— Hero authorization log: departures board for the satellite traffic —— */
+  .hero-log {
+    position: absolute;
+    left: clamp(18px, 4vw, 56px);
+    bottom: clamp(18px, 4vh, 44px);
+    z-index: 3;
+    width: min(400px, 42vw);
+    border: 1px solid rgba(15, 44, 92, .16);
+    border-radius: 8px;
+    background: rgba(251, 252, 255, .82);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 12px 40px rgba(21, 38, 73, .08);
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    overflow: hidden;
+  }
+  .hero-log-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(15, 44, 92, .12);
+    color: var(--navy);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .hero-log-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    letter-spacing: .1em;
+  }
+  .hero-log-live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: heroLogPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes heroLogPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+  }
+  .hero-log-rows {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    min-height: 132px;
+  }
+  .hero-log-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: baseline;
+    padding: 3px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink);
+    animation: heroLogEnter .32s ease both;
+  }
+  @keyframes heroLogEnter {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero-log-time { color: var(--muted); }
+  .hero-log-req {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hero-log-status {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: .08em;
+  }
+  .hero-log-row[data-status="flight"] .hero-log-status { color: var(--muted); }
+  .hero-log-row[data-status="flight"] .hero-log-status::after {
+    content: "…";
+  }
+  .hero-log-row[data-status="good"] .hero-log-status { color: #157a56; }
+  .hero-log-row[data-status="failed"] .hero-log-status { color: #a4690f; }
+  .hero-log-row[data-status="malicious"] .hero-log-status { color: #b3242c; }
+
   .hero-copy {
     position: relative;
     z-index: 3;
@@ -2049,6 +2136,7 @@
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
     .hero { min-height: 92svh; align-items: end; }
+    .hero-log { display: none; }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
     .auth-planet.finance { --planet-x: 79vw; --planet-y: 15svh; }
     .auth-planet.identity { --planet-x: 18vw; --planet-y: 79svh; }
