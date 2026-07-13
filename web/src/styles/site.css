@@ -70,21 +70,42 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
     font-weight: 800;
-    color: inherit;
-    text-decoration: none;
     pointer-events: auto;
   }
+  .brand-home {
+    color: inherit;
+    text-decoration: none;
+  }
   .brand-mark {
-    width: 30px;
-    height: 30px;
+    position: relative;
+    display: block;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: grab;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .brand-mark-disc {
+    position: absolute;
+    inset: 7px;
+    display: block;
     border-radius: 50%;
     background:
       radial-gradient(circle at 35% 30%, #ffffff 0 12%, transparent 13%),
       conic-gradient(from 20deg, var(--green), var(--pink), var(--gold), var(--blue), var(--green));
     box-shadow: 0 0 0 2px rgba(15,44,92,.1), 0 8px 24px rgba(35,104,255,.18);
+    pointer-events: none;
+    transform-origin: center;
   }
+  .brand-mark:active { cursor: grabbing; }
+  .brand-mark:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
   .nav-links {
     display: flex;
     gap: 16px;
@@ -119,9 +140,17 @@
 
   .hero {
     --hero-pad: clamp(18px, 5vw, 72px);
-    /* Where the flight field fades in: roughly halfway up the description
-       text (top padding + headline + gap + half the paragraph). */
-    --hero-flight-top: clamp(230px, 34svh, 330px);
+    /* Pull the physical destinations into the copy field, not merely the
+       decorative mask. The lower bound protects short viewports; the cap keeps
+       tall desktop screens from dragging the lower destinations off course. */
+    --hero-flight-y-shift: clamp(-360px, -35svh, -164px);
+    --hero-launch-y: calc(66svh + var(--hero-flight-y-shift));
+    --hero-flight-top: clamp(76px, 11svh, 124px);
+    /* Below 720px, lift the controls continuously above the compact ticker.
+       This keeps 640px and 641px on the same geometry instead of switching
+       between two unrelated button/shelf positions. */
+    --hero-control-lift: clamp(0px, calc(1008px - 140vw), 112px);
+    --hero-control-reserve: clamp(170px, calc(1430px - 175vw), 310px);
     position: relative;
     min-height: 100svh;
     display: grid;
@@ -205,19 +234,12 @@
       radial-gradient(closest-side at 56% 45%, rgba(25, 185, 135, .62), transparent 72%),
       radial-gradient(closest-side at 75% 55%, rgba(35, 104, 255, .68), transparent 72%),
       linear-gradient(90deg, transparent, rgba(255,255,255,.8), transparent);
-    animation: bridgeFlow 22s ease-in-out infinite alternate;
   }
   .hero-scene::before { top: 16%; }
   .hero-scene::after {
     top: 45%;
     opacity: .34;
     transform: rotate(8deg);
-    animation-duration: 28s;
-    animation-direction: alternate-reverse;
-  }
-  @keyframes bridgeFlow {
-    0% { opacity: .4; transform: translate3d(-4%, 0, 0) rotate(-9deg) scaleX(1); }
-    100% { opacity: .56; transform: translate3d(4%, 0, 0) rotate(-7deg) scaleX(1.04); }
   }
   .flow-cell {
     position: absolute;
@@ -262,9 +284,8 @@
     overflow: hidden;
     contain: layout paint;
     --parallax-scroll: 0px;
-    /* Flight field fades in about halfway up the description text, so the
-       animation reads as starting just under the copy — and runs all the way
-       to the bottom edge, where it stays visible through the ticker. */
+    /* Fade the field in behind the headline while retaining a soft, readable
+       veil under the first line of copy. */
     -webkit-mask-image: linear-gradient(
       to bottom,
       transparent 0,
@@ -306,7 +327,7 @@
   .auth-launcher {
     position: absolute;
     left: -72px;
-    top: 66%;
+    top: var(--hero-launch-y);
     width: 90px;
     height: 90px;
     border-radius: 50%;
@@ -318,7 +339,7 @@
   .auth-planet {
     --planet-scale: 1;
     --planet-x: 50vw;
-    --planet-y: 50svh;
+    --planet-y: calc(50svh + var(--hero-flight-y-shift));
     --planet-size: calc(clamp(76px, 9vw, 128px) * var(--planet-scale));
     --orbit-size: calc(clamp(112px, 13vw, 176px) * var(--planet-scale));
     --parallax-factor: 0.2;
@@ -399,10 +420,10 @@
     background: none;
     border: none;
   }
-  .auth-planet.finance { --planet-x: 85vw; --planet-y: 66svh; }
+  .auth-planet.finance { --planet-x: 85vw; --planet-y: calc(66svh + var(--hero-flight-y-shift)); }
   .auth-planet.identity {
     --planet-x: 13vw;
-    --planet-y: 82svh;
+    --planet-y: calc(82svh + var(--hero-flight-y-shift));
   }
   .auth-planet.identity .auth-planet-body {
     background:
@@ -412,7 +433,7 @@
   }
   .auth-planet.device {
     --planet-x: 28vw;
-    --planet-y: 64svh;
+    --planet-y: calc(64svh + var(--hero-flight-y-shift));
   }
   .auth-planet.device .auth-planet-body {
     background:
@@ -422,7 +443,7 @@
   }
   .auth-planet.challenge {
     --planet-x: 88vw;
-    --planet-y: 80svh;
+    --planet-y: calc(80svh + var(--hero-flight-y-shift));
   }
   .auth-planet.challenge .auth-planet-body {
     background:
@@ -440,7 +461,8 @@
   }
   .authorization-flight {
     --planet-x: 50vw;
-    --planet-y: 50svh;
+    --planet-y: calc(50svh + var(--hero-flight-y-shift));
+    --authorization-launch-y: var(--hero-launch-y);
     --miss-x: 8vw;
     --orbit-radius: 72px;
     --parallax-factor: .2;
@@ -455,7 +477,7 @@
     width: 56px;
     height: 44px;
     opacity: 0;
-    transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82);
+    transform: translate3d(-14vw, var(--authorization-launch-y), 0) translate(-50%, -50%) scale(.82);
     animation: authorizationApproach 6.8s cubic-bezier(.2,.72,.26,1) forwards;
     pointer-events: none;
     will-change: transform, opacity;
@@ -489,7 +511,7 @@
   }
   .authorization-orbit {
     --planet-x: 50vw;
-    --planet-y: 50svh;
+    --planet-y: calc(50svh + var(--hero-flight-y-shift));
     --orbit-size: 144px;
     --parallax-factor: 0.2;
     position: absolute;
@@ -719,6 +741,11 @@
   .authorization-satellite.is-coasting .sat-spark {
     display: none;
   }
+  .authorization-satellite:not(.is-flying):not(.is-coasting) .sat-flame,
+  .authorization-satellite:not(.is-flying):not(.is-coasting) .sat-spark {
+    display: none;
+    animation: none;
+  }
   .authorization-satellite.is-orbiting .sat-booster,
   .authorization-track .sat-booster {
     display: none !important;
@@ -818,16 +845,16 @@
   .sat-spark-b { --spark-y: 4px; }
   .sat-spark-c { --spark-y: -1px; }
 
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-outer {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-flame-outer {
     background: linear-gradient(90deg, transparent 0%, #b50018 30%, #ff4b1f 70%, #ffb000 100%);
   }
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-mid {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-flame-mid {
     background: linear-gradient(90deg, transparent 0%, #ff4b1f 30%, #ffb000 75%, #fff0a0 100%);
   }
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-flame-core {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-flame-core {
     background: linear-gradient(90deg, rgba(255,255,255,0), #fff 40%, #ffd0a0 100%);
   }
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-spark {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-spark {
     background: #ffb070;
     box-shadow: 0 0 3px #e53d45;
   }
@@ -853,7 +880,7 @@
     60%, 100% { opacity: .85; transform: translateY(-50%) scaleX(0.9); }
   }
 
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .authorization-satellite {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) {
     --sat-metal-a: #fff4d6;
     --sat-metal-b: #ff5a36;
     --sat-metal-c: #850018;
@@ -863,11 +890,11 @@
     --sat-glow: rgba(255, 0, 60, .92);
     filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 14px var(--sat-glow)) drop-shadow(0 0 24px rgba(255,42,0,.74));
   }
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-bay {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-bay {
     background: linear-gradient(135deg, #fff56a, #ff2a00 42%, #ff003c 72%, #5a0010);
     box-shadow: 0 0 8px #fff56a, 0 0 16px #ff003c;
   }
-  .authorization-flight.malicious:is(.is-targeted, .is-blasted) .sat-bus {
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-bus {
     border-color: rgba(255, 234, 120, .95);
     box-shadow: inset 0 0 6px rgba(255,255,255,.7), 0 0 10px rgba(255,0,60,.9);
   }
@@ -1072,7 +1099,7 @@
   }
 
   @keyframes authorizationApproach {
-    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-12deg); }
+    0% { opacity: 0; transform: translate3d(-14vw, var(--authorization-launch-y), 0) translate(-50%, -50%) scale(.82) rotate(-12deg); }
     10% { opacity: .9; }
     72% {
       opacity: .96;
@@ -1123,7 +1150,7 @@
     }
   }
   @keyframes authorizationDeniedApproach {
-    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-10deg); }
+    0% { opacity: 0; transform: translate3d(-14vw, var(--authorization-launch-y), 0) translate(-50%, -50%) scale(.82) rotate(-10deg); }
     10% { opacity: .9; }
     74% {
       opacity: .95;
@@ -1169,7 +1196,7 @@
     }
   }
   @keyframes authorizationThreatApproach {
-    0% { opacity: 0; transform: translate3d(-14vw, 66svh, 0) translate(-50%, -50%) scale(.82) rotate(-11deg); }
+    0% { opacity: 0; transform: translate3d(-14vw, var(--authorization-launch-y), 0) translate(-50%, -50%) scale(.82) rotate(-11deg); }
     10% { opacity: .92; }
     100% {
       opacity: 1;
@@ -1372,6 +1399,7 @@
   }
   .hero-tui-row[data-status="pending"] .tui-status { color: #8fa4c0; }
   .hero-tui-row[data-status="pending"] .tui-status::after { content: "…"; }
+  .hero-tui-row[data-status="speculative"] .tui-status { color: #8fcfff; }
   .hero-tui-row[data-status="approved"] .tui-status { color: #4ecf9d; }
   .hero-tui-row[data-status="denied"] .tui-status { color: #e6b45c; }
   .hero-tui-row[data-status="threat"] {
@@ -1398,26 +1426,152 @@
     to { background-color: transparent; }
   }
 
-  /* Hovering a log line lights the row; rows tied to a live satellite also
-     ring the craft out in the scene. */
+  .tui-simulate-action {
+    position: relative;
+    isolation: isolate;
+    width: min(122px, 100%);
+    min-width: 0;
+    min-height: 34px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(122, 184, 237, .22);
+    border-radius: 999px;
+    padding: 5px 12px;
+    background: rgba(13, 31, 55, .22);
+    color: #8fcfff;
+    font: inherit;
+    font-weight: 900;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transform: translateY(0);
+    transition: transform .2s ease, color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .tui-simulate-action::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: 1;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(20, 48, 82, .98), rgba(8, 24, 48, .98));
+    opacity: 0;
+    pointer-events: none;
+  }
+  .tui-speculative-label,
+  .tui-simulate-label {
+    grid-area: 1 / 1;
+    position: relative;
+    z-index: 2;
+    transition: opacity .16s ease, transform .2s ease;
+  }
+  .tui-simulate-label { opacity: 0; transform: translateY(5px); }
+  .tui-simulate-beam {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 0;
+    width: 180%;
+    aspect-ratio: 1;
+    background: conic-gradient(
+      from 0deg,
+      #38e8ff,
+      #397cff 22%,
+      #a855f7 42%,
+      #ff4da8 58%,
+      #ffbd3d 76%,
+      #41f3b2 90%,
+      #38e8ff
+    );
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(0deg);
+    animation: simulateBorderBeam 1.8s linear infinite;
+    animation-play-state: paused;
+    pointer-events: none;
+  }
+  @keyframes simulateBorderBeam {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* Hover and keyboard focus share one highlighted state. A linked row also
+     rings its current craft; a speculative row elevates only its Simulate CTA. */
   .hero-tui-row.has-sat { cursor: pointer; }
   .hero-tui-row.has-sat:focus-visible {
     outline: 2px solid #7ab8ed;
     outline-offset: -2px;
   }
-  @media (hover: hover) and (pointer: fine) {
-    .hero-tui-row.has-sat:hover {
-      background: rgba(78, 207, 157, .12);
-      box-shadow: inset 3px 0 0 #4ecf9d;
+  .hero-tui-row.is-highlighted,
+  .hero-tui-row:focus-within {
+    background: rgba(78, 207, 157, .12);
+    box-shadow: inset 3px 0 0 #4ecf9d;
+  }
+  .hero-tui-row[data-status="speculative"].is-highlighted,
+  .hero-tui-row[data-status="speculative"]:focus-within {
+    background: linear-gradient(90deg, rgba(56,232,255,.05), rgba(57,124,255,.18), rgba(168,85,247,.08));
+    box-shadow: inset 3px 0 0 #38e8ff;
+  }
+  .hero-tui-row[data-status="threat"].is-highlighted,
+  .hero-tui-row[data-status="threat"]:focus-within {
+    background: rgba(229, 61, 69, .3);
+    box-shadow: inset 4px 0 0 #ff5362;
+  }
+  .hero-tui-row[data-status="denied"].is-highlighted,
+  .hero-tui-row[data-status="denied"]:focus-within {
+    background: rgba(230, 180, 92, .14);
+    box-shadow: inset 3px 0 0 #e6b45c;
+  }
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-action {
+    overflow: hidden;
+    border-color: transparent;
+    background: #0d294d;
+    color: #fff;
+    box-shadow: 0 7px 0 rgba(6, 20, 42, .72), 0 0 14px rgba(56,232,255,.8), 0 0 28px rgba(109,87,255,.62);
+    transform: translateY(-4px);
+  }
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-speculative-label {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-label,
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-action::after,
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-beam {
+    opacity: 1;
+  }
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-label {
+    transform: translateY(0);
+  }
+  .hero-tui-row[data-status="speculative"]:is(.is-highlighted, :focus-within) .tui-simulate-beam {
+    animation-play-state: running;
+  }
+  .tui-simulate-action:focus-visible {
+    outline: 3px solid #fff56a;
+    outline-offset: 3px;
+  }
+  .tui-simulate-action:active { transform: translateY(1px) !important; }
+  .tui-simulate-action:disabled { cursor: wait; opacity: .7; }
+
+  @media (hover: none), (pointer: coarse) {
+    .hero-tui-row[data-status="speculative"] .tui-simulate-action {
+      min-height: 44px;
+      grid-template-rows: auto auto;
+      border-color: #38e8ff;
+      background: #0d294d;
+      color: #fff;
+      box-shadow: 0 5px 0 rgba(6,20,42,.7), 0 0 16px rgba(56,232,255,.55);
     }
-    .hero-tui-row[data-status="threat"].has-sat:hover {
-      background: rgba(229, 61, 69, .3);
-      box-shadow: inset 4px 0 0 #ff5362;
+    .hero-tui-row[data-status="speculative"] .tui-speculative-label {
+      grid-area: 1 / 1;
+      display: block;
+      opacity: .76;
+      color: #9edfff;
+      font-size: 7px;
+      transform: none;
     }
-    .hero-tui-row[data-status="denied"].has-sat:hover {
-      background: rgba(230, 180, 92, .14);
-      box-shadow: inset 3px 0 0 #e6b45c;
-    }
+    .hero-tui-row[data-status="speculative"] .tui-simulate-label { grid-area: 2 / 1; }
+    .hero-tui-row[data-status="speculative"] .tui-simulate-label,
+    .hero-tui-row[data-status="speculative"] .tui-simulate-action::after,
+    .hero-tui-row[data-status="speculative"] .tui-simulate-beam { opacity: 1; }
+    .hero-tui-row[data-status="speculative"] .tui-simulate-label { transform: none; }
   }
   .authorization-satellite.is-spotted { z-index: 6; }
   .authorization-satellite.is-spotted::after {
@@ -1496,12 +1650,36 @@
     color: rgba(16,24,39,.72);
     font-size: clamp(18px, 2.2vw, 24px);
   }
-  /* Buttons sit on top of the ticker, pinned to the hero's bottom-left. */
+  /* A translucent control shelf gives the tactile buttons a full-width surface
+     while keeping the authorization ticker legible underneath it. */
+  .hero-control-shelf {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--hero-control-lift) + env(safe-area-inset-bottom));
+    z-index: 8;
+    height: 88px;
+    border-block: 1px solid rgba(122, 184, 237, .36);
+    /* Keep the requested light-blue, roughly 40%-opaque shelf strongest under
+       the CTAs and progressively clearer over the ticker's action column. The
+       ticker already owns the single full-width backdrop filter, so the shelf
+       deliberately uses no second composited blur layer. */
+    background: linear-gradient(
+      90deg,
+      rgba(168, 218, 255, .42) 0%,
+      rgba(190, 228, 255, .38) 48%,
+      rgba(164, 215, 255, .2) 74%,
+      rgba(146, 205, 250, .12) 100%
+    );
+    box-shadow: 0 -8px 28px rgba(35,104,255,.07), inset 0 1px 0 rgba(255,255,255,.48);
+    pointer-events: none;
+  }
+  /* Buttons sit on the shelf, pinned to the hero's bottom-left. */
   .hero-actions {
     position: absolute;
     left: var(--hero-pad);
-    bottom: 20px;
-    z-index: 8;
+    bottom: calc(20px + var(--hero-control-lift) + env(safe-area-inset-bottom));
+    z-index: 9;
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
@@ -3070,7 +3248,7 @@
     .hero {
       min-height: 96svh;
       padding-top: 78px;
-      padding-bottom: 140px;
+      padding-bottom: calc(var(--hero-control-reserve) + env(safe-area-inset-bottom));
       row-gap: 22px;
     }
     /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
@@ -3087,10 +3265,10 @@
     .hero-tui-cols span:nth-child(6) { display: none; }
     .authorization-flight.malicious { --threat-planet-y: min(var(--planet-y), 70svh); }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
-    .auth-planet.finance { --planet-x: 79vw; --planet-y: 70svh; }
-    .auth-planet.identity { --planet-x: 18vw; --planet-y: 84svh; }
-    .auth-planet.device { --planet-x: 30vw; --planet-y: 66svh; }
-    .auth-planet.challenge { --planet-x: 84vw; --planet-y: 82svh; }
+    .auth-planet.finance { --planet-x: 79vw; --planet-y: calc(70svh + var(--hero-flight-y-shift)); }
+    .auth-planet.identity { --planet-x: 18vw; --planet-y: calc(84svh + var(--hero-flight-y-shift)); }
+    .auth-planet.device { --planet-x: 30vw; --planet-y: calc(66svh + var(--hero-flight-y-shift)); }
+    .auth-planet.challenge { --planet-x: 84vw; --planet-y: calc(82svh + var(--hero-flight-y-shift)); }
     .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes, .agent-stats, .crypto-provenance, .case-grid, .qs-grid { grid-template-columns: 1fr; }
     .case-wire-row { grid-template-columns: 1fr; gap: 4px; }
     .hw-table { display: block; overflow-x: auto; }
@@ -3104,17 +3282,17 @@
     .token-facts { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 921px) and (max-width: 1300px) {
-    .auth-planet.device { --planet-x: 29vw; --planet-y: 62svh; }
-    .auth-planet.identity { --planet-x: 13vw; --planet-y: 82svh; }
+    .auth-planet.device { --planet-x: 29vw; --planet-y: calc(62svh + var(--hero-flight-y-shift)); }
+    .auth-planet.identity { --planet-x: 13vw; --planet-y: calc(82svh + var(--hero-flight-y-shift)); }
   }
   @media (max-width: 560px) {
     .hero { padding-inline: 18px; }
     .hero-scene { opacity: .5; }
     .auth-planet { --planet-size: 70px; --orbit-size: 98px; }
-    .auth-planet.finance { --planet-x: 78vw; --planet-y: 68svh; }
-    .auth-planet.identity { --planet-x: 16vw; --planet-y: 86svh; }
-    .auth-planet.device { --planet-x: 31vw; --planet-y: 64svh; }
-    .auth-planet.challenge { --planet-x: 86vw; --planet-y: 84svh; }
+    .auth-planet.finance { --planet-x: 78vw; --planet-y: calc(68svh + var(--hero-flight-y-shift)); }
+    .auth-planet.identity { --planet-x: 16vw; --planet-y: calc(86svh + var(--hero-flight-y-shift)); }
+    .auth-planet.device { --planet-x: 31vw; --planet-y: calc(64svh + var(--hero-flight-y-shift)); }
+    .auth-planet.challenge { --planet-x: 86vw; --planet-y: calc(84svh + var(--hero-flight-y-shift)); }
     .auth-planet-label strong { font-size: 11px; }
     .auth-planet-label span { display: none; }
     /* Buttons stay compact side by side on top of the ticker. */
@@ -3232,7 +3410,6 @@
     .hero {
       min-height: 100svh;
       padding-top: calc(82px + env(safe-area-inset-top));
-      padding-bottom: calc(310px + env(safe-area-inset-bottom));
       row-gap: 18px;
     }
     .auth-planet {
@@ -3310,7 +3487,6 @@
       position: absolute;
       left: max(18px, env(safe-area-inset-left));
       right: max(18px, env(safe-area-inset-right));
-      bottom: calc(132px + env(safe-area-inset-bottom));
       width: auto;
       flex-wrap: nowrap;
       align-items: stretch;
@@ -3431,6 +3607,23 @@
       overflow: auto;
       overscroll-behavior: contain;
     }
+  }
+
+  @media (max-height: 560px) and (orientation: landscape) {
+    .hero {
+      /* Short landscape gets its own flight composition: the destination
+         bodies sit just below the copy and continue behind the translucent
+         ticker instead of colliding with three lines of description. */
+      --hero-flight-y-shift: clamp(12px, 4.6svh, 24px);
+      --hero-flight-top: clamp(64px, 15svh, 88px);
+      min-height: max(100svh, 560px);
+    }
+    .auth-planet {
+      --planet-size: 68px;
+      --orbit-size: 96px;
+      opacity: .52;
+    }
+    .auth-planet-label { display: none; }
   }
 
   @media (min-width: 700px) and (max-width: 900px) and (min-height: 700px) {
@@ -3579,6 +3772,10 @@
   .hero.is-away .authorization-defense-beam,
   .hero.is-away .authorization-blast-burst,
   .hero.is-away .is-blasted .sat-panel,
+  .hero.is-away .authorization-satellite.is-spotted::after,
+  .hero.is-away .hero-tui-live::before,
+  .hero.is-away .hero-tui-row[data-status="threat"],
+  .hero.is-away .tui-simulate-beam,
   .hero.is-away::after {
     animation-play-state: paused !important;
   }
@@ -3594,7 +3791,7 @@
       scroll-behavior: auto !important;
       transition-duration: .01ms !important;
     }
-    .bb::after, .bb-line::after, .bb-pulse::after, .t-panel-reveal, .t-stagger > *, .t-shimmer { animation: none !important; }
+    .bb::after, .bb-line::after, .bb-pulse::after, .t-panel-reveal, .t-stagger > *, .t-shimmer, .tui-simulate-beam { animation: none !important; }
     .hero-orbit-field {
       --parallax-scroll: 0px !important;
     }

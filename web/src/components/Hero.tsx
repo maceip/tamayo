@@ -89,6 +89,7 @@ export function Hero(props: { scale?: number }) {
         </div>
         <div class="hero-tui-rows" ref={logEl} role="log" aria-live="off" aria-label="Recent authorization decisions" />
       </aside>
+      <div class="hero-control-shelf" aria-hidden="true" />
       <div class="hero-actions">
         <a class="push-btn primary" href="#quickstart">
           <span class="push-shadow" aria-hidden="true" />
