@@ -11,8 +11,8 @@ export function CaseStudy() {
       <div class="section-head">
         <h2>You can't vibe code authorization. We tried.</h2>
         <p>
-          Like everyone else on the planet we are vibe-code replacing all our systems. When the
-          email client (<a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a>) was done,
+          Like everyone else on the planet we are vibe coding replacements for everything. When
+          the email client (<a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a>) was done,
           we wanted best-in-class authorization on its free signature-image hosting, so we set
           GPT 5.6 Sol MAX on the case. This is what happened.
         </p>
