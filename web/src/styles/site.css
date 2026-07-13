@@ -89,7 +89,7 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    padding: 86px clamp(18px, 5vw, 72px) 70px;
+    padding: 86px clamp(18px, 5vw, 72px) clamp(210px, 26svh, 250px);
     color: var(--ink);
     background:
       linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.94)),
@@ -290,7 +290,7 @@
   .auth-planet.finance { --planet-x: 85vw; --planet-y: 16svh; animation-delay: -3s; }
   .auth-planet.identity {
     --planet-x: 13vw;
-    --planet-y: 78svh;
+    --planet-y: 58svh;
     animation-delay: -8s;
   }
   .auth-planet.identity .auth-planet-body {
@@ -312,7 +312,7 @@
   }
   .auth-planet.challenge {
     --planet-x: 88vw;
-    --planet-y: 80svh;
+    --planet-y: 56svh;
     animation-delay: -17s;
   }
   .auth-planet.challenge .auth-planet-body {
@@ -816,41 +816,43 @@
   @keyframes satelliteOrbit {
     to { transform: rotate(360deg); }
   }
-  /* —— Hero authorization log: departures board for the satellite traffic —— */
-  .hero-log {
+  /* —— Hero authorization log: full-width terminal docked at the hero floor —— */
+  .hero-tui {
     position: absolute;
-    left: clamp(18px, 4vw, 56px);
-    bottom: clamp(18px, 4vh, 44px);
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 3;
-    width: min(400px, 42vw);
-    border: 1px solid rgba(15, 44, 92, .16);
-    border-radius: 8px;
-    background: rgba(251, 252, 255, .82);
-    backdrop-filter: blur(6px);
-    box-shadow: 0 12px 40px rgba(21, 38, 73, .08);
+    border-top: 1px solid rgba(122, 184, 237, .22);
+    background: rgba(9, 13, 19, .93);
+    backdrop-filter: blur(8px);
+    color: #c7d3e4;
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     overflow: hidden;
   }
-  .hero-log-head {
+  .hero-tui-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(15, 44, 92, .12);
-    color: var(--navy);
+    padding: 7px clamp(16px, 4vw, 46px) 6px;
+    border-bottom: 1px solid rgba(122, 184, 237, .14);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: .14em;
+    letter-spacing: .12em;
     text-transform: uppercase;
+    color: #8fa4c0;
   }
-  .hero-log-live {
+  .hero-tui-title::before {
+    content: "❯ ";
+    color: var(--green);
+  }
+  .hero-tui-live {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--muted);
     letter-spacing: .1em;
   }
-  .hero-log-live::before {
+  .hero-tui-live::before {
     content: "";
     width: 6px;
     height: 6px;
@@ -862,46 +864,72 @@
     0%, 100% { opacity: 1; }
     50% { opacity: .35; }
   }
-  .hero-log-rows {
+  .hero-tui-rows {
     display: flex;
     flex-direction: column;
-    padding: 6px 0;
-    min-height: 132px;
+    padding: 2px 0 8px;
+    min-height: 138px;
   }
-  .hero-log-row {
+  .hero-tui-row {
     display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 12px;
-    align-items: baseline;
-    padding: 3px 12px;
+    grid-template-columns: 82px 1.15fr .95fr 1.35fr 82px 64px 96px;
+    gap: 14px;
+    align-items: center;
+    padding: 2px clamp(16px, 4vw, 46px);
     font-size: 12px;
-    line-height: 1.5;
-    color: var(--ink);
+    line-height: 1.7;
+    white-space: nowrap;
     animation: heroLogEnter .32s ease both;
+  }
+  .hero-tui-cols {
+    padding-top: 6px;
+    padding-bottom: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #5f7391;
+    animation: none;
   }
   @keyframes heroLogEnter {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  .hero-log-time { color: var(--muted); }
-  .hero-log-req {
+  .tui-time { color: #7a8aa3; }
+  .tui-client, .tui-aud {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
-  .hero-log-status {
+  .tui-ico {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    /* Dark-mode legibility for mono-color marks drawn for light backgrounds */
+    filter: drop-shadow(0 0 1px rgba(255,255,255,.25));
+    background: rgba(255,255,255,.92);
+    padding: 1px;
+  }
+  .tui-token { color: #9fd8bd; }
+  .tui-desk { color: #7a8aa3; }
+  .tui-score { text-align: right; font-weight: 700; }
+  .tui-score[data-band="low"] { color: #4ecf9d; }
+  .tui-score[data-band="mid"] { color: #e6b45c; }
+  .tui-score[data-band="high"] { color: #f2707a; }
+  .tui-status {
     font-weight: 700;
     text-transform: uppercase;
     font-size: 10.5px;
     letter-spacing: .08em;
   }
-  .hero-log-row[data-status="flight"] .hero-log-status { color: var(--muted); }
-  .hero-log-row[data-status="flight"] .hero-log-status::after {
-    content: "…";
-  }
-  .hero-log-row[data-status="good"] .hero-log-status { color: #157a56; }
-  .hero-log-row[data-status="failed"] .hero-log-status { color: #a4690f; }
-  .hero-log-row[data-status="malicious"] .hero-log-status { color: #b3242c; }
+  .hero-tui-row[data-status="flight"] .tui-status { color: #8fa4c0; }
+  .hero-tui-row[data-status="flight"] .tui-status::after { content: "…"; }
+  .hero-tui-row[data-status="good"] .tui-status { color: #4ecf9d; }
+  .hero-tui-row[data-status="failed"] .tui-status { color: #e6b45c; }
+  .hero-tui-row[data-status="malicious"] .tui-status { color: #f2707a; }
 
   .hero-copy {
     position: relative;
@@ -2135,8 +2163,8 @@
   @media (max-width: 920px) {
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
-    .hero { min-height: 92svh; align-items: end; }
-    .hero-log { display: none; }
+    .hero { min-height: 92svh; align-items: end; padding-bottom: 70px; }
+    .hero-tui { display: none; }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
     .auth-planet.finance { --planet-x: 79vw; --planet-y: 15svh; }
     .auth-planet.identity { --planet-x: 18vw; --planet-y: 79svh; }
@@ -2156,7 +2184,7 @@
   }
   @media (min-width: 921px) and (max-width: 1300px) {
     .auth-planet.device { --planet-x: 29vw; --planet-y: 13svh; }
-    .auth-planet.identity { --planet-x: 13vw; --planet-y: 79svh; }
+    .auth-planet.identity { --planet-x: 13vw; --planet-y: 58svh; }
   }
   @media (max-width: 560px) {
     .hero { padding-inline: 18px; }

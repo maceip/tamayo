@@ -75,12 +75,21 @@ export function Hero(props: { scale?: number }) {
           <a class="button secondary bb-line" href="#passes">Token types</a>
         </div>
       </div>
-      <aside class="hero-log" aria-label="Simulated authorization log">
-        <div class="hero-log-head">
-          <span>authorization log</span>
-          <span class="hero-log-live" aria-hidden="true">live</span>
+      <aside class="hero-tui" aria-label="Simulated authorization log">
+        <div class="hero-tui-bar">
+          <span class="hero-tui-title">tamayo/authorization-log</span>
+          <span class="hero-tui-live" aria-hidden="true">live</span>
         </div>
-        <div class="hero-log-rows" ref={logEl} />
+        <div class="hero-tui-row hero-tui-cols" aria-hidden="true">
+          <span>time</span>
+          <span>client</span>
+          <span>token</span>
+          <span>audience</span>
+          <span>desk</span>
+          <span>score</span>
+          <span>status</span>
+        </div>
+        <div class="hero-tui-rows" ref={logEl} />
       </aside>
     </header>
   );

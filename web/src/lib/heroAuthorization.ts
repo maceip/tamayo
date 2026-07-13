@@ -1,20 +1,24 @@
 /** Hero authorization-flight sequence — CubeSat craft with good / failed / malicious outcomes. */
 
+import {
+  AUDIENCES,
+  CLIENTS,
+  DESKS,
+  PLANET_AUDIENCE,
+  TOKEN_FAMILIES,
+  iconURL,
+} from '../data/heroLog';
+
 type AuthOutcome = 'good' | 'failed' | 'malicious';
 
 function planetKey(planet: HTMLElement): string {
   return [...planet.classList].find((name) => name !== 'auth-planet') || 'planet';
 }
 
-// Departures-board log: one row per launched pass, status resolving in step
-// with the flight. This is what makes the scene legible as authorization
-// traffic instead of ornament.
-const PLANET_LOG: Record<string, { target: string; family: string }> = {
-  finance: { target: 'paypal.com', family: 'burn' },
-  identity: { target: 'linkedin.com', family: 'private_identity' },
-  device: { target: 'cloud-browser', family: 'evt' },
-  challenge: { target: 'sso-challenge', family: 'policy_email' },
-};
+// Terminal log: one row per authorization presentation. Rows tied to a
+// visible satellite resolve in step with the flight; ambient rows cover the
+// rest of the (unseen) audience fleet so the board reads as real traffic.
+// This is what makes the scene legible instead of ornamental.
 
 const LOG_STATUS_TEXT: Record<'flight' | AuthOutcome, string> = {
   flight: 'in flight',
@@ -25,24 +29,60 @@ const LOG_STATUS_TEXT: Record<'flight' | AuthOutcome, string> = {
 
 const MAX_LOG_ROWS = 6;
 
+const pick = <T,>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)]!;
+
+function pickFamily(): string {
+  const total = TOKEN_FAMILIES.reduce((sum, f) => sum + f.weight, 0);
+  let roll = Math.random() * total;
+  for (const f of TOKEN_FAMILIES) {
+    roll -= f.weight;
+    if (roll <= 0) return f.name;
+  }
+  return TOKEN_FAMILIES[0]!.name;
+}
+
+/** Risk score consistent with how the presentation will resolve. */
+function scoreFor(outcome: AuthOutcome): string {
+  const range: [number, number] =
+    outcome === 'malicious' ? [0.78, 0.99] : outcome === 'failed' ? [0.31, 0.62] : [0.01, 0.24];
+  return (range[0] + Math.random() * (range[1] - range[0])).toFixed(2);
+}
+
+function scoreBand(score: string): string {
+  const v = Number(score);
+  return v >= 0.7 ? 'high' : v >= 0.3 ? 'mid' : 'low';
+}
+
 function logTime(date: Date): string {
   return date.toTimeString().slice(0, 8);
 }
 
-function appendLogRow(
-  log: HTMLElement,
-  key: string,
-  status: 'flight' | AuthOutcome,
-  at = new Date(),
-): HTMLElement {
-  const meta = PLANET_LOG[key] ?? { target: key, family: 'burn' };
+const icon = (slug: string, cls: string) =>
+  `<img class="${cls}" src="${iconURL(slug)}" alt="" loading="lazy" width="14" height="14" onerror="this.style.display='none'">`;
+
+type LogRowSpec = {
+  audienceDomain?: string;
+  outcome: AuthOutcome;
+  status: 'flight' | AuthOutcome;
+  at?: Date;
+};
+
+function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
+  const audience =
+    AUDIENCES.find((a) => a.domain === spec.audienceDomain) ?? pick(AUDIENCES);
+  const client = pick(CLIENTS);
+  const score = scoreFor(spec.outcome);
   const row = document.createElement('div');
-  row.className = 'hero-log-row';
-  row.dataset.status = status;
+  row.className = 'hero-tui-row';
+  row.dataset.status = spec.status;
   row.innerHTML = `
-    <span class="hero-log-time">${logTime(at)}</span>
-    <span class="hero-log-req">${meta.family} → ${meta.target}</span>
-    <span class="hero-log-status">${LOG_STATUS_TEXT[status]}</span>
+    <span class="tui-time">${logTime(spec.at ?? new Date())}</span>
+    <span class="tui-client">${icon(client.slug, 'tui-ico')}${client.name}</span>
+    <span class="tui-token">${pickFamily()}</span>
+    <span class="tui-aud">${icon(audience.slug, 'tui-ico')}${audience.domain}</span>
+    <span class="tui-desk">${pick(DESKS)}</span>
+    <span class="tui-score" data-band="${scoreBand(score)}">${score}</span>
+    <span class="tui-status">${LOG_STATUS_TEXT[spec.status]}</span>
   `;
   while (log.children.length >= MAX_LOG_ROWS) log.firstElementChild?.remove();
   log.appendChild(row);
@@ -52,8 +92,16 @@ function appendLogRow(
 function resolveLogRow(row: HTMLElement | null, outcome: AuthOutcome): void {
   if (!row || !row.isConnected) return;
   row.dataset.status = outcome;
-  const status = row.querySelector('.hero-log-status');
+  const status = row.querySelector('.tui-status');
   if (status) status.textContent = LOG_STATUS_TEXT[outcome];
+}
+
+/** Outcome mix for ambient (no visible satellite) traffic. */
+function ambientOutcome(): AuthOutcome {
+  const roll = Math.random();
+  if (roll < 0.06) return 'malicious';
+  if (roll < 0.16) return 'failed';
+  return 'good';
 }
 
 function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
@@ -103,13 +151,14 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   // an empty widget waiting for the first launch.
   if (log) {
     const now = Date.now();
-    ([
-      ['identity', 'good', 41_000],
-      ['finance', 'good', 27_000],
-      ['challenge', 'malicious', 12_000],
-    ] as const).forEach(([key, outcome, ago]) => {
-      appendLogRow(log, key, outcome, new Date(now - ago));
-    });
+    for (let i = MAX_LOG_ROWS - 1; i >= 1; i -= 1) {
+      const outcome = ambientOutcome();
+      appendLogRow(log, {
+        outcome,
+        status: outcome,
+        at: new Date(now - i * (9_000 + Math.random() * 14_000)),
+      });
+    }
   }
 
   if (reduced.matches || planets.length === 0) return () => {};
@@ -124,19 +173,37 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   let tooltipTimer = 0;
   let intervalId = 0;
   let timeoutId = 0;
+  let ambientId = 0;
   let paused = false;
+
+  // Ambient presentations against audiences that have no visible planet —
+  // they only exist as log rows, resolving on their own short timers.
+  const scheduleAmbient = () => {
+    if (!log) return;
+    ambientId = window.setTimeout(() => {
+      if (!paused && !document.hidden) {
+        const outcome = ambientOutcome();
+        const row = appendLogRow(log, { outcome, status: 'flight' });
+        window.setTimeout(() => resolveLogRow(row, outcome), 700 + Math.random() * 1800);
+      }
+      scheduleAmbient();
+    }, 3400 + Math.random() * 4200);
+  };
 
   const stopTimers = () => {
     window.clearTimeout(timeoutId);
     window.clearInterval(intervalId);
+    window.clearTimeout(ambientId);
     timeoutId = 0;
     intervalId = 0;
+    ambientId = 0;
   };
 
   const startTimers = () => {
     if (paused || document.hidden || intervalId) return;
     timeoutId = window.setTimeout(fire, 900);
     intervalId = window.setInterval(fire, 15000);
+    scheduleAmbient();
   };
 
   const getTooltip = () => {
@@ -251,7 +318,9 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     if (outcome === 'good') goodCount += 1;
     if (outcome === 'failed') failedCount += 1;
 
-    const logRow = log ? appendLogRow(log, key, 'flight') : null;
+    const logRow = log
+      ? appendLogRow(log, { audienceDomain: PLANET_AUDIENCE[key], outcome, status: 'flight' })
+      : null;
 
     const missSide = count % 2 === 0 ? '1' : '-1';
     flight.className =
@@ -302,6 +371,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
   timeoutId = window.setTimeout(fire, 1400);
   intervalId = window.setInterval(fire, 15000);
+  scheduleAmbient();
 
   const onVisibility = () => {
     if (document.hidden || paused) {
