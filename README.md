@@ -1,8 +1,10 @@
 # tamayo
 
-a security framework for agents: every privileged action presents a
-signed, single-use pass instead of your identity. pure-go, cgo-free
-post-quantum crypto and anonymous tokens, down to the
+**let your agents fly.** a universal security framework for agents,
+whether claude runs in a secure enclave with remote attestation or on
+betsy's laptop: every privileged action presents a signed, single-use
+pass instead of your identity. pure-go, cgo-free post-quantum crypto
+and anonymous tokens, down to the
 [tamago](https://github.com/usbarmory/tamago) bare-metal go runtime.
 interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo/)
 
@@ -27,9 +29,11 @@ changes is the evidence a mint demands:
 | confidential cloud (money, pii) | sev-snp / tdx quotes as mint inputs, named measurements + signers |
 | critical, bare metal | tamago in a tee - no linux, libc, or shell; measure the whole binary |
 
-a production policy that accepts dev-grade evidence, or leaves a
-rate-limit bucket up to the caller, fails at `tokenauth.Compile`. how we
-learned that the hard way:
+the policy engine follows [cedar](https://www.cedarpolicy.com/)'s
+approach: one small, analyzable json file that compiles or doesn't,
+deny by default. a production policy that accepts dev-grade evidence,
+or leaves a rate-limit bucket up to the caller, fails at
+`tokenauth.Compile`. how we learned that the hard way:
 [you can't vibe code authorization](https://maceip.github.io/tamayo/#sigbird)
 
 ## what's here

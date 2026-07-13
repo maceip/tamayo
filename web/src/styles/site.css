@@ -1997,6 +1997,7 @@
   .deck-readout {
     position: absolute;
     left: 14px;
+    right: 14px;
     bottom: 10px;
     z-index: 2;
     display: grid;
@@ -2006,6 +2007,11 @@
     letter-spacing: .02em;
     color: color-mix(in srgb, var(--chip) 60%, #9fb3ab);
     opacity: .85;
+  }
+  .deck-readout span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   @media (prefers-reduced-motion: reduce) {
     .deck-grid, .deck-chip, .chip-ring { animation: none; }
@@ -2435,7 +2441,14 @@
   @media (max-width: 920px) {
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
-    .hero { min-height: 92svh; align-items: end; padding-bottom: 70px; }
+    /* No ticker on mobile, so recenter the copy instead of top-aligning. */
+    .hero {
+      min-height: 92svh;
+      align-content: center;
+      row-gap: 0;
+      padding-top: 86px;
+      padding-bottom: 70px;
+    }
     .hero-tui { display: none; }
     .auth-planet { --planet-size: 82px; --orbit-size: 116px; }
     .auth-planet.finance { --planet-x: 79vw; --planet-y: 15svh; }
