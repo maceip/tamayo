@@ -520,7 +520,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const beginAuthorizationHold = (
     flight: HTMLElement,
     satellite: HTMLElement,
-    onAuthorized: () => void,
+    onAuthorized: (holdRect: DOMRect) => void,
   ): void => {
     if (!flight.isConnected) return;
     satellite.classList.remove('is-flying', 'is-coasting');
@@ -530,9 +530,13 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
     onOwnAnimationEnd(flight, 'authorizationHold', () => {
       if (!flight.isConnected) return;
+      // Snapshot the completed hold before removing its animation class. Without
+      // this, the base approach restarts at its off-screen 0% keyframe and the
+      // capture FLIP appears to replace the satellite with a new arrival.
+      const holdRect = satellite.getBoundingClientRect();
       flight.classList.remove('is-authorizing');
       satellite.classList.remove('is-authorizing');
-      onAuthorized();
+      onAuthorized(holdRect);
     });
     flight.classList.add('is-authorizing');
   };
@@ -543,11 +547,13 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     satellite: HTMLElement,
     key: string,
     row: HTMLElement | null,
+    before: DOMRect,
   ): void => {
     if (!flight.isConnected) return;
-    const before = satellite.getBoundingClientRect();
     const track = document.createElement('span');
     track.className = 'authorization-track is-capturing';
+    // Hold the destination coordinate system still while the same satellite
+    // performs its FLIP arc. Steady rotation begins only after capture finishes.
     track.style.animationPlayState = 'paused';
     satellite.classList.remove('is-flying', 'is-authorizing', 'is-orbiting');
     satellite.classList.add('is-capturing');
@@ -564,8 +570,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const fieldRect = field.getBoundingClientRect();
     const scaleX = field.offsetWidth ? fieldRect.width / field.offsetWidth : 1;
     const scaleY = field.offsetHeight ? fieldRect.height / field.offsetHeight : scaleX;
-    const deltaX = (before.left - after.left) / scaleX;
-    const deltaY = (before.top - after.top) / scaleY;
+    const deltaX = (before.left + before.width / 2 - (after.left + after.width / 2)) / scaleX;
+    const deltaY = (before.top + before.height / 2 - (after.top + after.height / 2)) / scaleY;
     const arcDirection = deltaX < 0 ? -1 : 1;
     const transformAt = (x: number, y: number, rotation: number, scale = 1) =>
       `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rotation}deg) scale(${scale})`;
@@ -573,7 +579,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       [
         {
           offset: 0,
-          transform: transformAt(deltaX, deltaY, -8, 0.98),
+          transform: transformAt(deltaX, deltaY, -8, 1),
         },
         {
           offset: 0.36,
@@ -601,11 +607,6 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       { duration: 1_100, easing: 'cubic-bezier(.2,.72,.22,1)', fill: 'both' },
     );
     activeAnimations.add(capture);
-    // The track starts paused so its -9deg first frame is included in the
-    // post-reparent measurement above. Run it in lockstep with the satellite's
-    // FLIP arc so both transforms arrive at zero together without a handoff
-    // snap when the steady-state track animation takes over.
-    track.style.animationPlayState = 'running';
     capture.addEventListener(
       'finish',
       () => {
@@ -783,8 +784,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
     if (outcome === 'approved') {
       onOwnAnimationEnd(flight, 'authorizationApproach', () => {
-        beginAuthorizationHold(flight, satellite, () => {
-          beginCapture(flight, orbit, satellite, key, logRow);
+        beginAuthorizationHold(flight, satellite, (holdRect) => {
+          beginCapture(flight, orbit, satellite, key, logRow, holdRect);
         });
       });
       return;

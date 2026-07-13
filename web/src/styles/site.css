@@ -522,11 +522,8 @@
     will-change: transform;
   }
   .authorization-track.is-capturing {
-    animation: satelliteCaptureTrack 1.1s cubic-bezier(.2,.72,.22,1) both;
-  }
-  @keyframes satelliteCaptureTrack {
-    from { transform: rotate(-9deg); }
-    to { transform: rotate(0deg); }
+    animation: none;
+    transform: rotate(0deg);
   }
 
   /* CubeSat / bus-and-panels craft — angular on purpose (not a round head + soft trail). */
