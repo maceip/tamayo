@@ -65,10 +65,11 @@ export function Hero(props: { scale?: number }) {
         </div>
       </div>
       <div class="hero-copy">
-        <h1 data-testid="tamayo-hero-title">Universal Authorization</h1>
+        <h1 data-testid="tamayo-hero-title">Let your agents fly</h1>
         <p>
-          An issuer checks a rule once and signs a token good for one action. The service verifies
-          the token without learning who you are or creating an account.
+          Tamayo is a universal security framework for agents, whether Claude runs in a secure
+          enclave with remote attestation or on Betsy's laptop. Every action the agent takes
+          presents a signed, single-use pass instead of your identity.
         </p>
         <div class="hero-actions">
           <a class="button bb-pulse" href="#tamago">TamaGo</a>
