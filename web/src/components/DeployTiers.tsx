@@ -49,7 +49,7 @@ export function DeployTiers() {
   return (
     <section class="section" id="deployments">
       <div class="section-head">
-        <h2>Five tiers, one policy</h2>
+        <h2>From metal to Mattermost,<br />from the TEE to TikTok</h2>
         <p>
           An agent rollout never lands on one kind of machine. The same quarter puts agents on an
           intern's unmanaged laptop and next to the payment service. You don't want five security
