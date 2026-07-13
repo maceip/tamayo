@@ -36,7 +36,7 @@ export function Hero(props: { scale?: number }) {
   };
 
   return (
-    <header class="hero" ref={heroEl} style={scaleStyle()}>
+    <header class="hero" id="top" ref={heroEl} style={scaleStyle()}>
       <div class="hero-scene" role="group" aria-label="Authorization request animation">
         <div class="hero-line one" />
         <div class="hero-line two" />

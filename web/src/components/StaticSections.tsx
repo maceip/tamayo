@@ -51,56 +51,56 @@ export function StaticSections() {
           </thead>
           <tbody>
             <tr>
-              <td>
+              <td data-label="Primitive">
                 <b>
                   <a href={`${GH}/faest`} target="_blank" rel="noreferrer">FAEST</a>
                 </b>
               </td>
-              <td>PQ signature from symmetric primitives + VOLE-in-the-head proofs.</td>
-              <td>Sign runtime statements, policy files, or transparency-log heads.</td>
-              <td>
+              <td data-label="What it is">PQ signature from symmetric primitives + VOLE-in-the-head proofs.</td>
+              <td data-label="Standalone use">Sign runtime statements, policy files, or transparency-log heads.</td>
+              <td data-label="Status">
                 <a href={NIST_R3} target="_blank" rel="noreferrer">
                   NIST additional-signature round 3
                 </a>
               </td>
             </tr>
             <tr>
-              <td>
+              <td data-label="Primitive">
                 <b>
                   <a href={`${GH}/mayo`} target="_blank" rel="noreferrer">MAYO</a>
                 </b>
               </td>
-              <td>Compact multivariate signature over GF(16).</td>
-              <td>Direct signing, or the preimage path inside blind signatures.</td>
-              <td>
+              <td data-label="What it is">Compact multivariate signature over GF(16).</td>
+              <td data-label="Standalone use">Direct signing, or the preimage path inside blind signatures.</td>
+              <td data-label="Status">
                 <a href={NIST_R3} target="_blank" rel="noreferrer">
                   NIST additional-signature round 3
                 </a>
               </td>
             </tr>
             <tr>
-              <td>
+              <td data-label="Primitive">
                 <b>
                   <a href={`${GH}/pomfrit`} target="_blank" rel="noreferrer">PoMFRIT</a>
                 </b>
               </td>
-              <td>One-More-MAYO blind signature with verifier checks.</td>
-              <td>Anonymous one-use credentials and blind issuance.</td>
-              <td>
+              <td data-label="What it is">One-More-MAYO blind signature with verifier checks.</td>
+              <td data-label="Standalone use">Anonymous one-use credentials and blind issuance.</td>
+              <td data-label="Status">
                 <a href={POMFRIT_PAPER} target="_blank" rel="noreferrer">
                   ePrint 2026/109
                 </a>
               </td>
             </tr>
             <tr>
-              <td>
+              <td data-label="Primitive">
                 <b>
                   <a href={`${GH}/mldsa`} target="_blank" rel="noreferrer">ML-DSA</a>
                 </b>
               </td>
-              <td>Module-lattice signature (Dilithium) for FIPS-track use.</td>
-              <td>Holder proofs and PQ email-token profiles.</td>
-              <td>
+              <td data-label="What it is">Module-lattice signature (Dilithium) for FIPS-track use.</td>
+              <td data-label="Standalone use">Holder proofs and PQ email-token profiles.</td>
+              <td data-label="Status">
                 <a href={FIPS_204} target="_blank" rel="noreferrer">
                   FIPS 204
                 </a>

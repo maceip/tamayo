@@ -1,4 +1,5 @@
-import { For, type JSX } from 'solid-js';
+import { createSignal, For, type JSX } from 'solid-js';
+import { createMediaQuery } from '../lib/media';
 
 const CEDAR = 'https://www.cedarpolicy.com/';
 const CEDAR_GH = 'https://github.com/cedar-policy/cedar';
@@ -47,6 +48,9 @@ const SB_NOTES = [
 ];
 
 export function PolicySection() {
+  const compact = createMediaQuery('(max-width: 640px)');
+  const [mobilePanel, setMobilePanel] = createSignal<'iam' | 'tokenauth' | 'live'>('tokenauth');
+
   return (
     <section class="section" id="policy">
       <div class="section-head">
@@ -63,8 +67,37 @@ export function PolicySection() {
         </p>
       </div>
 
+      <div class="pol-mobile-switcher" role="tablist" aria-label="Policy examples">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePanel() === 'iam' ? 'true' : 'false'}
+          aria-controls="policy-panel-iam"
+          onClick={() => setMobilePanel('iam')}
+        >Cloud IAM</button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePanel() === 'tokenauth' ? 'true' : 'false'}
+          aria-controls="policy-panel-tokenauth"
+          onClick={() => setMobilePanel('tokenauth')}
+        >tokenauth</button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePanel() === 'live' ? 'true' : 'false'}
+          aria-controls="policy-panel-live"
+          onClick={() => setMobilePanel('live')}
+        >Live policy</button>
+      </div>
+
       <div class="pol-compare t-stagger">
-        <article class="pol-panel bb t-card-resize">
+        <article
+          class="pol-panel bb t-card-resize"
+          id="policy-panel-iam"
+          role={compact() ? 'tabpanel' : undefined}
+          hidden={compact() && mobilePanel() !== 'iam'}
+        >
           <h3 class="pol-title bad-side">How cloud IAM says "let the agent work"</h3>
           <pre class="pol-code"><code>{'{\n  "Version": "2012-10-17",\n  "Statement": [{\n    "Sid": "LetTheAgentsWork",\n    "Effect": "Allow",\n    "Principal": { "AWS":\n      '}<Bad n={1}>{'"arn:aws:iam::123456789012:role/agent-*"'}</Bad>{' },\n    "Action": ['}<Bad n={2}>{'"s3:*"'}</Bad>{', "ses:SendEmail",\n               '}<Bad n={2}>{'"sts:AssumeRole"'}</Bad>{'],\n    "Resource": '}<Bad n={3}>{'"*"'}</Bad>{',\n    "Condition": {\n      "StringLike": { '}<Bad n={4}>{'"aws:UserAgent": "*MyAgent*"'}</Bad>{' },\n      "IpAddress": { '}<Bad n={5}>{'"aws:SourceIp": "0.0.0.0/0"'}</Bad>{' }\n    }\n  }]\n}'}</code></pre>
           <ol class="pol-legend bad">
@@ -76,7 +109,12 @@ export function PolicySection() {
           </p>
         </article>
 
-        <article class="pol-panel bb t-card-resize">
+        <article
+          class="pol-panel bb t-card-resize"
+          id="policy-panel-tokenauth"
+          role={compact() ? 'tabpanel' : undefined}
+          hidden={compact() && mobilePanel() !== 'tokenauth'}
+        >
           <h3 class="pol-title good-side">The same intent in tokenauth</h3>
           <pre class="pol-code"><code>{'{\n  '}<Good n={1}>{'"mode": "production"'}</Good>{',\n  "token_families": {\n    "burn": {\n      "enabled": true,\n      "allowed_gates": ["tee"],\n      "budget_group": "burn",\n      '}<Good n={2}>{'"requires_attestation": true'}</Good>{'\n    }\n  },\n  "gates": { "tee": { "enabled": true,\n             '}<Good n={3}>{'"bucket_source": "caller"'}</Good>{' } },\n  "measurements": [\n    { '}<Good n={4}>{'"value_x": "a7f3…be12"'}</Good>{', "allow": ["burn"] }\n  ],\n  "budgets": {\n    "burn": '}<Good n={5}>{'{ "limit": 16, "window_seconds": 3600 }'}</Good>{'\n  }\n}'}</code></pre>
           <ol class="pol-legend good">
@@ -88,7 +126,12 @@ export function PolicySection() {
         </article>
       </div>
 
-      <div class="pol-panel pol-real bb t-stagger">
+      <div
+        class="pol-panel pol-real bb t-stagger"
+        id="policy-panel-live"
+        role={compact() ? 'tabpanel' : undefined}
+        hidden={compact() && mobilePanel() !== 'live'}
+      >
         <h3 class="pol-title">
           Live deployed policy example:{' '}
           <a href={SIGBIRD_POLICY} target="_blank" rel="noreferrer">

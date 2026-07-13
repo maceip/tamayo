@@ -72,10 +72,10 @@ export function DeployTiers() {
             <For each={TIERS}>
               {(tier) => (
                 <tr>
-                  <td><b>{tier.name}</b></td>
-                  <td>{tier.where}</td>
-                  <td>{tier.evidence}</td>
-                  <td>{tier.blast}</td>
+                  <td data-label="Tier"><b>{tier.name}</b></td>
+                  <td data-label="Where agents run">{tier.where}</td>
+                  <td data-label="Evidence policy can demand">{tier.evidence}</td>
+                  <td data-label="Stolen credential cost">{tier.blast}</td>
                 </tr>
               )}
             </For>

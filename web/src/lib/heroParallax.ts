@@ -25,9 +25,9 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
   let listening = false;
 
   const measureMax = () => {
-    const tamago = document.getElementById('tamago');
-    if (!tamago) return hero.offsetHeight * 0.35;
-    const room = tamago.offsetTop - hero.offsetTop - 96;
+    const stack = document.getElementById('stack');
+    if (!stack) return hero.offsetHeight * 0.35;
+    const room = stack.offsetTop - hero.offsetTop - 96;
     return Math.max(0, room * 0.55);
   };
 

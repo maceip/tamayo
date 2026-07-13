@@ -11,7 +11,14 @@ import {
 
 type AuthOutcome = 'approved' | 'denied' | 'malicious';
 type LogStatus = 'pending' | 'approved' | 'denied' | 'threat' | 'neutralized';
-type SatelliteStatus = 'pending' | 'approved' | 'denied' | 'threat' | 'neutralized';
+type SatelliteStatus =
+  | 'pending'
+  | 'authorizing'
+  | 'capturing'
+  | 'approved'
+  | 'denied'
+  | 'threat'
+  | 'neutralized';
 
 const LOG_STATUS_TEXT: Record<LogStatus, string> = {
   pending: 'evaluating',
@@ -23,6 +30,8 @@ const LOG_STATUS_TEXT: Record<LogStatus, string> = {
 
 const SATELLITE_LABELS: Record<SatelliteStatus, string> = {
   pending: 'Authorization pending',
+  authorizing: 'Authorization check in progress',
+  capturing: 'Authorization approved — destination capture in progress',
   approved: 'Authorization approved',
   denied: 'Authorization Denied',
   threat: 'Malicious authorization detected — activate defense',
@@ -31,7 +40,9 @@ const SATELLITE_LABELS: Record<SatelliteStatus, string> = {
 
 const TOOLTIP_COPY: Record<SatelliteStatus, { label: string; detail: string }> = {
   pending: { label: 'Authorization Pending', detail: 'evaluating pass' },
-  approved: { label: 'Authorization Approved', detail: 'orbit stable' },
+  authorizing: { label: 'Authorizing', detail: 'multi-axis verification' },
+  capturing: { label: 'Authorization Approved', detail: 'securing destination' },
+  approved: { label: 'Authorization Approved', detail: 'authorization stable' },
   denied: { label: 'Authorization Denied', detail: 'pass rejected' },
   threat: { label: 'Malicious Attempt', detail: 'activate to intercept' },
   neutralized: { label: 'Threat Neutralized', detail: 'defense confirmed' },
@@ -89,10 +100,42 @@ const rowSatellites = new WeakMap<HTMLElement, HTMLElement>();
 function linkRowToSatellite(row: HTMLElement, satellite: HTMLElement): void {
   rowSatellites.set(row, satellite);
   row.classList.add('has-sat');
-  row.addEventListener('mouseenter', () => {
+  row.tabIndex = 0;
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', 'Authorization attempt. Activate to inspect the related satellite.');
+
+  const spotlight = () => {
     if (satellite.isConnected) satellite.classList.add('is-spotted');
+  };
+  const clearSpotlight = () => satellite.classList.remove('is-spotted');
+  const activate = () => {
+    if (!satellite.isConnected) return;
+    satellite.click();
+  };
+
+  row.addEventListener('mouseenter', spotlight);
+  row.addEventListener('mouseleave', clearSpotlight);
+  row.addEventListener('focus', spotlight);
+  row.addEventListener('blur', clearSpotlight);
+  row.addEventListener('click', (event) => {
+    if ((event.target as Element).closest('button')) return;
+    activate();
   });
-  row.addEventListener('mouseleave', () => satellite.classList.remove('is-spotted'));
+  row.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    activate();
+  });
+}
+
+function unlinkRowFromSatellite(row: HTMLElement | null): void {
+  if (!row) return;
+  rowSatellites.get(row)?.classList.remove('is-spotted');
+  rowSatellites.delete(row);
+  row.classList.remove('has-sat');
+  row.removeAttribute('tabindex');
+  row.removeAttribute('role');
+  row.removeAttribute('aria-label');
 }
 
 function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
@@ -103,13 +146,13 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   row.className = 'hero-tui-row';
   row.dataset.status = spec.status;
   row.innerHTML = `
-    <span class="tui-time">${logTime(spec.at ?? new Date())}</span>
-    <span class="tui-client">${icon(client.slug, 'tui-ico')}${client.name}</span>
-    <span class="tui-token">${pickFamily()}</span>
-    <span class="tui-aud">${icon(audience.slug, 'tui-ico')}${audience.domain}</span>
-    <span class="tui-desk">${pick(DESKS)}</span>
-    <span class="tui-score" data-band="${scoreBand(score)}">${score}</span>
-    <span class="tui-status">${LOG_STATUS_TEXT[spec.status]}</span>
+    <span class="tui-time" data-label="time">${logTime(spec.at ?? new Date())}</span>
+    <span class="tui-client" data-label="client">${icon(client.slug, 'tui-ico')}${client.name}</span>
+    <span class="tui-token" data-label="token">${pickFamily()}</span>
+    <span class="tui-aud" data-label="audience">${icon(audience.slug, 'tui-ico')}${audience.domain}</span>
+    <span class="tui-desk" data-label="desk">${pick(DESKS)}</span>
+    <span class="tui-score" data-label="score" data-band="${scoreBand(score)}">${score}</span>
+    <span class="tui-status" data-label="status">${LOG_STATUS_TEXT[spec.status]}</span>
   `;
   while (log.children.length >= MAX_LOG_ROWS) {
     const evicted = log.firstElementChild as HTMLElement | null;
@@ -124,7 +167,23 @@ function resolveLogRow(row: HTMLElement | null, status: LogStatus): void {
   if (!row?.isConnected) return;
   row.dataset.status = status;
   const statusElement = row.querySelector('.tui-status');
-  if (statusElement) statusElement.textContent = LOG_STATUS_TEXT[status];
+  if (!statusElement) return;
+  statusElement.textContent = '';
+  const satellite = rowSatellites.get(row);
+  if (status === 'threat' && satellite?.isConnected) {
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'tui-threat-action';
+    action.textContent = 'Neutralize';
+    action.setAttribute('aria-label', 'Neutralize malicious authorization attempt');
+    action.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (satellite.isConnected) satellite.click();
+    });
+    statusElement.appendChild(action);
+    return;
+  }
+  statusElement.textContent = LOG_STATUS_TEXT[status];
 }
 
 function finalLogStatus(outcome: AuthOutcome): LogStatus {
@@ -165,6 +224,12 @@ function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
       <span class="sat-spark sat-spark-a"></span>
       <span class="sat-spark sat-spark-b"></span>
       <span class="sat-spark sat-spark-c"></span>
+    </span>
+    <span class="sat-rcs-system" aria-hidden="true">
+      <span class="sat-rcs sat-rcs-up" aria-hidden="true"></span>
+      <span class="sat-rcs sat-rcs-right" aria-hidden="true"></span>
+      <span class="sat-rcs sat-rcs-down" aria-hidden="true"></span>
+      <span class="sat-rcs sat-rcs-left" aria-hidden="true"></span>
     </span>
     <span class="sat-panel sat-panel-left" aria-hidden="true"></span>
     <span class="sat-bus" aria-hidden="true">
@@ -219,6 +284,16 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const activeFlights = new Set<HTMLElement>();
   const activeFlightRecords = new Map<HTMLElement, { row: HTMLElement | null; outcome: AuthOutcome }>();
   const activeAnimations = new Set<Animation>();
+  const activeCaptures = new Map<
+    HTMLElement,
+    {
+      flight: HTMLElement;
+      key: string;
+      orbit: HTMLElement;
+      row: HTMLElement | null;
+      satellite: HTMLElement;
+    }
+  >();
   const ownedTimeouts = new Set<number>();
   let launchCount = 0;
   let approvedCount = 0;
@@ -226,6 +301,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const guaranteedBadLaunch = 4;
   let launchTimer = 0;
   let ambientTimer = 0;
+  let threatDetectionTimer = 0;
   let tooltip: HTMLElement | null = null;
   let tooltipTarget: HTMLElement | null = null;
   let pinnedTarget: HTMLElement | null = null;
@@ -281,7 +357,15 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const detail = tip.querySelector('[data-auth-tooltip-status]');
     if (label) label.textContent = copy.label;
     if (detail) detail.textContent = copy.detail;
-    for (const name of ['pending', 'approved', 'denied', 'threat', 'neutralized']) {
+    for (const name of [
+      'pending',
+      'authorizing',
+      'capturing',
+      'approved',
+      'denied',
+      'threat',
+      'neutralized',
+    ] satisfies SatelliteStatus[]) {
       tip.classList.toggle(`is-${name}`, status === name);
     }
     return tip;
@@ -381,31 +465,54 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     if (document.activeElement === satellite) {
       hero?.querySelector<HTMLElement>('.hero-actions a')?.focus({ preventScroll: true });
     }
+    const record = activeFlightRecords.get(flight);
+    unlinkRowFromSatellite(record?.row ?? null);
     activeFlights.delete(flight);
     activeFlightRecords.delete(flight);
     flight.remove();
   };
 
-  const attachToOrbit = (
+  const beginAuthorizationHold = (
+    flight: HTMLElement,
+    satellite: HTMLElement,
+    onAuthorized: () => void,
+  ): void => {
+    if (!flight.isConnected) return;
+    satellite.classList.remove('is-flying', 'is-coasting');
+    satellite.classList.add('is-authorizing');
+    setSatelliteStatus(satellite, 'authorizing');
+    refreshTooltip(satellite);
+
+    onOwnAnimationEnd(flight, 'authorizationHold', () => {
+      if (!flight.isConnected) return;
+      flight.classList.remove('is-authorizing');
+      satellite.classList.remove('is-authorizing');
+      onAuthorized();
+    });
+    flight.classList.add('is-authorizing');
+  };
+
+  const beginCapture = (
     flight: HTMLElement,
     orbit: HTMLElement,
     satellite: HTMLElement,
     key: string,
+    row: HTMLElement | null,
   ): void => {
     if (!flight.isConnected) return;
     const before = satellite.getBoundingClientRect();
     const track = document.createElement('span');
-    track.className = 'authorization-track';
+    track.className = 'authorization-track is-capturing';
     track.style.animationPlayState = 'paused';
-    satellite.classList.remove('is-flying');
-    satellite.classList.add('is-orbiting');
-    satellite.querySelector('.sat-booster')?.remove();
-    setSatelliteStatus(satellite, 'approved');
+    satellite.classList.remove('is-flying', 'is-authorizing', 'is-orbiting');
+    satellite.classList.add('is-capturing');
+    setSatelliteStatus(satellite, 'capturing');
     refreshTooltip(satellite);
     track.appendChild(satellite);
     orbit.appendChild(track);
-    activeFlights.delete(flight);
-    activeFlightRecords.delete(flight);
+    activeCaptures.set(track, { flight, key, orbit, row, satellite });
+    // Keep the flight registered until capture completes so pause/reduced-motion
+    // settlement still has an outcome record even after this wrapper is detached.
     flight.remove();
 
     const after = satellite.getBoundingClientRect();
@@ -414,23 +521,92 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const scaleY = field.offsetHeight ? fieldRect.height / field.offsetHeight : scaleX;
     const deltaX = (before.left - after.left) / scaleX;
     const deltaY = (before.top - after.top) / scaleY;
+    const arcDirection = deltaX < 0 ? -1 : 1;
+    const transformAt = (x: number, y: number, rotation: number, scale = 1) =>
+      `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rotation}deg) scale(${scale})`;
     const capture = satellite.animate(
       [
-        { transform: `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px)) rotate(-8deg)` },
-        { transform: 'translate(-50%, -50%) rotate(0deg)' },
+        {
+          offset: 0,
+          transform: transformAt(deltaX, deltaY, -8, 0.98),
+        },
+        {
+          offset: 0.36,
+          transform: transformAt(
+            deltaX * 0.62 + arcDirection * 8,
+            deltaY * 0.62 - 12,
+            -3.5,
+            1.015,
+          ),
+        },
+        {
+          offset: 0.72,
+          transform: transformAt(
+            deltaX * 0.2 + arcDirection * 5,
+            deltaY * 0.2 - 4,
+            1.5,
+            1.006,
+          ),
+        },
+        {
+          offset: 1,
+          transform: transformAt(0, 0, 0),
+        },
       ],
-      { duration: 480, easing: 'cubic-bezier(.22,.88,.32,1)', fill: 'both' },
+      { duration: 1_100, easing: 'cubic-bezier(.2,.72,.22,1)', fill: 'both' },
     );
     activeAnimations.add(capture);
     capture.addEventListener(
       'finish',
       () => {
         activeAnimations.delete(capture);
+        if (!track.isConnected || disposed) return;
+
+        activeCaptures.delete(track);
+        track.classList.remove('is-capturing');
+        satellite.classList.remove('is-capturing');
+        satellite.classList.add('is-orbiting', 'is-capture-decaying');
+        satellite.querySelector('.sat-booster')?.remove();
+        setSatelliteStatus(satellite, 'approved');
+        refreshTooltip(satellite);
+        resolveLogRow(row, 'approved');
+        activeFlights.delete(flight);
+        activeFlightRecords.delete(flight);
         capture.cancel();
-        if (track.isConnected && !motionDisabled) {
-          track.style.animationPlayState = 'running';
-          scheduleLaunch(NEXT_LAUNCH_DELAY);
+
+        track.style.animationPlayState =
+          paused || motionDisabled || document.hidden ? 'paused' : 'running';
+
+        const rcs = satellite.querySelector<HTMLElement>('.sat-rcs-system');
+        if (!rcs || motionDisabled) {
+          rcs?.remove();
+          satellite.classList.remove('is-capture-decaying');
+          if (!motionDisabled) scheduleLaunch(NEXT_LAUNCH_DELAY);
+          return;
         }
+
+        // Capture jets remain white and fully present for the FLIP arc. They
+        // begin decaying only after the craft has entered its stable state.
+        const decay = rcs.animate(
+          [
+            { opacity: 1, transform: 'scale(1)' },
+            { offset: 0.62, opacity: 0.52, transform: 'scale(.9)' },
+            { opacity: 0, transform: 'scale(.68)' },
+          ],
+          { duration: 460, easing: 'cubic-bezier(.4,0,.8,.3)', fill: 'both' },
+        );
+        activeAnimations.add(decay);
+        decay.addEventListener(
+          'finish',
+          () => {
+            activeAnimations.delete(decay);
+            decay.cancel();
+            rcs.remove();
+            satellite.classList.remove('is-capture-decaying');
+            if (!motionDisabled) scheduleLaunch(NEXT_LAUNCH_DELAY);
+          },
+          { once: true },
+        );
       },
       { once: true },
     );
@@ -442,14 +618,28 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       if (document.activeElement === satellite) {
         hero?.querySelector<HTMLElement>('.hero-actions a')?.focus({ preventScroll: true });
       }
+      unlinkRowFromSatellite(row);
       track.remove();
       cleanupOrbitIfEmpty(key, orbit);
     };
     track.addEventListener('animationiteration', removeAfterRevolution);
   };
 
+  const beginThreatState = (): void => {
+    clearOwnedTimeout(threatDetectionTimer);
+    hero?.classList.add('is-threat-detected', 'is-under-attack');
+    document.documentElement.classList.add('authorization-alert');
+    threatDetectionTimer = later(() => {
+      threatDetectionTimer = 0;
+      hero?.classList.remove('is-threat-detected');
+      document.documentElement.classList.remove('authorization-alert');
+    }, 720);
+  };
+
   const clearThreatState = (): void => {
-    hero?.classList.remove('is-under-attack');
+    clearOwnedTimeout(threatDetectionTimer);
+    threatDetectionTimer = 0;
+    hero?.classList.remove('is-threat-detected', 'is-under-attack');
     document.documentElement.classList.remove('authorization-alert');
   };
 
@@ -537,63 +727,66 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
     if (outcome === 'approved') {
       onOwnAnimationEnd(flight, 'authorizationApproach', () => {
-        attachToOrbit(flight, orbit, satellite, key);
-        resolveLogRow(logRow, 'approved');
+        beginAuthorizationHold(flight, satellite, () => {
+          beginCapture(flight, orbit, satellite, key, logRow);
+        });
       });
       return;
     }
 
     if (outcome === 'denied') {
       onOwnAnimationEnd(flight, 'authorizationDeniedApproach', () => {
-        satellite.classList.remove('is-flying');
-        satellite.classList.add('is-coasting');
-        setSatelliteStatus(satellite, 'denied');
-        refreshTooltip(satellite);
-        resolveLogRow(logRow, 'denied');
-        showTooltip(satellite, true);
-        onOwnAnimationEnd(flight, 'authorizationDeniedFall', () => {
-          removeFlight(flight, satellite);
-          cleanupOrbitIfEmpty(key, orbit);
-          scheduleLaunch(NEXT_LAUNCH_DELAY);
+        beginAuthorizationHold(flight, satellite, () => {
+          satellite.classList.add('is-coasting');
+          setSatelliteStatus(satellite, 'denied');
+          refreshTooltip(satellite);
+          resolveLogRow(logRow, 'denied');
+          showTooltip(satellite, true);
+          onOwnAnimationEnd(flight, 'authorizationDeniedFall', () => {
+            removeFlight(flight, satellite);
+            cleanupOrbitIfEmpty(key, orbit);
+            scheduleLaunch(NEXT_LAUNCH_DELAY);
+          });
+          flight.classList.add('is-rejected');
         });
-        flight.classList.add('is-rejected');
       });
       return;
     }
 
     onOwnAnimationEnd(flight, 'authorizationThreatApproach', () => {
-      let threatPhase: 'targeted' | 'blasted' = 'targeted';
-      setSatelliteStatus(satellite, 'threat');
-      refreshTooltip(satellite);
-      resolveLogRow(logRow, 'threat');
-      announce('Malicious authorization detected. Defense target locked.');
-      hero?.classList.add('is-under-attack');
-      document.documentElement.classList.add('authorization-alert');
-      later(() => document.documentElement.classList.remove('authorization-alert'), 620);
-      showTooltip(satellite, true);
-
-      const blastThreat = () => {
-        if (threatPhase !== 'targeted') return;
-        threatPhase = 'blasted';
-        satellite.classList.remove('is-flying');
-        satellite.classList.add('is-neutralized');
-        setSatelliteStatus(satellite, 'neutralized');
+      beginAuthorizationHold(flight, satellite, () => {
+        let threatPhase: 'targeted' | 'blasted' = 'targeted';
+        satellite.classList.add('is-flying');
+        setSatelliteStatus(satellite, 'threat');
         refreshTooltip(satellite);
-        resolveLogRow(logRow, 'neutralized');
-        announce('Malicious authorization neutralized.');
-        flight.classList.remove('is-targeted');
-        onOwnAnimationEnd(flight, 'authorizationBlast', () => {
-          removeFlight(flight, satellite);
-          cleanupOrbitIfEmpty(key, orbit);
-          clearThreatState();
-          scheduleLaunch(NEXT_LAUNCH_DELAY);
-        });
-        flight.classList.add('is-blasted');
-      };
+        resolveLogRow(logRow, 'threat');
+        announce('Malicious authorization detected. Defense target locked.');
+        beginThreatState();
+        showTooltip(satellite, true);
 
-      threatAction = blastThreat;
-      onOwnAnimationEnd(flight, 'authorizationTargetHold', blastThreat);
-      flight.classList.add('is-targeted');
+        const blastThreat = () => {
+          if (threatPhase !== 'targeted') return;
+          threatPhase = 'blasted';
+          satellite.classList.remove('is-flying');
+          satellite.classList.add('is-neutralized');
+          setSatelliteStatus(satellite, 'neutralized');
+          refreshTooltip(satellite);
+          resolveLogRow(logRow, 'neutralized');
+          announce('Malicious authorization neutralized.');
+          flight.classList.remove('is-targeted');
+          onOwnAnimationEnd(flight, 'authorizationBlast', () => {
+            removeFlight(flight, satellite);
+            cleanupOrbitIfEmpty(key, orbit);
+            clearThreatState();
+            scheduleLaunch(NEXT_LAUNCH_DELAY);
+          });
+          flight.classList.add('is-blasted');
+        };
+
+        threatAction = blastThreat;
+        onOwnAnimationEnd(flight, 'authorizationTargetHold', blastThreat);
+        flight.classList.add('is-targeted');
+      });
     });
   };
 
@@ -650,10 +843,28 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       resolveLogRow(record.row, finalLogStatus(record.outcome));
       flight.remove();
     }
-    activeFlightRecords.clear();
-    activeFlights.clear();
     for (const animation of activeAnimations) animation.cancel();
     activeAnimations.clear();
+
+    // A capture may already have reparented its craft away from the flight
+    // wrapper. Commit that craft to a static approved state rather than leave
+    // a canceled FLIP and its jets stranded mid-phase.
+    for (const [track, capture] of activeCaptures) {
+      track.classList.remove('is-capturing');
+      capture.satellite.classList.remove('is-capturing', 'is-capture-decaying');
+      capture.satellite.classList.add('is-orbiting');
+      capture.satellite.querySelector('.sat-booster')?.remove();
+      capture.satellite.querySelector('.sat-rcs-system')?.remove();
+      setSatelliteStatus(capture.satellite, 'approved');
+      resolveLogRow(capture.row, 'approved');
+    }
+    activeCaptures.clear();
+    activeFlightRecords.clear();
+    activeFlights.clear();
+    field
+      .querySelectorAll<HTMLElement>('.authorization-satellite.is-capture-decaying')
+      .forEach((satellite) => satellite.classList.remove('is-capture-decaying'));
+    field.querySelectorAll<HTMLElement>('.authorization-track .sat-rcs-system').forEach((rcs) => rcs.remove());
     field.querySelectorAll<HTMLElement>('.authorization-track').forEach((track) => {
       track.style.animation = 'none';
       track.style.animationPlayState = 'paused';
@@ -670,6 +881,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     for (const flight of activeFlights) flight.remove();
     activeFlights.clear();
     activeFlightRecords.clear();
+    activeCaptures.clear();
     field.querySelectorAll('.authorization-orbit').forEach((node) => node.remove());
     orbits.clear();
     closeTooltip();

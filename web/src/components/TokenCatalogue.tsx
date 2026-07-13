@@ -5,6 +5,19 @@ export function TokenCatalogue() {
   const [index, setIndex] = createSignal(0);
   const isSelected = createSelector(index);
   const token = createMemo(() => tokens[index()]!);
+  let tabList!: HTMLDivElement;
+
+  const selectFromKeyboard = (event: KeyboardEvent) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tokens.length - 1
+        : (index() + (event.key === 'ArrowRight' ? 1 : -1) + tokens.length) % tokens.length;
+    setIndex(next);
+    tabList.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+  };
 
   return (
     <section class="section" id="passes">
@@ -18,14 +31,24 @@ export function TokenCatalogue() {
       </div>
 
       <div class="token-layout">
-        <div class="token-buttons">
+        <div
+          class="token-buttons"
+          ref={tabList}
+          role="tablist"
+          aria-label="Token types"
+          onKeyDown={selectFromKeyboard}
+        >
           <For each={tokens}>
             {(t, i) => (
               <button
                 class="token-button bb-line t-card-resize"
                 type="button"
+                id={`token-tab-${i()}`}
+                role="tab"
                 classList={{ active: isSelected(i()) }}
-                aria-pressed={isSelected(i()) ? 'true' : 'false'}
+                aria-selected={isSelected(i()) ? 'true' : 'false'}
+                aria-controls="token-panel"
+                tabIndex={isSelected(i()) ? 0 : -1}
                 onClick={() => setIndex(i())}
               >
                 <strong>{t.name}</strong>
@@ -35,7 +58,13 @@ export function TokenCatalogue() {
             )}
           </For>
         </div>
-        <div class="token-detail bb t-token-swap" aria-live="polite">
+        <div
+          class="token-detail bb t-token-swap"
+          id="token-panel"
+          role="tabpanel"
+          aria-labelledby={`token-tab-${index()}`}
+          aria-live="polite"
+        >
           <div class="token-deck" data-tone={token().tone}>
             <div class="deck-grid" aria-hidden="true" />
             <div class="deck-chip" aria-hidden="true">

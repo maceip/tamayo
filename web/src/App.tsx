@@ -1,6 +1,7 @@
 import { DialRoot, createDialKit } from 'dialkit/solid';
 import 'dialkit/styles.css';
 import { Nav } from './components/Nav';
+import { FoldRail } from './components/FoldRail';
 import { Hero } from './components/Hero';
 import { DeployTiers } from './components/DeployTiers';
 import { StaticSections, AgentsSection } from './components/StaticSections';
@@ -9,6 +10,7 @@ import { QuickStart } from './components/QuickStart';
 import { TokenCatalogue } from './components/TokenCatalogue';
 import { CaseStudy } from './components/CaseStudy';
 import { Footer } from './components/Footer';
+import { createMediaQuery } from './lib/media';
 
 function PageDials() {
   const page = createDialKit('Tamayo Pages', {
@@ -19,10 +21,12 @@ function PageDials() {
   // Don't put transform:scale on a page-wide wrapper — it creates a containing
   // block and flattens/breaks the hero flight + orbit transform animations.
   return (
-    <div style={{ '--blue': page().accentShift }}>
+    <div class="page-shell" style={{ '--blue': page().accentShift }}>
+      <a class="skip-link" href="#content">Skip to content</a>
       <Nav />
+      <FoldRail />
       <Hero scale={page().heroScale} />
-      <main>
+      <main id="content">
         <DeployTiers />
         <AgentsSection />
         <PolicySection />
@@ -37,12 +41,15 @@ function PageDials() {
 }
 
 export default function App() {
+  const compactTools = createMediaQuery('(max-width: 920px)');
+
   return (
     <>
       <PageDials />
       <DialRoot
         productionEnabled
-        position="top-right"
+        position={compactTools() ? 'bottom-right' : 'top-right'}
+        defaultOpen={!compactTools()}
         theme="system"
         devSession={{
           projectKey: 'tamayo-pages',
