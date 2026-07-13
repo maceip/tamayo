@@ -1,5 +1,5 @@
 export type CaseSegment = {
-  label: 'built' | 'broke' | 'fix';
+  label: 'model' | 'broke' | 'fix';
   text: string;
 };
 
@@ -7,87 +7,91 @@ export type CaseIteration = {
   version: string;
   verdict: 'broken' | 'shipped';
   title: string;
-  math: string[];
+  diagram: string[];
   segments: CaseSegment[];
 };
 
 /**
- * SigBird case study: free image hosting for email signatures, gated by a
- * tamayo private-identity token. Told honestly — including the two versions
- * that were wrong and why.
+ * SigBird post-mortem: we pointed a coding model at "add best-in-class
+ * authorization to free signature-image hosting" and it shipped compiling,
+ * plausible, wrong code twice before the design was right.
  */
 export const caseIterations: CaseIteration[] = [
   {
-    version: 'v1',
+    version: 'attempt 1',
     verdict: 'broken',
-    title: 'The gateway made your key',
-    math: [
-      'gateway: (sk, pk) ← KeyGen()',
-      'reply { token, sk }   // seed crossed the wire',
+    title: 'It generated your key on the server',
+    diagram: [
+      'app ──── mint request ────▶ gateway',
+      '                            (sk, pk) ← KeyGen()',
+      'app ◀─── { token, sk } ──── gateway',
+      '',
+      '✗ every private key crossed the wire',
+      '✗ server (and its logs) can impersonate anyone',
     ],
     segments: [
       {
-        label: 'built',
+        label: 'model',
         text:
-          'Assisted mint generated the holder keypair server-side and returned the seed to the app. One round trip, no client crypto.',
+          'One round trip, no client-side crypto: the gateway generated the holder keypair and mailed the seed back with the token. It compiled, the demo worked, the tests passed.',
       },
       {
         label: 'broke',
         text:
-          'The server (and anyone reading its logs) held every user’s private key, so it could impersonate any of them. That isn’t a private identity; it’s an account the server controls.',
+          'A private identity where the server holds every private key is an account the server controls. Anyone with the gateway\u2019s logs could present as any user.',
       },
       {
         label: 'fix',
         text:
-          'Keys are generated on-device. Only the public key crosses the wire; the gateway rejects mints without it and never returns key material.',
+          'Keys are generated on-device. Only the public key crosses the wire, and the gateway rejects any mint that doesn\u2019t bring one.',
       },
     ],
   },
   {
-    version: 'v2',
+    version: 'attempt 2',
     verdict: 'broken',
-    title: 'The client named its own budget',
-    math: [
+    title: 'It let the client name its own rate limit',
+    diagram: [
       'mints(bucket) ≤ 32 / hour',
-      'bucket = request.bucket_id   // attacker: bucket = rand()',
+      'bucket = request.bucket_id',
+      '',
+      'spammer:  bucket = rand()  → fresh 32 every call',
+      'everyone else: default bucket → one heavy user',
+      '                               starves the rest',
     ],
     segments: [
       {
-        label: 'built',
+        label: 'model',
         text:
-          'A mint budget of 32 per hour per bucket — but the bucket ID came from the request body. The client named its own rate-limit key.',
+          'A mint budget of 32 per hour per bucket, which sounds right until you notice the bucket ID came from the request body.',
       },
       {
         label: 'broke',
         text:
-          'A spammer just sends a new random bucket ID with every request and gets a fresh 32-mint allowance each time. Meanwhile everyone who kept the default shared one bucket, so a single heavy user could exhaust it for the rest.',
+          'A spammer sends a new random bucket with every request and never hits the limit. Honest clients shared the default bucket, so one heavy user exhausted it for everyone else.',
       },
       {
         label: 'fix',
         text:
-          'Our first fix was one global bucket. That stopped the spam trick but made the starvation worse: now one client could drain the allowance for the entire deployment.',
+          'The obvious patch — one global bucket — stopped the spam trick and made starvation worse: now a single client could drain the whole deployment\u2019s allowance.',
       },
     ],
   },
   {
-    version: 'v3',
+    version: 'attempt 3',
     verdict: 'shipped',
     title: 'The server names the identifier',
-    math: [
+    diagram: [
       'dev:  bucket = H(salt ‖ source)',
-      'prod: bucket = HMAC(k, mailbox)   // address never revealed',
+      'prod: bucket = HMAC(k, mailbox)',
+      '      // address never revealed',
       'mints(bucket, 1h) ≤ limit',
     ],
     segments: [
       {
-        label: 'built',
-        text:
-          'The gateway now derives the bucket itself: in dev, a salted hash of the connection source; in production, a keyed HMAC of the mailbox the user actually logged into. The address never appears in tokens or logs.',
-      },
-      {
         label: 'fix',
         text:
-          'A heavy user can only exhaust their own quota, and the client no longer supplies any value the rate limiter depends on.',
+          'The gateway derives the bucket itself: a salted hash of the connection source in dev, a keyed HMAC of the mailbox the user actually logged into in production. The address never appears in tokens or logs, a heavy user only exhausts their own quota, and the client no longer supplies any value the rate limiter depends on.',
       },
     ],
   },
@@ -114,4 +118,4 @@ export const wireMath: { expr: string; note: string }[] = [
 ];
 
 export const caseLesson =
-  'Both bugs came down to letting the client pick a value the server needed to control: its own private key custody in v1, its own rate-limit bucket in v2. Since then, tokenauth refuses to compile a production policy that leaves the budget bucket up to the caller unless the policy opts in explicitly.';
+  'Both wrong versions compiled, passed tests, and looked reasonable in review. That\u2019s the problem with vibe-coding authorization: the bugs don\u2019t fail tests, they fail audits. Both came down to the client picking a value the server needed to control \u2014 key custody in attempt 1, the rate-limit bucket in attempt 2. tokenauth now refuses to compile a production policy that leaves the budget bucket up to the caller, so the next model that tries this gets a compile error instead of a shipped vulnerability.';

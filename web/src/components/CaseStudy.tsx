@@ -1,7 +1,7 @@
 import { For } from 'solid-js';
 import { caseIterations, caseLesson, wireMath } from '../data/caseStudy';
 
-const SEGMENT_TITLES = { built: 'Built', broke: 'Broke', fix: 'Fix' } as const;
+const SEGMENT_TITLES = { model: 'What the model built', broke: 'Broke', fix: 'Fix' } as const;
 const SIGBIRD_PR = 'https://github.com/maceip/SigBird/pull/17';
 const SIGBIRD = 'https://github.com/maceip/SigBird';
 
@@ -9,12 +9,12 @@ export function CaseStudy() {
   return (
     <section class="section" id="sigbird">
       <div class="section-head">
-        <h2>Built with tamayo: SigBird</h2>
+        <h2>You can't vibe code authorization. We tried.</h2>
         <p>
-          <a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a> is a mail client that
-          hosts signature images for free. Free hosting attracts spam, so uploads are gated with a
-          tamayo private-identity token. It took three tries to get the integration right — all
-          three are below.
+          Like everyone else on the planet we are vibe-code replacing all our systems. When the
+          email client (<a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a>) was done,
+          we wanted best-in-class authorization on its free signature-image hosting, so we set
+          GPT 5.6 Sol MAX on the case. This is what happened.
         </p>
       </div>
 
@@ -29,7 +29,7 @@ export function CaseStudy() {
                 </span>
               </div>
               <h3>{step.title}</h3>
-              <pre class="case-math"><code>{step.math.join('\n')}</code></pre>
+              <pre class="case-math"><code>{step.diagram.join('\n')}</code></pre>
               <For each={step.segments}>
                 {(seg) => (
                   <p class={`case-seg ${seg.label}`}>

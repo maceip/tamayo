@@ -2,10 +2,9 @@ import { DialRoot, createDialKit } from 'dialkit/solid';
 import 'dialkit/styles.css';
 import { Nav } from './components/Nav';
 import { Hero } from './components/Hero';
-import { OsiRack } from './components/OsiRack';
+import { DeployTiers } from './components/DeployTiers';
 import { StaticSections, PolicySection, AgentsSection } from './components/StaticSections';
 import { TokenCatalogue } from './components/TokenCatalogue';
-import { StoryBoard } from './components/StoryBoard';
 import { CaseStudy } from './components/CaseStudy';
 import { Footer } from './components/Footer';
 
@@ -13,7 +12,6 @@ function PageDials() {
   const page = createDialKit('Tamayo Pages', {
     heroScale: [1, 0.85, 1.2, 0.01],
     accentShift: { type: 'color' as const, default: '#2368ff' },
-    storyAutoplay: true,
   });
 
   // Don't put transform:scale on a page-wide wrapper — it creates a containing
@@ -23,12 +21,11 @@ function PageDials() {
       <Nav />
       <Hero scale={page().heroScale} />
       <main>
-        <OsiRack />
-        <StaticSections />
-        <TokenCatalogue />
-        <PolicySection />
+        <DeployTiers />
         <AgentsSection />
-        <StoryBoard autoplay={page().storyAutoplay} />
+        <PolicySection />
+        <TokenCatalogue />
+        <StaticSections />
         <CaseStudy />
       </main>
       <Footer />

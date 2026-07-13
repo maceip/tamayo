@@ -9,7 +9,7 @@ export function TokenCatalogue() {
   return (
     <section class="section" id="passes">
       <div class="section-head">
-        <h2>OSI Layer 6: Tokens</h2>
+        <h2>Token types</h2>
         <p>
           Wire formats in <code>tokenprofile</code> and <code>emailtoken</code>: what the verifier
           learns, what stays hidden, and what the issuer checks before minting.

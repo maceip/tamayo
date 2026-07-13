@@ -72,7 +72,7 @@ export function Hero(props: { scale?: number }) {
           presents a signed, single-use pass instead of your identity.
         </p>
         <div class="hero-actions">
-          <a class="button bb-pulse" href="#tamago">TamaGo</a>
+          <a class="button bb-pulse" href="#deployments">Where it runs</a>
           <a class="button secondary bb-line" href="#passes">Token types</a>
         </div>
       </div>

@@ -6,15 +6,12 @@ export function Nav() {
         <span>Tamayo</span>
       </div>
       <div class="nav-links">
-        <a href="#stack">Stack</a>
-        <a href="#tamago">TamaGo</a>
-        <a href="#tee">TEE</a>
-        <a href="#primitives">Crypto</a>
-        <a href="#passes">Tokens</a>
-        <a href="#policy">Policy</a>
+        <a href="#deployments">Deployments</a>
         <a href="#agents">Agents</a>
-        <a href="#movie">Story</a>
-        <a href="#sigbird">SigBird</a>
+        <a href="#policy">Policy</a>
+        <a href="#passes">Tokens</a>
+        <a href="#stack">Stack</a>
+        <a href="#sigbird">Case study</a>
         <a href="https://github.com/maceip/tamayo">GitHub</a>
       </div>
     </nav>
