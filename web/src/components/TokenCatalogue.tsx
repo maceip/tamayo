@@ -40,7 +40,12 @@ export function TokenCatalogue() {
             <div class="deck-grid" aria-hidden="true" />
             <div class="deck-chip" aria-hidden="true">
               <span class="chip-ring" />
-              <span class="chip-core"><code>{token().family}</code></span>
+              <span class="chip-core">
+                {/* Fit the wire name on a single line regardless of length. */}
+                <code style={{ 'font-size': `${Math.min(15, 100 / (token().family.length * 0.62)).toFixed(1)}px` }}>
+                  {token().family}
+                </code>
+              </span>
             </div>
             <div class="deck-plate">
               <b>{token().name}</b>

@@ -34,7 +34,6 @@ const IAM_NOTES = [
 
 const TA_NOTES = [
   'Production mode: a policy that accepts dev-grade evidence stops compiling.',
-  'Every authorization expires on its own in two minutes.',
   'No runtime attestation, no mint.',
   'The server derives the rate-limit bucket from the authenticated caller. A request cannot name its own.',
   'Only the binary with this measurement can mint burn tokens.',
@@ -51,7 +50,8 @@ export function PolicySection() {
   return (
     <section class="section" id="policy">
       <div class="section-head">
-        <h2>Simplicity scaled: a policy engine born out of Cedar</h2>
+        <h2>Simplicity scaled</h2>
+        <p class="section-sub">A policy engine born out of Cedar</p>
         <p>
           <a href={CEDAR} target="_blank" rel="noreferrer">Cedar</a> showed that authorization
           policy works best as a small, analyzable language: deny by default, validated before it
@@ -78,7 +78,7 @@ export function PolicySection() {
 
         <article class="pol-panel bb t-card-resize">
           <h3 class="pol-title good-side">The same intent in tokenauth</h3>
-          <pre class="pol-code"><code>{'{\n  "version": 1,\n  '}<Good n={1}>{'"mode": "production"'}</Good>{',\n  "defaults": { "max_batch": 8,\n                '}<Good n={2}>{'"authorization_ttl_seconds": 120'}</Good>{' },\n  "token_families": {\n    "burn": {\n      "enabled": true,\n      "allowed_gates": ["tee"],\n      "budget_group": "burn",\n      '}<Good n={3}>{'"requires_attestation": true'}</Good>{'\n    }\n  },\n  "gates": { "tee": { "enabled": true,\n             '}<Good n={4}>{'"bucket_source": "caller"'}</Good>{' } },\n  "measurements": [{\n    '}<Good n={5}>{'"value_x": "a7f3…be12"'}</Good>{', "allow": ["burn"]\n  }],\n  "budgets": {\n    "burn": '}<Good n={6}>{'{ "limit": 16, "window_seconds": 3600 }'}</Good>{'\n  }\n}'}</code></pre>
+          <pre class="pol-code"><code>{'{\n  '}<Good n={1}>{'"mode": "production"'}</Good>{',\n  "token_families": {\n    "burn": {\n      "enabled": true,\n      "allowed_gates": ["tee"],\n      "budget_group": "burn",\n      '}<Good n={2}>{'"requires_attestation": true'}</Good>{'\n    }\n  },\n  "gates": { "tee": { "enabled": true,\n             '}<Good n={3}>{'"bucket_source": "caller"'}</Good>{' } },\n  "measurements": [\n    { '}<Good n={4}>{'"value_x": "a7f3…be12"'}</Good>{', "allow": ["burn"] }\n  ],\n  "budgets": {\n    "burn": '}<Good n={5}>{'{ "limit": 16, "window_seconds": 3600 }'}</Good>{'\n  }\n}'}</code></pre>
           <ol class="pol-legend good">
             <For each={TA_NOTES}>{(note) => <li>{note}</li>}</For>
           </ol>
@@ -90,9 +90,9 @@ export function PolicySection() {
 
       <div class="pol-panel pol-real bb t-stagger">
         <h3 class="pol-title">
-          The real one:{' '}
+          Live deployed policy example:{' '}
           <a href={SIGBIRD_POLICY} target="_blank" rel="noreferrer">
-            SigBird's gateway policy
+            enterprise email client
           </a>
         </h3>
         <div class="pol-real-grid">
