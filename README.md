@@ -1,6 +1,8 @@
 # tamayo
 
-pure-go, cgo-free post-quantum crypto and anonymous tokens on the
+a security framework for agents: every privileged action presents a
+signed, single-use pass instead of your identity. pure-go, cgo-free
+post-quantum crypto and anonymous tokens, down to the
 [tamago](https://github.com/usbarmory/tamago) bare-metal go runtime.
 interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo/)
 
@@ -9,6 +11,26 @@ interactive explainer: [maceip.github.io/tamayo](https://maceip.github.io/tamayo
 
 token boundaries and migration plan: [`docs/token-roadmap.md`](./docs/token-roadmap.md);
 every known gap is indexed in [`docs/known-gaps.md`](./docs/known-gaps.md)
+
+## where it runs
+
+an agent rollout never lands on one kind of machine - the same quarter
+puts agents on an intern's unmanaged laptop and next to the payment
+service. the packages are identical at every tier; the only thing that
+changes is the evidence a mint demands:
+
+| tier | evidence policy can demand |
+|---|---|
+| laptops that don't matter (byod, contractors) | software witness, per-source budgets, short expiry |
+| laptops that do matter (tpm / secure enclave) | hardware-held holder keys, device attestation at mint |
+| cloud that doesn't matter (ci, scrapers, batch) | workload identity, one token per action, budget per job |
+| cloud that does matter (money, pii) | sev-snp / tdx quotes as mint inputs, named measurements + signers |
+| critical, bare metal | tamago in a tee - no linux, libc, or shell; measure the whole binary |
+
+a production policy that accepts dev-grade evidence, or leaves a
+rate-limit bucket up to the caller, fails at `tokenauth.Compile`. how we
+learned that the hard way:
+[you can't vibe code authorization](https://maceip.github.io/tamayo/#sigbird)
 
 ## what's here
 
