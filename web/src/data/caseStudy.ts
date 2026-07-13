@@ -34,7 +34,7 @@ export const caseIterations: CaseIteration[] = [
       {
         label: 'broke',
         text:
-          'Whoever runs or logs the gateway holds every holder key — a “private identity” whose private key the server minted is just an account you don’t control.',
+          'The server (and anyone reading its logs) held every user’s private key, so it could impersonate any of them. That isn’t a private identity; it’s an account the server controls.',
       },
       {
         label: 'fix',
@@ -60,12 +60,12 @@ export const caseIterations: CaseIteration[] = [
       {
         label: 'broke',
         text:
-          'A spammer names a fresh bucket per request: 32 × ∞. Clients that keep the default share one bucket, so one greedy client starves the rest. Both failures at once.',
+          'A spammer just sends a new random bucket ID with every request and gets a fresh 32-mint allowance each time. Meanwhile everyone who kept the default shared one bucket, so a single heavy user could exhaust it for the rest.',
       },
       {
         label: 'fix',
         text:
-          'A single global bucket fixes the spam and keeps the starvation — one client can still drain everyone’s allowance. The bucket has to belong to someone.',
+          'Our first fix was one global bucket. That stopped the spam trick but made the starvation worse: now one client could drain the allowance for the entire deployment.',
       },
     ],
   },
@@ -82,12 +82,12 @@ export const caseIterations: CaseIteration[] = [
       {
         label: 'built',
         text:
-          'The gateway derives the budget key from the connection source with a per-boot salt; budgets and session caps are per source. In production the bucket is a keyed HMAC of the authenticated mailbox — the user’s own account is the budget identity, without revealing the address.',
+          'The gateway now derives the bucket itself: in dev, a salted hash of the connection source; in production, a keyed HMAC of the mailbox the user actually logged into. The address never appears in tokens or logs.',
       },
       {
         label: 'fix',
         text:
-          'A greedy source exhausts only its own quota, and the client no longer supplies any value the rate limiter depends on.',
+          'A heavy user can only exhaust their own quota, and the client no longer supplies any value the rate limiter depends on.',
       },
     ],
   },
@@ -101,17 +101,17 @@ export const wireMath: { expr: string; note: string }[] = [
   },
   {
     expr: 'present = Sign(sk, origin ‖ nonce ‖ issued_at)',
-    note: 'holder proof-of-possession; the nonce spends once',
+    note: 'proof the client holds the key; each nonce works once',
   },
   {
     expr: 'PUT bound to (sha256, length, type)',
-    note: 'the presigned upload can only carry the declared bytes',
+    note: 'the presigned upload only accepts the declared bytes',
   },
   {
     expr: 'email = ∅',
-    note: 'no address is collected, so none can leak — or be lied about',
+    note: 'no address is collected, so there is nothing to leak',
   },
 ];
 
 export const caseLesson =
-  'Both bugs were the same bug: the client named a value the other side needed to control. Who names an identifier decides what it protects — key custody belongs to the holder, budget identifiers to the issuer. tokenauth now rejects production policies that leave the budget bucket caller-named without an explicit opt-in.';
+  'Both bugs came down to letting the client pick a value the server needed to control: its own private key custody in v1, its own rate-limit bucket in v2. Since then, tokenauth refuses to compile a production policy that leaves the budget bucket up to the caller unless the policy opts in explicitly.';

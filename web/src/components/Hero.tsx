@@ -66,8 +66,8 @@ export function Hero(props: { scale?: number }) {
       <div class="hero-copy">
         <h1 data-testid="tamayo-hero-title">Universal Authorization</h1>
         <p>
-          Checked facts become narrow passes — enough for a service to accept one approved action,
-          without minting a tracking handle.
+          An issuer checks a rule once and signs a token good for one action. The service verifies
+          the token without learning who you are or creating an account.
         </p>
         <div class="hero-actions">
           <a class="button bb-pulse" href="#tamago">TamaGo</a>

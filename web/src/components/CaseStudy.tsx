@@ -12,8 +12,9 @@ export function CaseStudy() {
         <h2>Built with tamayo: SigBird</h2>
         <p>
           <a href={SIGBIRD} target="_blank" rel="noreferrer">SigBird</a> is a mail client that
-          hosts signature images for free — a spam magnet, gated by a tamayo private-identity
-          token. We got it wrong twice first. Here is the honest version.
+          hosts signature images for free. Free hosting attracts spam, so uploads are gated with a
+          tamayo private-identity token. It took three tries to get the integration right — all
+          three are below.
         </p>
       </div>
 

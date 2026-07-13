@@ -20,7 +20,7 @@ export const tokens: TokenCard[] = [
     model: 'drink ticket',
     button: 'Anonymous rate-limited credential',
     summary: 'One-use access without a stable account handle.',
-    note: 'This is the practical role of row 1: anonymous, one-use, and rate-limited by issuer policy.',
+    note: 'Anonymous, one-use, and rate-limited by issuer policy.',
   },
   {
     name: 'Private identity token',
@@ -31,7 +31,7 @@ export const tokens: TokenCard[] = [
     model: 'venue wristband',
     button: 'Private identity token',
     summary: 'A relying-party-bound pseudonym for continuity without an email address.',
-    note: 'Use this when continuity matters but an email address would reveal too much. Shipping today in <a href="#sigbird">SigBird</a>, gating free signature-image hosting.',
+    note: 'Use this when you want returning visitors but don’t need their email. <a href="#sigbird">SigBird</a> uses it to gate free signature-image hosting.',
   },
   {
     name: 'Policy-bound email token',
@@ -46,7 +46,7 @@ export const tokens: TokenCard[] = [
   },
   {
     name: 'EVT email validation token',
-    plain: 'Speak the emerging email-token language too.',
+    plain: 'Interop with the IETF email-verification draft.',
     learns: 'verified email address',
     hidden: 'private-token machinery',
     issuer: 'email session and browser key',

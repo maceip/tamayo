@@ -66,8 +66,8 @@ export function StaticSections() {
           <article class="primitive-note bb-pulse t-card-resize">
             <h3>A shorter measurement path</h3>
             <p>
-              Policy can bind to a known runtime measurement of the minting binary — source to
-              allowed program — without trusting a full userspace image.
+              Policy can bind to a known runtime measurement of the minting binary itself, without
+              trusting a full userspace image.
             </p>
           </article>
         </div>
@@ -77,17 +77,18 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 2: Trusted Execution Environments, Confidential VMs, and Secure Enclaves</h2>
           <p>
-            Tamayo grew out of remote attestation work, where the hard part is deciding which
-            measured program, signer, configuration, and update path may act for a user. Those
-            fields feed <code>tokenauth</code> before a pass is minted.
+            Tamayo started in remote attestation. A quote names the code that is running; policy
+            still has to decide which programs, signers, and update paths are allowed to act for a
+            user. <code>tokenauth</code> takes those fields as inputs before it mints anything.
           </p>
         </div>
         <div class="principles">
           <div class="principle bb-line t-card-resize">
             <b>What attestation proves</b>
             <p>
-              A TEE or confidential VM reports a measurement of the running code. Tamayo treats that
-              as a policy input — not a substitute for signatures, blind issuance, or verifier checks.
+              A TEE or confidential VM reports a measurement of the running code. Tamayo treats
+              that as one policy input; signatures, blind issuance, and verifier checks still
+              apply.
             </p>
           </div>
           <div class="principle bb-line t-card-resize">
@@ -112,9 +113,9 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 3: Cryptography</h2>
           <p>
-            Passes that authorize spend can outlive classical signature assumptions. Tamayo’s
-            signing stack is post-quantum where it matters: NIST additional-signature candidates
-            plus FIPS 204 ML-DSA — pure Go, no cgo.
+            Tokens that authorize spending can stay valid long enough for quantum attacks on
+            classical signatures to matter. The signing stack uses NIST additional-signature
+            candidates plus FIPS 204 ML-DSA, in pure Go without cgo.
           </p>
         </div>
 
@@ -216,9 +217,9 @@ export function StaticSections() {
         <div class="section-head">
           <h2>Runs Everywhere</h2>
           <p>
-            OSI Layer 4 — transport. The same cgo-free packages compose on phones, laptops, cloud
-            TEEs, and bare metal. Product code owns HTTP, storage, and UI; Tamayo owns crypto and
-            mint/verify.
+            OSI Layer 4 — transport. The same cgo-free packages run on phones, laptops, cloud
+            TEEs, and bare metal. Your app handles HTTP, storage, and UI; Tamayo handles crypto
+            and mint/verify.
           </p>
         </div>
         <div class="runtime-legend" aria-hidden="true">
@@ -262,32 +263,32 @@ export function StaticSections() {
         <div class="section-head">
           <h2>OSI Layer 5: Issuance session</h2>
           <p>
-            A password or broad OAuth grant is the wrong shape for an agent. Issuance runs the
-            PoMFRIT one-more-MAYO blind path (<code>sign_1</code> → <code>sign_2</code> →{' '}
-            <code>sign_3</code> → verify), so the holder gets a narrow pass without a permanent
-            account handle.
+            Agents should not hold passwords or broad OAuth grants. Issuance runs the PoMFRIT
+            one-more-MAYO blind path (<code>sign_1</code> → <code>sign_2</code> →{' '}
+            <code>sign_3</code> → verify), so the holder ends up with a single-purpose token and
+            no new permanent account.
           </p>
         </div>
         <div class="principles">
           <div class="principle bb-line t-card-resize">
             <b>Blind issuance</b>
             <p>
-              The issuer approves a blinded preimage request and never sees the final showable pass.
-              Later presentations do not become receipts back to the issuer.
+              The issuer approves a blinded preimage request and never sees the finished token, so
+              it cannot recognize that token when it is presented later.
             </p>
           </div>
           <div class="principle bb-line t-card-resize">
             <b>Narrow disclosure</b>
             <p>
-              The holder proves the pass is valid without dumping email proofs, runtime measurements,
-              or other mint-time evidence into the verifier.
+              The holder proves the pass is valid without handing the verifier the email proofs,
+              runtime measurements, or other evidence used at mint time.
             </p>
           </div>
           <div class="principle bb-line t-card-resize">
             <b>Evidence stays in-session</b>
             <p>
-              Email proofs and measurements inform <code>tokenauth</code> at mint time. They do not
-              have to ride along as a new identity on every later request.
+              Email proofs and measurements inform <code>tokenauth</code> at mint time. None of it
+              travels with the token afterward.
             </p>
           </div>
         </div>
@@ -317,8 +318,8 @@ export function PolicySection() {
         <article class="primitive-note bb-pulse t-card-resize">
           <h3>Output</h3>
           <p>
-            Mint this token family, for this purpose, under these limits — or deny. Product code
-            supplies transport and durable stores; Tamayo owns the decision boundary.
+            Mint this token family, for this purpose, under these limits — or deny. Your app
+            supplies transport and storage; Tamayo makes the mint decision.
           </p>
         </article>
       </div>
@@ -342,16 +343,16 @@ export function AgentsSection() {
           <b>57.5%</b>
           <strong>of HTML requests are automated</strong>
           <span>
-            Cloudflare Radar (June 2026): bots at 57.5% vs humans at 42.5% of HTML traffic — the first
-            machine majority on that measure.
+            Cloudflare Radar (June 2026): bots at 57.5% vs humans at 42.5% of HTML traffic — the
+            first time machines were the majority on that measure.
           </span>
         </article>
         <article class="agent-stat bb-pulse t-card-resize">
           <b>~1,000×</b>
           <strong>more sites per task</strong>
           <span>
-            Same shopping intent: a person might hit ~5 sites; an agent doing the job has been described
-            as hitting ~5,000 (Cloudflare CEO, SXSW 2026). Not a flat “10× web” — a different request shape.
+            For the same shopping task, a person might visit ~5 sites; an agent has been described
+            as hitting ~5,000 (Cloudflare CEO, SXSW 2026).
           </span>
         </article>
       </div>
@@ -360,22 +361,22 @@ export function AgentsSection() {
         <div class="principle bb-line t-card-resize">
           <b>Memory</b>
           <p>
-            Durable context across steps — pages, goals, credentials, intermediate results. A pass
-            bounds what that memory may authorize; it is not a fresh human session each click.
+            Agents keep context across steps: pages, goals, credentials, intermediate results. A
+            token limits what that stored context can authorize.
           </p>
         </div>
         <div class="principle bb-line t-card-resize">
           <b>Tool calls</b>
           <p>
-            APIs, browsers, calendars, payment rails — each call is a privileged action that needs
-            its own narrow pass, not ambient account access.
+            APIs, browsers, calendars, payments. Each call is a privileged action and should carry
+            its own token instead of borrowing full account access.
           </p>
         </div>
         <div class="principle bb-line t-card-resize">
           <b>Code generation</b>
           <p>
-            Scripts and workflows synthesized on the fly. The check is whether the generated action
-            stays inside the approved purpose — not whether a human typed it.
+            Agents write scripts and workflows on the fly. What matters is whether the resulting
+            action stays inside what was approved, not whether a human typed it.
           </p>
         </div>
       </div>
@@ -384,15 +385,16 @@ export function AgentsSection() {
         <article class="primitive-note bb-pulse t-card-resize">
           <h3>Code execution</h3>
           <p>
-            Generated code runs in sandboxes, CI, cloud functions, or on-device. That is where
-            traffic and tools become irreversible side effects — present a pass before acting.
+            Generated code runs in sandboxes, CI, cloud functions, or on-device, and its side
+            effects are real: money moves, messages send. Require a token before the action, not
+            after.
           </p>
         </article>
         <article class="primitive-note bb-pulse t-card-resize">
           <h3>Above policy</h3>
           <p>
-            Policy decides what may be minted. Agents spend that mint at machine speed. The principal
-            is no longer assumed to be a person behind a browser.
+            Policy decides what gets minted; agents then spend it at machine speed. Nothing in the
+            stack assumes a person behind a browser anymore.
           </p>
         </article>
       </div>
