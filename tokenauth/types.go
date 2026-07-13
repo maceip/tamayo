@@ -24,6 +24,19 @@ const (
 	AssuranceVerified = "verified"
 )
 
+// Bucket provenance: who is trusted to name the budget bucket for a gate.
+const (
+	// BucketSourceClaim pins bucket_id to a verified gate claim
+	// (bucket_claim names which one). This is the default whenever
+	// bucket_claim is set.
+	BucketSourceClaim = "claim"
+	// BucketSourceCaller declares that the service calling AuthorizeMint
+	// derives and vouches for bucket_id itself (e.g. a salted source hash).
+	// Production policies must opt in explicitly: a bucket key the far end
+	// of the request gets to choose turns the budget into decoration.
+	BucketSourceCaller = "caller"
+)
+
 type Source struct {
 	Version       int                   `json:"version"`
 	Mode          string                `json:"mode"`
@@ -52,8 +65,13 @@ type TokenRule struct {
 }
 
 type GateRule struct {
-	Enabled      bool     `json:"enabled"`
-	BucketClaim  string   `json:"bucket_claim,omitempty"`
+	Enabled     bool   `json:"enabled"`
+	BucketClaim string `json:"bucket_claim,omitempty"`
+	// BucketSource states where bucket_id comes from: "claim" (must match
+	// the verified claim named by bucket_claim) or "caller" (the calling
+	// service derives it). Production compilation fails if a gate used by
+	// an enabled token family declares neither.
+	BucketSource string   `json:"bucket_source,omitempty"`
 	AddressClaim string   `json:"address_claim,omitempty"`
 	AllowedHosts []string `json:"allowed_hosts,omitempty"`
 }
@@ -153,6 +171,7 @@ type compiledGate struct {
 	name         GateKind
 	enabled      bool
 	bucketClaim  string
+	bucketSource string
 	addressClaim string
 	allowedHosts map[string]struct{}
 }

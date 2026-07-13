@@ -75,10 +75,26 @@ func Compile(src Source) (*Policy, error) {
 		if !validName(name) {
 			return nil, fmt.Errorf("gate %q has invalid name", name)
 		}
+		switch b.BucketSource {
+		case "", BucketSourceClaim, BucketSourceCaller:
+		default:
+			return nil, fmt.Errorf("gate %q bucket_source %q unsupported (want %q or %q)", name, b.BucketSource, BucketSourceClaim, BucketSourceCaller)
+		}
+		if b.BucketSource == BucketSourceClaim && b.BucketClaim == "" {
+			return nil, fmt.Errorf("gate %q sets bucket_source %q but no bucket_claim", name, BucketSourceClaim)
+		}
+		if b.BucketSource == BucketSourceCaller && b.BucketClaim != "" {
+			return nil, fmt.Errorf("gate %q sets bucket_source %q and bucket_claim %q: pick one provenance", name, BucketSourceCaller, b.BucketClaim)
+		}
+		bucketSource := b.BucketSource
+		if bucketSource == "" && b.BucketClaim != "" {
+			bucketSource = BucketSourceClaim
+		}
 		cb := compiledGate{
 			name:         GateKind(name),
 			enabled:      b.Enabled,
 			bucketClaim:  b.BucketClaim,
+			bucketSource: bucketSource,
 			addressClaim: b.AddressClaim,
 			allowedHosts: make(map[string]struct{}),
 		}
@@ -178,6 +194,26 @@ func Compile(src Source) (*Policy, error) {
 	for name, tok := range p.tokens {
 		if tok.enabled && tok.requiresAttestation && !p.anyMeasurementAllows(name) {
 			return nil, fmt.Errorf("token family %q requires attestation but no measurements allow it", name)
+		}
+	}
+
+	// Every token family carries a budget, and the budget key is built from
+	// the eligibility bucket_id — so in production, every gate an enabled
+	// family can mint through must state where that bucket comes from. A
+	// bucket the far end of the request names freely turns the rate limit
+	// into decoration (each request arrives in a fresh bucket).
+	if p.mode == ModeProduction {
+		for name, tok := range p.tokens {
+			if !tok.enabled {
+				continue
+			}
+			for gk := range tok.allowedGates {
+				if gate := p.gates[gk]; gate.bucketSource == "" {
+					return nil, fmt.Errorf(
+						"production policy: token family %q mints through gate %q with no bucket provenance; set bucket_claim (verified claim names the bucket) or opt in with bucket_source %q (the calling service derives it)",
+						name, gk, BucketSourceCaller)
+				}
+			}
 		}
 	}
 

@@ -25,7 +25,9 @@ func budgetTestPolicy(t *testing.T) *Policy {
 			},
 		},
 		Gates: map[string]GateRule{
-			string(GateTEE): {Enabled: true},
+			// The test harness derives bucket IDs itself, which production
+			// mode only permits by explicit opt-in.
+			string(GateTEE): {Enabled: true, BucketSource: BucketSourceCaller},
 		},
 		Measurements: []MeasurementRule{{
 			ValueX: "mayo-faest-runtime-measurement",

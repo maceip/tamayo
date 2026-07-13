@@ -178,6 +178,91 @@ func TestCompilePolicyEmailMustRequireAddressClaim(t *testing.T) {
 	}
 }
 
+// TestCompileProductionRequiresBucketProvenance pins the rule born from the
+// SigBird incident: a budget keyed by a bucket the caller names freely is
+// decoration, so production policies must state where bucket_id comes from —
+// a verified gate claim, or an explicit opt-in that the calling service
+// derives it.
+func TestCompileProductionRequiresBucketProvenance(t *testing.T) {
+	src := func(gate GateRule) Source {
+		return Source{
+			Version: 1,
+			Mode:    ModeProduction,
+			Defaults: Defaults{
+				MaxBatch:         1,
+				AuthorizationTTL: 60,
+			},
+			TokenFamilies: map[string]TokenRule{
+				string(TokenBurn): {
+					Enabled:      true,
+					AllowedGates: []string{string(GateTEE)},
+					BudgetGroup:  "burn",
+				},
+			},
+			Gates: map[string]GateRule{
+				string(GateTEE): gate,
+			},
+			Budgets: map[string]BudgetRule{
+				"burn": {Limit: 1, WindowSeconds: 60},
+			},
+		}
+	}
+
+	if _, err := Compile(src(GateRule{Enabled: true})); err == nil || !strings.Contains(err.Error(), "bucket provenance") {
+		t.Fatalf("bare gate in production compiled: err = %v", err)
+	}
+	if _, err := Compile(src(GateRule{Enabled: true, BucketClaim: "runtime_id"})); err != nil {
+		t.Fatalf("bucket_claim gate rejected: %v", err)
+	}
+	if _, err := Compile(src(GateRule{Enabled: true, BucketSource: BucketSourceCaller})); err != nil {
+		t.Fatalf("explicit caller opt-in rejected: %v", err)
+	}
+
+	dev := src(GateRule{Enabled: true})
+	dev.Mode = ModeDevelopment
+	dev.Defaults.AllowSoftwareWitness = true
+	if _, err := Compile(dev); err != nil {
+		t.Fatalf("development mode must stay permissive: %v", err)
+	}
+}
+
+func TestCompileRejectsBucketSourceMisuse(t *testing.T) {
+	base := func(gate GateRule) Source {
+		return Source{
+			Version: 1,
+			Mode:    ModeDevelopment,
+			Defaults: Defaults{
+				AllowSoftwareWitness: true,
+				MaxBatch:             1,
+				AuthorizationTTL:     60,
+			},
+			TokenFamilies: map[string]TokenRule{
+				string(TokenBurn): {
+					Enabled:      true,
+					AllowedGates: []string{string(GateTEE)},
+					BudgetGroup:  "burn",
+				},
+			},
+			Gates: map[string]GateRule{
+				string(GateTEE): gate,
+			},
+			Budgets: map[string]BudgetRule{
+				"burn": {Limit: 1, WindowSeconds: 60},
+			},
+		}
+	}
+
+	if _, err := Compile(base(GateRule{Enabled: true, BucketSource: "vibes"})); err == nil || !strings.Contains(err.Error(), "bucket_source") {
+		t.Fatalf("unknown bucket_source compiled: err = %v", err)
+	}
+	if _, err := Compile(base(GateRule{Enabled: true, BucketSource: BucketSourceClaim})); err == nil || !strings.Contains(err.Error(), "no bucket_claim") {
+		t.Fatalf("bucket_source claim without bucket_claim compiled: err = %v", err)
+	}
+	if _, err := Compile(base(GateRule{Enabled: true, BucketSource: BucketSourceCaller, BucketClaim: "runtime_id"})); err == nil || !strings.Contains(err.Error(), "pick one") {
+		t.Fatalf("conflicting provenance compiled: err = %v", err)
+	}
+}
+
 func TestCompileRejectsProductionSoftwareWitnessDefault(t *testing.T) {
 	src := Source{
 		Version: 1,
