@@ -9,6 +9,7 @@ export function CaseStudy() {
   return (
     <section class="section" id="sigbird">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/case-study</p>
         <h2>You can't vibe code authorization. We tried.</h2>
         <p>
           Like everyone else on the planet we are vibe coding replacements for everything. When

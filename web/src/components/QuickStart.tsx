@@ -7,6 +7,7 @@ export function QuickStart() {
   return (
     <section class="section" id="quickstart">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/quickstart</p>
         <h2>Quick start</h2>
         <p class="section-sub">A working issuer in five commands</p>
         <p>

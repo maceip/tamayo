@@ -1,5 +1,6 @@
 import { createSignal, For, onCleanup, onMount } from 'solid-js';
 import { SECTION_LINKS } from './Nav';
+import { jumpToHash } from '../lib/pageNavigation';
 
 export function FoldRail() {
   const [active, setActive] = createSignal('top');
@@ -33,6 +34,7 @@ export function FoldRail() {
         class="fold-rail-home"
         classList={{ active: active() === 'top' }}
         href="#top"
+        onClick={(event) => jumpToHash(event, '#top')}
         aria-label="Back to top"
         aria-current={active() === 'top' ? 'location' : undefined}
       >
@@ -45,6 +47,7 @@ export function FoldRail() {
             return (
               <a
                 href={item.href}
+                onClick={(event) => jumpToHash(event, item.href)}
                 classList={{ active: active() === id }}
                 aria-label={item.label}
                 aria-current={active() === id ? 'location' : undefined}

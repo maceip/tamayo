@@ -68,6 +68,7 @@ export function PolicySection() {
   return (
     <section class="section" id="policy">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/policy</p>
         <h2>Simplicity scaled</h2>
         <p class="section-sub">A policy engine born out of Cedar</p>
         <p>

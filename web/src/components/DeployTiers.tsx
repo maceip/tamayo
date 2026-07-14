@@ -49,6 +49,7 @@ export function DeployTiers() {
   return (
     <section class="section" id="deployments">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/deployments</p>
         <h2>From metal to Mattermost,<br />from the TEE to TikTok</h2>
         <p>
           An agent rollout never lands on one kind of machine. The same quarter puts agents on an

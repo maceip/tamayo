@@ -1,5 +1,6 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { createMediaQuery } from '../lib/media';
+import { jumpToHash } from '../lib/pageNavigation';
 
 export const SECTION_LINKS = [
   { href: '#deployments', label: 'Deployments', short: 'Run' },
@@ -14,12 +15,11 @@ export const SECTION_LINKS = [
 
 const DESKTOP_LINKS = SECTION_LINKS.filter((item) => item.href === '#agents');
 
-export function Nav() {
+export function Nav(props: { foldLayout?: boolean }) {
   const [open, setOpen] = createSignal(false);
   const [markSpinning, setMarkSpinning] = createSignal(false);
   const [markStoppedByUser, setMarkStoppedByUser] = createSignal(false);
   const compactNav = createMediaQuery('(max-width: 920px)');
-  const foldRail = createMediaQuery('(min-width: 700px) and (max-width: 900px) and (min-height: 700px)');
   const reducedMotion = createMediaQuery('(prefers-reduced-motion: reduce)');
   let menuButton!: HTMLButtonElement;
   let brandMark!: HTMLButtonElement;
@@ -37,7 +37,7 @@ export function Nav() {
   };
 
   createEffect(() => {
-    if (!compactNav() || foldRail()) setOpen(false);
+    if (!compactNav() || props.foldLayout) setOpen(false);
   });
 
   onMount(() => {
@@ -178,10 +178,23 @@ export function Nav() {
         >
           <span class="brand-mark-disc" aria-hidden="true" ref={brandMarkDisc} />
         </button>
-        <a class="brand-home" href="#top" aria-label="Tamayo, back to top">Tamayo</a>
+        <a
+          class="brand-home"
+          href="#top"
+          aria-label="Tamayo, back to top"
+          onClick={(event) => jumpToHash(event, '#top')}
+        >
+          Tamayo
+        </a>
       </div>
       <div class="nav-links">
-        <For each={DESKTOP_LINKS}>{(item) => <a href={item.href}>{item.label}</a>}</For>
+        <For each={DESKTOP_LINKS}>
+          {(item) => (
+            <a href={item.href} onClick={(event) => jumpToHash(event, item.href)}>
+              {item.label}
+            </a>
+          )}
+        </For>
         <a href="https://github.com/maceip/tamayo">GitHub</a>
       </div>
       <button
@@ -200,7 +213,13 @@ export function Nav() {
           <span class="nav-mobile-kicker">Jump to</span>
           <For each={SECTION_LINKS}>
             {(item, index) => (
-              <a href={item.href} onClick={close}>
+              <a
+                href={item.href}
+                onClick={(event) => {
+                  close();
+                  jumpToHash(event, item.href);
+                }}
+              >
                 <span aria-hidden="true">{String(index() + 1).padStart(2, '0')}</span>
                 <strong>{item.label}</strong>
               </a>

@@ -6,6 +6,7 @@ export function InteropSection() {
   return (
     <section class="section" id="interop">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/interop</p>
         <h2>Plugs into the stack you already run</h2>
         <p class="section-sub">Login, gateways, and request-time policy all stay where they are</p>
         <p>

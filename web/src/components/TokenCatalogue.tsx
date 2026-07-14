@@ -22,6 +22,7 @@ export function TokenCatalogue() {
   return (
     <section class="section" id="passes">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/tokens</p>
         <h2>Token types</h2>
         <p>
           Four wire formats in <code>tokenprofile</code> and <code>emailtoken</code>. The family

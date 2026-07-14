@@ -7,6 +7,7 @@ export function StaticSections() {
   return (
     <section class="section dark" id="stack">
       <div class="section-head">
+        <p class="section-path" aria-hidden="true">tamayo/stack</p>
         <h2>Under the hood</h2>
         <p>
           The mint path is small enough to measure. Policy compiles to a yes/no before any token
@@ -124,6 +125,7 @@ export function AgentsSection() {
   return (
     <section class="section dark" id="agents">
       <div class="section-head agents-head">
+        <p class="section-path" aria-hidden="true">tamayo/agents</p>
         <h2 class="agents-heading">
           <span>Agents spend credentials at machine speed.</span>
           <span>Is your authorization stack ready?</span>

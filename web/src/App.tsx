@@ -1,6 +1,6 @@
 import { DialRoot, createDialKit } from 'dialkit/solid';
 import 'dialkit/styles.css';
-import { onCleanup, onMount } from 'solid-js';
+import { createEffect, onCleanup, onMount } from 'solid-js';
 import { Nav } from './components/Nav';
 import { FoldRail } from './components/FoldRail';
 import { Hero } from './components/Hero';
@@ -12,12 +12,32 @@ import { QuickStart } from './components/QuickStart';
 import { TokenCatalogue } from './components/TokenCatalogue';
 import { CaseStudy } from './components/CaseStudy';
 import { Footer } from './components/Footer';
-import { createMediaQuery } from './lib/media';
+import { createFoldLayout, createMediaQuery } from './lib/media';
+import { jumpToCurrentHash } from './lib/pageNavigation';
 
 function PageDials() {
   const page = createDialKit('Tamayo Pages', {
     heroScale: [1, 0.85, 1.2, 0.01],
     accentShift: { type: 'color' as const, default: '#2368ff' },
+  });
+  const foldLayout = createFoldLayout();
+  let priorFoldLayout = foldLayout();
+  let anchorRestoreRaf = 0;
+
+  createEffect(() => {
+    const nextFoldLayout = foldLayout();
+    if (nextFoldLayout !== priorFoldLayout && window.location.hash) {
+      if (anchorRestoreRaf) window.cancelAnimationFrame(anchorRestoreRaf);
+      anchorRestoreRaf = window.requestAnimationFrame(() => {
+        anchorRestoreRaf = 0;
+        jumpToCurrentHash();
+      });
+    }
+    priorFoldLayout = nextFoldLayout;
+  });
+
+  onCleanup(() => {
+    if (anchorRestoreRaf) window.cancelAnimationFrame(anchorRestoreRaf);
   });
 
   onMount(() => {
@@ -45,9 +65,13 @@ function PageDials() {
   // Don't put transform:scale on a page-wide wrapper — it creates a containing
   // block and flattens/breaks the hero flight + orbit transform animations.
   return (
-    <div class="page-shell" style={{ '--blue': page().accentShift }}>
+    <div
+      class="page-shell"
+      classList={{ 'is-fold-layout': foldLayout() }}
+      style={{ '--blue': page().accentShift }}
+    >
       <a class="skip-link" href="#content">Skip to content</a>
-      <Nav />
+      <Nav foldLayout={foldLayout()} />
       <FoldRail />
       <Hero scale={page().heroScale} />
       <main id="content">
