@@ -69,7 +69,7 @@ export function QuickStart() {
             an issuer that accepts verification mail through an embedded SMTP listener, an MTA pipe,
             or a webhook; an anonymous image host that verifies tokens with the issuer's public key
             and never contacts it again; and an Android <code>enroll</code> library whose Compose
-            overlay (mocked on the right) runs the whole flow. Verification mail sent from the
+            overlay — the mocked screen shown here — runs the whole flow. Verification mail sent from the
             user's own app stays in their Sent folder, so they can always see exactly what was
             disclosed.
           </p>
