@@ -34,6 +34,26 @@ jobs:
       - name: Test
         run: go test -short ./...
 
+  mailproof:
+    name: mailproof (issuerd + imagehost)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: issuerd
+        working-directory: services/issuerd
+        run: |
+          go vet ./...
+          go test ./...
+      - name: imagehost
+        working-directory: examples/mailproof/imagehost
+        run: |
+          go vet ./...
+          go test ./...
+
   tamago:
     name: GOOS=tamago cross-build (amd64/arm/arm64/riscv64)
     runs-on: ubuntu-latest

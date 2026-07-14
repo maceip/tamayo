@@ -1,0 +1,37 @@
+## Mailproof quickstart: issuer + demo consumer, zero mail infrastructure.
+##
+##   docker compose up --build
+##
+## issuerd runs in dev mode, so the webhook accepts unsigned mail — simulate
+## a verification email with:
+##
+##   curl -s http://localhost:8788/v1/sessions -d '{"mode":"send"}'
+##   curl -s http://localhost:8788/v1/ingress/webhook --data-binary $'From: you@example.org\r\nTo: <verify_address from above>\r\n\r\nhi\r\n'
+##
+## The Android demo app reaches these ports as 10.0.2.2:8788 / 10.0.2.2:8789.
+services:
+  issuerd:
+    build:
+      context: ../..
+      dockerfile: examples/mailproof/issuerd.Dockerfile
+    command:
+      - "-http=:8788"
+      - "-smtp=:2525"
+      - "-domain=issuer.local"
+      - "-dev"
+    ports:
+      - "8788:8788"
+      - "2525:2525"
+
+  imagehost:
+    build:
+      context: ../..
+      dockerfile: examples/mailproof/imagehost.Dockerfile
+    command:
+      - "-http=:8789"
+      - "-issuer=http://issuerd:8788"
+      - "-origin=https://imagehost.local"
+    ports:
+      - "8789:8789"
+    depends_on:
+      - issuerd

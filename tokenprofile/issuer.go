@@ -65,6 +65,32 @@ func NewIssuer(keyVersion uint32, seed []byte) (*Issuer, error) {
 	}, nil
 }
 
+// NewVerifierFromPublic builds a verify-only Issuer from an issuer's compact
+// public key, as published by e.g. a GET /v1/issuer endpoint. Consumers that
+// only check tokens (never mint) should use this: the returned Issuer has no
+// secret key, so BlindSign fails and Zeroize is a no-op, while VerifyMessage,
+// VerifyPrivateIdentityToken, VerifyPrivateIdentityPresentation and
+// VerifyBurnToken all work.
+func NewVerifierFromPublic(keyVersion uint32, compactPublicKey []byte) (*Issuer, error) {
+	if keyVersion == 0 {
+		return nil, errors.New("key version must be > 0")
+	}
+	params := &mayo.Mayo1
+	cpk := append([]byte(nil), compactPublicKey...)
+	epk, err := params.ExpandPK(cpk)
+	if err != nil {
+		return nil, err
+	}
+	return &Issuer{
+		keyVersion: keyVersion,
+		cpk:        cpk,
+		epk:        epk,
+		tokenKeyID: sha256.Sum256(cpk),
+		owf:        pomfrit.MayoOWFL1,
+		params:     params,
+	}, nil
+}
+
 func randomBytes(n int) ([]byte, error) {
 	out := make([]byte, n)
 	if _, err := io.ReadFull(rand.Reader, out); err != nil {
@@ -116,6 +142,9 @@ func (i *Issuer) TokenKeyID() [32]byte {
 // a burn-token target and a private-identity-token target have the same blinded
 // form.
 func (i *Issuer) BlindSign(blinded [][]byte) ([][]byte, error) {
+	if len(i.csk) == 0 {
+		return nil, errors.New("verify-only issuer has no secret key")
+	}
 	out := make([][]byte, 0, len(blinded))
 	for idx, target := range blinded {
 		if len(target) != i.params.MBytes {

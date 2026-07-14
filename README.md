@@ -54,6 +54,8 @@ or leaves a rate-limit bucket up to the caller, fails at
 | `logging` | zero-dep structured logging on stdlib `log/slog`: host text/json handlers + a compact, timestamp-free console handler for bare-metal tamago | level filtering, structured fields/groups, no-op default |
 | `cmd/tamayo` | reference issuer/verifier binary (cli + http service) | end-to-end blind-sign, double-spend, policy-denial over http |
 | `cmd/qemudemo` | the blind loop bare-metal on qemu sifive_u (riscv64) | on-device byte-exact at l1+l3+l5 |
+| `services/issuerd` | mailproof reference issuer: email-verified, zero-signup minting over http/smtp with pluggable ingress | end-to-end tests: both proof directions, per-mailbox budgets, dkim gating |
+| `examples/mailproof` | the full mailproof loop: issuerd + anonymous imagehost consumer + android enroll library/overlay | consumer verifies with the issuer public key only; kotlin wire tests pinned to go vectors |
 | `spec/` | rfc-style draft: pomfrit blind issuance on evp rails | sizes byte-exact vs this repo |
 
 no cryptographic primitive is hand-written - every construct is a transpile
