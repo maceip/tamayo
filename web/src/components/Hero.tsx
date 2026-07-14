@@ -3,11 +3,52 @@ import { startHeroAuthorizationSequence } from '../lib/heroAuthorization';
 import { startPlanetParallax } from '../lib/heroParallax';
 
 const PLANETS = [
-  { tone: 'finance', title: 'money', sub: 'PayPal task' },
-  { tone: 'identity', title: 'identity', sub: 'LinkedIn task' },
-  { tone: 'device', title: 'device cloud', sub: 'phone, laptop, tablet, agent' },
-  { tone: 'challenge', title: 'challenge', sub: 'security prompt' },
+  { tone: 'finance', provider: 'paypal', title: 'money', sub: 'PayPal task' },
+  { tone: 'identity', provider: 'linkedin', title: 'identity', sub: 'LinkedIn task' },
+  { tone: 'device', provider: 'google', title: 'device cloud', sub: 'phone, laptop, tablet, agent' },
+  { tone: 'challenge', provider: 'cloudflare', title: 'challenge', sub: 'security prompt' },
 ] as const;
+
+type PlanetProvider = (typeof PLANETS)[number]['provider'];
+
+const PROVIDER_LABELS: Record<PlanetProvider, { edge: string; name: string }> = {
+  paypal: { edge: 'P', name: 'PayPal' },
+  linkedin: { edge: 'in', name: 'LinkedIn' },
+  google: { edge: 'G', name: 'Google' },
+  cloudflare: { edge: 'CF', name: 'Cloudflare' },
+};
+
+function ProviderSymbol(props: { provider: PlanetProvider }) {
+  if (props.provider === 'cloudflare') {
+    return (
+      <svg class="auth-provider-symbol" viewBox="0 0 46 30" aria-hidden="true">
+        <path d="M15.1 24.6H39c3.7 0 6.7-2.7 6.7-6.1 0-3.1-2.6-5.7-5.9-6.1a10.3 10.3 0 0 0-19.7-2.3 7.9 7.9 0 0 0-11.7 6.4c0 4.5 3 8.1 6.7 8.1Z" />
+        <path class="auth-provider-cloudline" d="M1 27h32.5M6.5 22.2h27.8" />
+      </svg>
+    );
+  }
+
+  return (
+    <span class="auth-provider-symbol" aria-hidden="true">
+      {props.provider === 'linkedin' ? 'in' : props.provider === 'google' ? 'G' : 'P'}
+    </span>
+  );
+}
+
+function PlanetServiceIdentity(props: { provider: PlanetProvider }) {
+  const provider = PROVIDER_LABELS[props.provider];
+
+  return (
+    <div class={`auth-planet-surface-id provider-${props.provider}`} aria-hidden="true">
+      <div class="auth-planet-service-belt" data-edge={provider.edge}>
+        <span class="auth-provider-mark">
+          <ProviderSymbol provider={props.provider} />
+          <span class="auth-provider-word">{provider.name}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function randomPlanetScale(): number {
   // Inclusive [1, 2] — never smaller than current, up to 2×.
@@ -55,7 +96,9 @@ export function Hero(props: { scale?: number }) {
               class={`auth-planet ${p.tone}`}
               style={{ '--planet-scale': randomPlanetScale().toFixed(3) }}
             >
-              <div class="auth-planet-body" aria-hidden="true" />
+              <div class="auth-planet-body" aria-hidden="true">
+                <PlanetServiceIdentity provider={p.provider} />
+              </div>
               <div class="auth-planet-label">
                 <strong>{p.title}</strong>
                 <span>{p.sub}</span>

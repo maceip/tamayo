@@ -50,7 +50,8 @@ const TOOLTIP_COPY: Record<SatelliteStatus, { label: string; detail: string }> =
 };
 
 const MAX_LOG_ROWS = 6;
-const AUTOMATIC_DEMO_LIMIT = 3;
+const MAX_AUTOMATIC_SATELLITES = 3;
+const INITIAL_AUTOMATIC_OUTCOMES: readonly AuthOutcome[] = ['approved', 'malicious', 'denied'];
 const FIRST_LAUNCH_DELAY = 900;
 const AUTOMATIC_LAUNCH_STAGGER = 850;
 const NEXT_LAUNCH_DELAY = 1_600;
@@ -226,6 +227,7 @@ function renderSpeculativeLogRow(row: HTMLElement): HTMLButtonElement | null {
 function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   const audience = AUDIENCES.find((item) => item.domain === spec.audienceDomain) ?? pick(AUDIENCES);
   const client = pick(CLIENTS);
+  const tokenFamily = pickFamily();
   const score = scoreFor(spec.outcome);
   const row = document.createElement('div');
   row.className = 'hero-tui-row';
@@ -233,10 +235,11 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   row.dataset.planet = spec.planetKey;
   row.dataset.audienceDomain = audience.domain;
   row.dataset.outcome = spec.outcome;
+  row.dataset.tokenFamily = tokenFamily;
   row.innerHTML = `
     <span class="tui-time" data-label="time">${logTime(spec.at ?? new Date())}</span>
     <span class="tui-client" data-label="client">${icon(client.slug, 'tui-ico')}${client.name}</span>
-    <span class="tui-token" data-label="token">${pickFamily()}</span>
+    <span class="tui-token" data-label="token">${tokenFamily}</span>
     <span class="tui-aud" data-label="audience">${icon(audience.slug, 'tui-ico')}${audience.domain}</span>
     <span class="tui-desk" data-label="desk">${pick(DESKS)}</span>
     <span class="tui-score" data-label="score" data-band="${scoreBand(score)}">${score}</span>
@@ -320,7 +323,16 @@ function setSatelliteStatus(satellite: HTMLElement, status: SatelliteStatus): vo
   satellite.setAttribute('aria-label', SATELLITE_LABELS[status]);
 }
 
-function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
+type PayloadVariant = 'identity' | 'burn' | 'email' | 'event' | 'threat';
+
+const PAYLOAD_VARIANTS: Record<string, { variant: PayloadVariant; glyph: string }> = {
+  private_identity: { variant: 'identity', glyph: '◆' },
+  burn: { variant: 'burn', glyph: '✦' },
+  policy_email: { variant: 'email', glyph: '✉' },
+  evt: { variant: 'event', glyph: '↯' },
+};
+
+function createSatellite(outcome: AuthOutcome, tokenFamily: string): HTMLButtonElement {
   const satellite = document.createElement('button');
   const classes = ['authorization-satellite', 'is-flying'];
   if (outcome === 'malicious') classes.push('malicious');
@@ -328,8 +340,13 @@ function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
   satellite.className = classes.join(' ');
   satellite.type = 'button';
   satellite.dataset.authOutcome = outcome;
+  satellite.dataset.tokenFamily = tokenFamily;
   satellite.setAttribute('aria-expanded', 'false');
   setSatelliteStatus(satellite, 'pending');
+
+  const payload = outcome === 'malicious'
+    ? { variant: 'threat' as const, glyph: '☠' }
+    : (PAYLOAD_VARIANTS[tokenFamily] ?? PAYLOAD_VARIANTS.evt!);
 
   // The nozzle stays with a coasting craft; flame and sparks only exist while thrusting.
   satellite.innerHTML = `
@@ -355,6 +372,10 @@ function createSatellite(outcome: AuthOutcome): HTMLButtonElement {
       <span class="sat-dish"></span>
     </span>
     <span class="sat-panel sat-panel-right" aria-hidden="true"></span>
+    <span class="sat-payload sat-payload-${payload.variant}" aria-hidden="true">
+      <span class="sat-payload-gem"></span>
+      <span class="sat-payload-glyph">${payload.glyph}</span>
+    </span>
   `;
   return satellite;
 }
@@ -415,9 +436,15 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     }
   >();
   const activeThreatFlights = new Set<HTMLElement>();
+  const initialAutomaticAttempts = INITIAL_AUTOMATIC_OUTCOMES.map((outcome, index) => ({
+    outcome,
+    planetKey: planetKey(planets[index % planets.length]!),
+    preferredRow: null as HTMLElement | null,
+  }));
+  const manuallyLaunchedRows = new WeakSet<HTMLElement>();
   let attemptSerial = 0;
   let flightSerial = 0;
-  let automaticLaunchesRemaining = AUTOMATIC_DEMO_LIMIT;
+  let initialAutomaticIndex = 0;
   let launchTimer = 0;
   let threatDetectionTimer = 0;
   let tooltip: HTMLElement | null = null;
@@ -544,16 +571,28 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     return priority;
   };
 
+  const discardSpeculativeRow = (row: HTMLElement): void => {
+    rowSatellites.delete(row);
+    rowSimulators.delete(row);
+    attemptSpecs.delete(row);
+    interactiveRows.delete(row);
+    pointerHighlightedRows.delete(row);
+    focusHighlightedRows.delete(row);
+    row.remove();
+  };
+
+  const findDiscardableSpeculativeRow = (): HTMLElement | null =>
+    log
+      ? [...log.querySelectorAll<HTMLElement>('.hero-tui-row[data-status="speculative"]')]
+          .find((row) => !row.contains(document.activeElement)) ?? null
+      : null;
+
   const trimSpeculativeOverflow = (): void => {
     if (!log) return;
     while (log.children.length > MAX_LOG_ROWS) {
-      const candidate = [...log.querySelectorAll<HTMLElement>('.hero-tui-row[data-status="speculative"]')]
-        .find((row) => !row.contains(document.activeElement));
+      const candidate = findDiscardableSpeculativeRow();
       if (!candidate) return;
-      rowSimulators.delete(candidate);
-      pointerHighlightedRows.delete(candidate);
-      focusHighlightedRows.delete(candidate);
-      candidate.remove();
+      discardSpeculativeRow(candidate);
     }
   };
 
@@ -601,18 +640,49 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     return registerAttemptRow(row, { planetKey: planetKeyValue, outcome });
   };
 
+  const createAutomaticAttemptRow = (
+    spec: { planetKey: string; outcome: AuthOutcome },
+    source: 'initial' | 'ambient',
+  ): HTMLElement | null => {
+    if (!log) return null;
+    if (log.children.length >= MAX_LOG_ROWS) {
+      const candidate = findDiscardableSpeculativeRow();
+      if (!candidate) return null;
+      discardSpeculativeRow(candidate);
+    }
+
+    const row = createAttemptRow(spec.planetKey, spec.outcome);
+    if (row) row.dataset.trafficSource = source;
+    return row;
+  };
+
+  const createAmbientAttemptRow = (): HTMLElement | null => {
+    const planet = planets[flightSerial % planets.length]!;
+    return createAutomaticAttemptRow(
+      { planetKey: planetKey(planet), outcome: ambientOutcome() },
+      'ambient',
+    );
+  };
+
   function simulateAttempt(row: HTMLElement): void {
     if (row.dataset.status !== 'speculative' || rowSatellites.get(row)?.isConnected) return;
     const action = row.querySelector<HTMLButtonElement>('.tui-simulate-action');
     if (action) action.disabled = true;
-    // Explicit interaction supersedes the bounded ambient demonstration. A
-    // manual result must never be followed by an unsolicited launch.
-    automaticLaunchesRemaining = 0;
+    // Give explicit interaction priority over a pending automatic launch, but
+    // do not disable the guaranteed intro queue or later ambient traffic.
     clearOwnedTimeout(launchTimer);
     launchTimer = 0;
     if (!fire(row, true)) {
       if (action) action.disabled = false;
+      scheduleLaunch(NEXT_LAUNCH_DELAY);
+      return;
     }
+    manuallyLaunchedRows.add(row);
+    scheduleLaunch(
+      initialAutomaticIndex < initialAutomaticAttempts.length
+        ? AUTOMATIC_LAUNCH_STAGGER
+        : NEXT_LAUNCH_DELAY,
+    );
   }
 
   const getTooltip = () => {
@@ -1054,7 +1124,11 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     });
   };
 
-  function fire(requestedRow?: HTMLElement, userInitiated = false): boolean {
+  function fire(
+    requestedRow?: HTMLElement,
+    userInitiated = false,
+    fallbackSpec?: { planetKey: string; outcome: AuthOutcome },
+  ): boolean {
     if (paused || document.hidden || planets.length === 0) return false;
 
     const speculativeRows = log
@@ -1077,10 +1151,12 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     }
 
     const fallbackPlanet = planets[flightSerial % planets.length]!;
-    const spec = (logRow && attemptSpecs.get(logRow)) ?? {
-      planetKey: planetKey(fallbackPlanet),
-      outcome: ambientOutcome(),
-    };
+    const spec =
+      (logRow && attemptSpecs.get(logRow)) ??
+      fallbackSpec ?? {
+        planetKey: planetKey(fallbackPlanet),
+        outcome: ambientOutcome(),
+      };
     const planet = planetsByKey.get(spec.planetKey) ?? fallbackPlanet;
     const styles = getComputedStyle(planet);
     const key = planetKey(planet);
@@ -1088,7 +1164,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     flightSerial += 1;
     const count = flightSerial;
     const orbit = getOrbit(planet, styles);
-    const satellite = createSatellite(outcome);
+    const tokenFamily = logRow?.dataset.tokenFamily ?? pickFamily();
+    const satellite = createSatellite(outcome, tokenFamily);
     const entryId = logRow?.dataset.entryId ?? `authorization-flight-${count}`;
     satellite.id = `${entryId}-satellite-${count}`;
     satellite.dataset.entryId = entryId;
@@ -1301,23 +1378,58 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     return true;
   }
 
-  const scheduleLaunch = (delay = NEXT_LAUNCH_DELAY): void => {
+  const liveSatelliteCount = (): number =>
+    (hero ?? field).querySelectorAll('.authorization-satellite').length;
+
+  const canLaunchAutomatically = (): boolean =>
+    !disposed &&
+    !paused &&
+    !motionDisabled &&
+    !document.hidden &&
+    activeThreatFlights.size === 0 &&
+    liveSatelliteCount() < MAX_AUTOMATIC_SATELLITES;
+
+  const getInitialAutomaticRow = (
+    attempt: (typeof initialAutomaticAttempts)[number],
+  ): HTMLElement | null => {
+    const row = attempt.preferredRow;
     if (
-      launchTimer ||
-      automaticLaunchesRemaining <= 0 ||
-      activeThreatFlights.size > 0 ||
-      paused ||
-      motionDisabled ||
-      document.hidden
-    ) return;
+      row?.isConnected &&
+      row.dataset.status === 'speculative' &&
+      !rowSatellites.get(row)?.isConnected &&
+      !manuallyLaunchedRows.has(row) &&
+      !row.contains(document.activeElement)
+    ) {
+      return row;
+    }
+    return createAutomaticAttemptRow(attempt, 'initial');
+  };
+
+  const scheduleLaunch = (delay = NEXT_LAUNCH_DELAY): void => {
+    if (launchTimer || !canLaunchAutomatically()) return;
     launchTimer = later(() => {
       launchTimer = 0;
-      if (!fire()) {
-        automaticLaunchesRemaining = 0;
+      // Capacity and threat state can change after this timeout is armed.
+      if (!canLaunchAutomatically()) return;
+
+      const initialAttempt = initialAutomaticAttempts[initialAutomaticIndex];
+      const row = initialAttempt
+        ? getInitialAutomaticRow(initialAttempt)
+        : createAmbientAttemptRow();
+      if (
+        (log && !row) ||
+        !fire(row ?? undefined, false, initialAttempt)
+      ) {
+        scheduleLaunch(NEXT_LAUNCH_DELAY);
         return;
       }
-      automaticLaunchesRemaining -= 1;
-      if (automaticLaunchesRemaining > 0) scheduleLaunch(AUTOMATIC_LAUNCH_STAGGER);
+
+      if (initialAttempt) {
+        initialAutomaticIndex += 1;
+        if (initialAutomaticIndex < initialAutomaticAttempts.length) {
+          scheduleLaunch(AUTOMATIC_LAUNCH_STAGGER);
+        }
+      }
     }, delay);
   };
 
@@ -1545,11 +1657,15 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const seededOutcomes: AuthOutcome[] = ['approved', 'malicious', 'denied', 'approved', 'approved'];
     seededOutcomes.forEach((outcome, index) => {
       const planet = planets[index % planets.length]!;
-      createAttemptRow(
+      const row = createAttemptRow(
         planetKey(planet),
         outcome,
         new Date(now - (seededOutcomes.length - index) * 12_000),
       );
+      if (row && index < initialAutomaticAttempts.length) {
+        row.dataset.trafficSource = 'initial';
+        initialAutomaticAttempts[index]!.preferredRow = row;
+      }
     });
   }
 
