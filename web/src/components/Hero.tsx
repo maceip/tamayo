@@ -11,13 +11,6 @@ const PLANETS = [
 
 type PlanetProvider = (typeof PLANETS)[number]['provider'];
 
-const PROVIDER_LABELS: Record<PlanetProvider, { edge: string; name: string }> = {
-  paypal: { edge: 'P', name: 'PayPal' },
-  linkedin: { edge: 'in', name: 'LinkedIn' },
-  google: { edge: 'G', name: 'Google' },
-  cloudflare: { edge: 'CF', name: 'Cloudflare' },
-};
-
 function ProviderSymbol(props: { provider: PlanetProvider }) {
   if (props.provider === 'cloudflare') {
     return (
@@ -36,16 +29,11 @@ function ProviderSymbol(props: { provider: PlanetProvider }) {
 }
 
 function PlanetServiceIdentity(props: { provider: PlanetProvider }) {
-  const provider = PROVIDER_LABELS[props.provider];
-
   return (
     <div class={`auth-planet-surface-id provider-${props.provider}`} aria-hidden="true">
-      <div class="auth-planet-service-belt" data-edge={provider.edge}>
-        <span class="auth-provider-mark">
-          <ProviderSymbol provider={props.provider} />
-          <span class="auth-provider-word">{provider.name}</span>
-        </span>
-      </div>
+      <span class="auth-provider-mark">
+        <ProviderSymbol provider={props.provider} />
+      </span>
     </div>
   );
 }

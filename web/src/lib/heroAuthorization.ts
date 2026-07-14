@@ -49,9 +49,9 @@ const TOOLTIP_COPY: Record<SatelliteStatus, { label: string; detail: string }> =
   neutralized: { label: 'Threat Neutralized', detail: 'defense confirmed' },
 };
 
-const MAX_LOG_ROWS = 8;
 const MAX_AUTOMATIC_SATELLITES = 3;
 const INITIAL_AUTOMATIC_OUTCOMES: readonly AuthOutcome[] = ['approved', 'malicious', 'denied'];
+const LOG_ROW_HEIGHT_FALLBACK = 54;
 const FIRST_LAUNCH_DELAY = 900;
 const AUTOMATIC_LAUNCH_STAGGER = 850;
 const NEXT_LAUNCH_DELAY = 1_600;
@@ -123,6 +123,56 @@ const interactiveRows = new WeakSet<HTMLElement>();
 const pointerHighlightedRows = new WeakSet<HTMLElement>();
 const focusHighlightedRows = new WeakSet<HTMLElement>();
 
+function measuredLogCapacity(log: HTMLElement): number {
+  const styles = getComputedStyle(log);
+  const configuredRowHeight = Number.parseFloat(
+    styles.getPropertyValue('--ticker-row-height-px'),
+  );
+  const rowHeight =
+    Number.isFinite(configuredRowHeight) && configuredRowHeight > 0
+      ? configuredRowHeight
+      : LOG_ROW_HEIGHT_FALLBACK;
+  return Math.max(1, Math.floor((log.clientHeight + 0.5) / rowHeight));
+}
+
+function visibleLogCapacity(log: HTMLElement): number {
+  const cached = Number.parseInt(log.dataset.visibleRows ?? '', 10);
+  return Number.isFinite(cached) && cached > 0 ? cached : measuredLogCapacity(log);
+}
+
+function retainedLogCapacity(log: HTMLElement): number {
+  // The three deterministic opening attempts must remain addressable even on
+  // a one-row phone viewport. This is a queue-retention invariant, not a
+  // visual row count: only measuredLogCapacity() controls what is displayed.
+  return Math.max(visibleLogCapacity(log), INITIAL_AUTOMATIC_OUTCOMES.length);
+}
+
+function syncVisibleLogWindow(log: HTMLElement): number {
+  const capacity = measuredLogCapacity(log);
+  log.dataset.visibleRows = String(capacity);
+
+  const rows = [...log.children].filter(
+    (child): child is HTMLElement => child instanceof HTMLElement,
+  );
+  const focusedRow = rows.find((row) => row.contains(document.activeElement));
+  const visibleRows = rows.slice(-capacity);
+
+  // Never hide the control a keyboard user is operating merely because a new
+  // tail entry arrived. Once focus leaves, the newest full window returns.
+  if (focusedRow && !visibleRows.includes(focusedRow)) {
+    visibleRows.shift();
+    visibleRows.push(focusedRow);
+  }
+
+  const visibleSet = new Set(visibleRows);
+  for (const row of rows) {
+    const outsideWindow = !visibleSet.has(row);
+    row.classList.toggle('is-outside-ticker-window', outsideWindow);
+    row.setAttribute('aria-hidden', String(outsideWindow));
+  }
+  return capacity;
+}
+
 function syncRowHighlight(row: HTMLElement): void {
   const highlighted = pointerHighlightedRows.has(row) || focusHighlightedRows.has(row);
   row.classList.toggle('is-highlighted', highlighted);
@@ -145,11 +195,15 @@ function installLogRowInteractions(row: HTMLElement): void {
   row.addEventListener('focusin', () => {
     focusHighlightedRows.add(row);
     syncRowHighlight(row);
+    if (row.parentElement) syncVisibleLogWindow(row.parentElement);
   });
   row.addEventListener('focusout', (event) => {
     if (event.relatedTarget instanceof Node && row.contains(event.relatedTarget)) return;
     focusHighlightedRows.delete(row);
     syncRowHighlight(row);
+    queueMicrotask(() => {
+      if (row.parentElement) syncVisibleLogWindow(row.parentElement);
+    });
   });
   row.addEventListener('click', (event) => {
     const target = event.target as Element;
@@ -182,6 +236,7 @@ function linkRowToSatellite(row: HTMLElement, satellite: HTMLElement): void {
   row.setAttribute('aria-label', 'Authorization Pending. Activate to inspect the related satellite.');
   if (satellite.id) row.setAttribute('aria-controls', satellite.id);
   row.parentElement?.appendChild(row);
+  if (row.parentElement) syncVisibleLogWindow(row.parentElement);
   syncRowHighlight(row);
 }
 
@@ -226,13 +281,14 @@ function renderSpeculativeLogRow(row: HTMLElement): HTMLButtonElement | null {
 }
 
 function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
+  const retentionCapacity = retainedLogCapacity(log);
   const previousTops =
-    log.children.length >= MAX_LOG_ROWS
+    log.children.length >= visibleLogCapacity(log)
       ? new Map(
-          [...log.children].map((child) => {
-            const row = child as HTMLElement;
-            return [row, row.getBoundingClientRect().top] as const;
-          }),
+          [...log.children]
+            .map((child) => child as HTMLElement)
+            .filter((row) => !row.classList.contains('is-outside-ticker-window'))
+            .map((row) => [row, row.getBoundingClientRect().top] as const),
         )
       : new Map<HTMLElement, number>();
   const audience = AUDIENCES.find((item) => item.domain === spec.audienceDomain) ?? pick(AUDIENCES);
@@ -255,7 +311,7 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
     <span class="tui-score" data-label="score" data-band="${scoreBand(score)}">${score}</span>
     <span class="tui-status" data-label="status">${LOG_STATUS_TEXT[spec.status]}</span>
   `;
-  while (log.children.length >= MAX_LOG_ROWS) {
+  while (log.children.length >= retentionCapacity) {
     const evicted = [...log.children].find((child) => {
       const candidate = child as HTMLElement;
       return !rowSatellites.get(candidate)?.isConnected && !candidate.contains(document.activeElement);
@@ -274,6 +330,7 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   }
   log.appendChild(row);
   installLogRowInteractions(row);
+  syncVisibleLogWindow(log);
   if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     for (const [existingRow, previousTop] of previousTops) {
       if (!existingRow.isConnected) continue;
@@ -299,6 +356,7 @@ function resolveLogRow(row: HTMLElement | null, status: LogStatus): void {
   // remains visible even if desktop rows have been reordered.
   if (status === 'threat' && rowSatellites.get(row)?.isConnected) {
     row.parentElement?.appendChild(row);
+    if (row.parentElement) syncVisibleLogWindow(row.parentElement);
   }
   const statusElement = row.querySelector('.tui-status');
   if (!statusElement) return;
@@ -479,6 +537,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   let tooltipRaf = 0;
   let tooltipLastPosition = 0;
   let resizeRaf = 0;
+  let tickerResizeRaf = 0;
   let geometryDirty = false;
   let tooltipWidth = 0;
   let tooltipHeight = 0;
@@ -593,6 +652,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       liveRows[liveRows.length - 1] ??
       null;
     priority?.parentElement?.appendChild(priority);
+    if (log) syncVisibleLogWindow(log);
     return priority;
   };
 
@@ -604,6 +664,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     pointerHighlightedRows.delete(row);
     focusHighlightedRows.delete(row);
     row.remove();
+    if (log) syncVisibleLogWindow(log);
   };
 
   const findDiscardableSpeculativeRow = (): HTMLElement | null =>
@@ -614,11 +675,12 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
   const trimSpeculativeOverflow = (): void => {
     if (!log) return;
-    while (log.children.length > MAX_LOG_ROWS) {
+    while (log.children.length > retainedLogCapacity(log)) {
       const candidate = findDiscardableSpeculativeRow();
       if (!candidate) return;
       discardSpeculativeRow(candidate);
     }
+    syncVisibleLogWindow(log);
   };
 
   const returnRowToSpeculative = (row: HTMLElement | null, restoreFocus = false): void => {
@@ -670,7 +732,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     source: 'initial' | 'ambient',
   ): HTMLElement | null => {
     if (!log) return null;
-    if (log.children.length >= MAX_LOG_ROWS) {
+    if (log.children.length >= retainedLogCapacity(log)) {
       const candidate = findDiscardableSpeculativeRow();
       if (!candidate) return null;
       discardSpeculativeRow(candidate);
@@ -706,6 +768,14 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const planet = planets[(attemptSerial + flightSerial) % planets.length]!;
     const row = createAttemptRow(planetKey(planet), ambientOutcome());
     if (row) row.dataset.trafficSource = 'feed';
+  };
+
+  const fillVisibleLogWindow = (): void => {
+    if (!log) return;
+    const capacity = syncVisibleLogWindow(log);
+    while (log.children.length < capacity) appendTickerFeedRow();
+    trimSpeculativeOverflow();
+    syncVisibleLogWindow(log);
   };
 
   const scheduleTickerFeed = (delay = TICKER_FEED_DELAY): void => {
@@ -1197,7 +1267,10 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       // Do not steal a focused Simulate control for background traffic. If the
       // ticker is otherwise full, wait for focus or a live row to clear rather
       // than exceeding the bounded log with an unrepresented flight.
-      if (speculativeRows.length > 0 || (log && log.children.length >= MAX_LOG_ROWS)) return false;
+      if (
+        speculativeRows.length > 0 ||
+        (log && log.children.length >= retainedLogCapacity(log))
+      ) return false;
       const fallbackPlanet = planets[flightSerial % planets.length]!;
       logRow = createAttemptRow(planetKey(fallbackPlanet), ambientOutcome());
     }
@@ -1709,15 +1782,34 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   );
   if (hero) observer.observe(hero);
 
+  const logResizeObserver = log && typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(() => {
+        if (disposed || tickerResizeRaf) return;
+        tickerResizeRaf = window.requestAnimationFrame(() => {
+          tickerResizeRaf = 0;
+          if (disposed || !log) return;
+          const previousCapacity = visibleLogCapacity(log);
+          const nextCapacity = syncVisibleLogWindow(log);
+          if (nextCapacity > previousCapacity) fillVisibleLogWindow();
+          else trimSpeculativeOverflow();
+        });
+      })
+    : null;
+  if (log) {
+    syncVisibleLogWindow(log);
+    logResizeObserver?.observe(log);
+  }
+
   if (log && log.children.length === 0) {
     const now = Date.now();
     // Fill the visible tail window immediately. The first three rows own the
     // deterministic opening vignette; the remaining rows are ordinary queued
     // traffic and retain the normal randomized outcome mix.
+    const seedCount = Math.max(visibleLogCapacity(log), INITIAL_AUTOMATIC_OUTCOMES.length);
     const seededOutcomes: AuthOutcome[] = [
       ...INITIAL_AUTOMATIC_OUTCOMES,
       ...Array.from(
-        { length: MAX_LOG_ROWS - INITIAL_AUTOMATIC_OUTCOMES.length },
+        { length: seedCount - INITIAL_AUTOMATIC_OUTCOMES.length },
         () => ambientOutcome(),
       ),
     ];
@@ -1736,6 +1828,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       }
     });
   }
+  fillVisibleLogWindow();
 
   syncMotionPauseState(motionDisabled);
 
@@ -1747,6 +1840,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     }
     ownedTimeouts.clear();
     if (tooltipRaf) window.cancelAnimationFrame(tooltipRaf);
+    if (tickerResizeRaf) window.cancelAnimationFrame(tickerResizeRaf);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('resize', onResize);
     hero?.removeEventListener(PARALLAX_START_EVENT, onParallaxStart);
@@ -1757,6 +1851,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     battery?.removeEventListener('chargingchange', onPowerHintChange);
     battery?.removeEventListener('levelchange', onPowerHintChange);
     observer.disconnect();
+    logResizeObserver?.disconnect();
     hero?.classList.remove('is-away', 'is-low-power');
     if (hero) delete hero.dataset.authorizationPower;
     clearMotion();

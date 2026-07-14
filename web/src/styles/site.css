@@ -345,6 +345,7 @@
   }
   .auth-planet-body {
     position: relative;
+    isolation: isolate;
     width: 100%;
     aspect-ratio: 1;
     border-radius: 50%;
@@ -365,6 +366,7 @@
     border-radius: 50%;
     border: 1px solid rgba(15,44,92,.13);
     transform: rotate(-18deg) scaleY(.42);
+    z-index: 4;
     pointer-events: none;
   }
   .auth-planet-body::after {
@@ -373,6 +375,7 @@
     inset: 0;
     border-radius: 50%;
     pointer-events: none;
+    z-index: 3;
     opacity: .3;
     background-image:
       radial-gradient(circle at 22% 28%, rgba(15,44,92,.16) 0 1.2px, transparent 2px),
@@ -382,12 +385,19 @@
       radial-gradient(ellipse at 30% 60%, rgba(15,44,92,.08), transparent 42%);
     background-size: 16px 16px, 22px 22px, 14px 14px, 28px 28px, 100% 100%;
   }
-  /* Provider identities are clipped into a shallow, elliptical latitude band
-     instead of sitting on top as flat badges. The edge copies, brand mark and
-     fixed terminator shading are all static paint: no filters or extra motion. */
+  /* Provider identity is part of the globe's material, below its grain,
+     highlight, and terminator. There is deliberately no rectangular label or
+     equatorial logo belt: each service owns an asymmetrical terrain field and
+     one perspective-compressed surface emblem. All layers are static paint. */
   .auth-planet-surface-id {
+    --provider-mark-x: 52%;
+    --provider-mark-y: 52%;
+    --provider-mark-rotate: -8deg;
+    --provider-mark-yaw: -16deg;
+    --provider-mark-opacity: .68;
     position: absolute;
     inset: 0;
+    z-index: 1;
     overflow: hidden;
     border-radius: 50%;
     pointer-events: none;
@@ -395,12 +405,18 @@
   .auth-planet-surface-id::before {
     content: "";
     position: absolute;
-    inset: 8% 24%;
-    z-index: 2;
-    border-right: 1px solid rgba(255,255,255,.2);
-    border-left: 1px solid rgba(15,44,92,.1);
+    inset: -24% -18%;
+    z-index: 1;
     border-radius: 50%;
-    transform: rotate(-10deg);
+    background: repeating-radial-gradient(
+      ellipse at 48% 52%,
+      transparent 0 12%,
+      rgba(255,255,255,.19) 12.4% 12.9%,
+      rgba(15,44,92,.08) 13.1% 13.5%,
+      transparent 13.8% 21%
+    );
+    opacity: .55;
+    transform: rotate(-13deg) scaleY(.68);
   }
   .auth-planet-surface-id::after {
     content: "";
@@ -408,78 +424,61 @@
     inset: 0;
     z-index: 3;
     border-radius: inherit;
-    background: linear-gradient(
-      90deg,
-      rgba(15,44,92,.2),
-      transparent 24%,
-      transparent 68%,
-      rgba(255,255,255,.3) 82%,
-      rgba(15,44,92,.15)
-    );
+    background:
+      radial-gradient(circle at 31% 24%, rgba(255,255,255,.34), transparent 24%),
+      linear-gradient(
+        96deg,
+        rgba(15,44,92,.26),
+        transparent 27%,
+        transparent 66%,
+        rgba(255,255,255,.2) 78%,
+        rgba(15,44,92,.22)
+      );
+    box-shadow: inset -10px -8px 18px rgba(15,44,92,.1);
   }
-  .auth-planet-service-belt {
-    position: absolute;
-    left: -16%;
-    top: 48%;
-    width: 132%;
-    height: 36%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-top: 1px solid rgba(15,44,92,.12);
-    border-bottom: 1px solid rgba(255,255,255,.24);
-    border-radius: 50%;
-    background: rgba(255,255,255,.2);
-    transform: translateY(-50%) rotate(-12deg) skewX(-12deg) scaleY(.72);
-    transform-origin: center;
-  }
-  .auth-planet-service-belt::before,
-  .auth-planet-service-belt::after {
-    content: attr(data-edge);
-    position: absolute;
-    top: 50%;
-    color: currentColor;
-    font-size: clamp(8px, calc(var(--planet-size) * .07), 13px);
-    font-weight: 950;
-    line-height: 1;
-    opacity: .18;
-    transform: translateY(-50%) scaleX(.48);
-  }
-  .auth-planet-service-belt::before { left: 9%; }
-  .auth-planet-service-belt::after { right: 9%; }
   .auth-provider-mark {
-    position: relative;
-    z-index: 1;
+    position: absolute;
+    left: var(--provider-mark-x);
+    top: var(--provider-mark-y);
+    z-index: 2;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: clamp(2px, calc(var(--planet-size) * .025), 5px);
     color: var(--navy);
-    transform: skewX(5deg);
+    opacity: var(--provider-mark-opacity);
+    transform:
+      translate(-50%, -50%)
+      perspective(180px)
+      rotateY(var(--provider-mark-yaw))
+      rotateZ(var(--provider-mark-rotate))
+      skewY(-4deg)
+      scaleX(.88);
+    transform-origin: center;
   }
   .auth-provider-symbol {
     position: relative;
     flex: 0 0 auto;
     width: auto;
-    height: clamp(15px, calc(var(--planet-size) * .17), 30px);
-    font-size: clamp(15px, calc(var(--planet-size) * .17), 30px);
+    height: clamp(20px, calc(var(--planet-size) * .25), 46px);
+    font-size: clamp(20px, calc(var(--planet-size) * .25), 46px);
     font-weight: 950;
     font-style: normal;
     line-height: 1;
   }
-  .auth-provider-word {
-    font-size: clamp(7px, calc(var(--planet-size) * .07), 12px);
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -.035em;
-    white-space: nowrap;
-  }
-  .provider-paypal .auth-planet-service-belt {
+  .provider-paypal {
+    --provider-mark-x: 53%;
+    --provider-mark-y: 53%;
+    --provider-mark-rotate: -12deg;
+    --provider-mark-yaw: -20deg;
     color: #003087;
-    background: rgba(0,156,222,.14);
+    background:
+      radial-gradient(ellipse at 25% 58%, rgba(0,48,135,.38) 0 17%, transparent 18%),
+      radial-gradient(ellipse at 72% 31%, rgba(0,156,222,.38) 0 19%, transparent 20%),
+      radial-gradient(ellipse at 66% 82%, rgba(0,48,135,.2) 0 15%, transparent 16%),
+      linear-gradient(145deg, rgba(255,255,255,.06), rgba(0,156,222,.13));
   }
   .provider-paypal .auth-provider-symbol {
-    width: .75em;
+    width: .8em;
     color: #003087;
     font-style: italic;
     letter-spacing: -.18em;
@@ -490,25 +489,44 @@
     left: .2em;
     top: .08em;
     color: #009cde;
-    opacity: .78;
+    opacity: .88;
   }
-  .provider-linkedin .auth-planet-service-belt {
+  .provider-linkedin {
+    --provider-mark-x: 45%;
+    --provider-mark-y: 55%;
+    --provider-mark-rotate: -10deg;
+    --provider-mark-yaw: 17deg;
+    --provider-mark-opacity: .76;
     color: #075a8c;
-    background: rgba(10,102,194,.13);
+    background:
+      radial-gradient(ellipse at 29% 34%, rgba(10,102,194,.38) 0 18%, transparent 19%),
+      radial-gradient(ellipse at 68% 65%, rgba(10,102,194,.28) 0 22%, transparent 23%),
+      radial-gradient(circle at 79% 24%, rgba(255,255,255,.26) 0 8%, transparent 9%),
+      linear-gradient(132deg, rgba(10,102,194,.05), rgba(10,102,194,.2));
   }
   .provider-linkedin .auth-provider-symbol {
     height: auto;
     padding: .13em .16em .09em;
     border-radius: .13em;
-    background: #0a66c2;
-    color: #fff;
+    border: 1px solid rgba(255,255,255,.5);
+    background: rgba(10,102,194,.8);
+    color: rgba(255,255,255,.94);
     font-family: Arial, sans-serif;
-    font-size: clamp(12px, calc(var(--planet-size) * .14), 25px);
+    font-size: clamp(16px, calc(var(--planet-size) * .2), 36px);
     letter-spacing: -.12em;
   }
-  .provider-google .auth-planet-service-belt {
+  .provider-google {
+    --provider-mark-x: 57%;
+    --provider-mark-y: 51%;
+    --provider-mark-rotate: 9deg;
+    --provider-mark-yaw: -18deg;
+    --provider-mark-opacity: .74;
     color: #185abc;
-    background: rgba(66,133,244,.11);
+    background:
+      radial-gradient(ellipse at 27% 38%, rgba(66,133,244,.31) 0 17%, transparent 18%),
+      radial-gradient(ellipse at 70% 27%, rgba(234,67,53,.24) 0 15%, transparent 16%),
+      radial-gradient(ellipse at 34% 78%, rgba(52,168,83,.24) 0 18%, transparent 19%),
+      radial-gradient(ellipse at 78% 72%, rgba(251,188,5,.26) 0 17%, transparent 18%);
   }
   .provider-google .auth-provider-symbol {
     height: auto;
@@ -518,12 +536,21 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-  .provider-cloudflare .auth-planet-service-belt {
+  .provider-cloudflare {
+    --provider-mark-x: 47%;
+    --provider-mark-y: 53%;
+    --provider-mark-rotate: -8deg;
+    --provider-mark-yaw: 16deg;
+    --provider-mark-opacity: .78;
     color: #8c3d00;
-    background: rgba(246,130,31,.15);
+    background:
+      radial-gradient(ellipse at 23% 64%, rgba(246,130,31,.29) 0 18%, transparent 19%),
+      radial-gradient(ellipse at 51% 43%, rgba(250,174,64,.34) 0 23%, transparent 24%),
+      radial-gradient(ellipse at 80% 67%, rgba(246,130,31,.25) 0 19%, transparent 20%),
+      radial-gradient(circle at 70% 25%, rgba(255,255,255,.28) 0 9%, transparent 10%);
   }
   .provider-cloudflare .auth-provider-symbol {
-    width: clamp(20px, calc(var(--planet-size) * .25), 44px);
+    width: clamp(34px, calc(var(--planet-size) * .39), 72px);
     fill: #f48120;
   }
   .provider-cloudflare .auth-provider-cloudline {
@@ -1547,11 +1574,21 @@
     50% { opacity: .35; }
   }
   .hero-tui-rows {
+    --ticker-row-height-px: 54;
+    --ticker-row-height: 54px;
     display: grid;
-    grid-template-rows: repeat(8, minmax(0, 1fr));
+    grid-auto-rows: var(--ticker-row-height);
+    align-content: end;
     height: 168px;
     padding: 0;
     overflow: hidden;
+  }
+  .hero-tui-rows > .hero-tui-row {
+    height: var(--ticker-row-height);
+    min-height: var(--ticker-row-height);
+  }
+  .hero-tui-row.is-outside-ticker-window {
+    display: none !important;
   }
   .hero-tui-row {
     position: relative;
@@ -3698,12 +3735,6 @@
       padding-bottom: calc(var(--hero-control-reserve) + env(safe-area-inset-bottom));
       row-gap: 22px;
     }
-    .hero-tui-rows {
-      grid-template-rows: repeat(5, minmax(0, 1fr));
-    }
-    .hero-tui-rows .hero-tui-row:not(:nth-last-child(-n + 5)) {
-      display: none;
-    }
     /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
     .hero-tui-row {
       grid-template-columns: 62px minmax(0, .8fr) minmax(0, 1fr) 118px;
@@ -3874,12 +3905,12 @@
     .auth-planet.challenge { --planet-x: calc(100vw - 90px); }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
+      --ticker-row-height-px: 110;
+      --ticker-row-height: calc(110px + env(safe-area-inset-bottom));
       display: grid;
-      grid-template-rows: minmax(0, 1fr);
       height: calc(110px + env(safe-area-inset-bottom));
       padding: 0;
     }
-    .hero-tui-rows .hero-tui-row:not(:last-child) { display: none; }
     .hero-tui-row:not(.hero-tui-cols) {
       grid-template-columns: minmax(0, 1fr) minmax(130px, auto);
       grid-template-areas:
@@ -3887,7 +3918,7 @@
         "token token"
         "audience audience";
       gap: 5px 12px;
-      min-height: calc(110px + env(safe-area-inset-bottom));
+      min-height: var(--ticker-row-height);
       padding: 10px max(16px, env(safe-area-inset-right)) calc(11px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       font-size: 12px;
       line-height: 1.35;
