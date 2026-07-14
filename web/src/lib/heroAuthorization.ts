@@ -49,12 +49,13 @@ const TOOLTIP_COPY: Record<SatelliteStatus, { label: string; detail: string }> =
   neutralized: { label: 'Threat Neutralized', detail: 'defense confirmed' },
 };
 
-const MAX_LOG_ROWS = 6;
+const MAX_LOG_ROWS = 8;
 const MAX_AUTOMATIC_SATELLITES = 3;
 const INITIAL_AUTOMATIC_OUTCOMES: readonly AuthOutcome[] = ['approved', 'malicious', 'denied'];
 const FIRST_LAUNCH_DELAY = 900;
 const AUTOMATIC_LAUNCH_STAGGER = 850;
 const NEXT_LAUNCH_DELAY = 1_600;
+const TICKER_FEED_DELAY = 1_800;
 const ORBIT_RESIDENCY_HOLD = 12_000;
 const MANUAL_ORBIT_WATCHDOG = 52_000;
 const STATIC_RESULT_HOLD = 6_500;
@@ -225,6 +226,15 @@ function renderSpeculativeLogRow(row: HTMLElement): HTMLButtonElement | null {
 }
 
 function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
+  const previousTops =
+    log.children.length >= MAX_LOG_ROWS
+      ? new Map(
+          [...log.children].map((child) => {
+            const row = child as HTMLElement;
+            return [row, row.getBoundingClientRect().top] as const;
+          }),
+        )
+      : new Map<HTMLElement, number>();
   const audience = AUDIENCES.find((item) => item.domain === spec.audienceDomain) ?? pick(AUDIENCES);
   const client = pick(CLIENTS);
   const tokenFamily = pickFamily();
@@ -264,6 +274,20 @@ function appendLogRow(log: HTMLElement, spec: LogRowSpec): HTMLElement {
   }
   log.appendChild(row);
   installLogRowInteractions(row);
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (const [existingRow, previousTop] of previousTops) {
+      if (!existingRow.isConnected) continue;
+      const delta = previousTop - existingRow.getBoundingClientRect().top;
+      if (Math.abs(delta) < 0.5) continue;
+      existingRow.animate(
+        [
+          { transform: `translateY(${delta}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        { duration: 320, easing: 'cubic-bezier(.22,.72,.24,1)' },
+      );
+    }
+  }
   return row;
 }
 
@@ -446,6 +470,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   let flightSerial = 0;
   let initialAutomaticIndex = 0;
   let launchTimer = 0;
+  let tickerFeedTimer = 0;
   let threatDetectionTimer = 0;
   let tooltip: HTMLElement | null = null;
   let tooltipTarget: HTMLElement | null = null;
@@ -657,11 +682,40 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   };
 
   const createAmbientAttemptRow = (): HTMLElement | null => {
+    const queuedRow = log
+      ? [...log.querySelectorAll<HTMLElement>(
+          '.hero-tui-row[data-status="speculative"][data-traffic-source="feed"]',
+        )]
+          .reverse()
+          .find((row) => !row.contains(document.activeElement)) ?? null
+      : null;
+    if (queuedRow) {
+      queuedRow.dataset.trafficSource = 'ambient';
+      return queuedRow;
+    }
+
     const planet = planets[flightSerial % planets.length]!;
     return createAutomaticAttemptRow(
       { planetKey: planetKey(planet), outcome: ambientOutcome() },
       'ambient',
     );
+  };
+
+  const appendTickerFeedRow = (): void => {
+    if (!log) return;
+    const planet = planets[(attemptSerial + flightSerial) % planets.length]!;
+    const row = createAttemptRow(planetKey(planet), ambientOutcome());
+    if (row) row.dataset.trafficSource = 'feed';
+  };
+
+  const scheduleTickerFeed = (delay = TICKER_FEED_DELAY): void => {
+    if (tickerFeedTimer || disposed || paused || document.hidden) return;
+    tickerFeedTimer = later(() => {
+      tickerFeedTimer = 0;
+      if (disposed || paused || document.hidden) return;
+      appendTickerFeedRow();
+      scheduleTickerFeed();
+    }, delay);
   };
 
   function simulateAttempt(row: HTMLElement): void {
@@ -677,6 +731,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       scheduleLaunch(NEXT_LAUNCH_DELAY);
       return;
     }
+    row.dataset.trafficSource = 'manual';
     manuallyLaunchedRows.add(row);
     scheduleLaunch(
       initialAutomaticIndex < initialAutomaticAttempts.length
@@ -1436,10 +1491,13 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const stopSchedulers = (): void => {
     clearOwnedTimeout(launchTimer);
     launchTimer = 0;
+    clearOwnedTimeout(tickerFeedTimer);
+    tickerFeedTimer = 0;
   };
 
   const startSchedulers = (firstDelay = FIRST_LAUNCH_DELAY): void => {
     if (paused || motionDisabled || document.hidden) return;
+    scheduleTickerFeed();
     scheduleLaunch(firstDelay);
   };
 
@@ -1653,8 +1711,16 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
   if (log && log.children.length === 0) {
     const now = Date.now();
-    // The initial three-flight vignette demonstrates each outcome class once.
-    const seededOutcomes: AuthOutcome[] = ['approved', 'malicious', 'denied', 'approved', 'approved'];
+    // Fill the visible tail window immediately. The first three rows own the
+    // deterministic opening vignette; the remaining rows are ordinary queued
+    // traffic and retain the normal randomized outcome mix.
+    const seededOutcomes: AuthOutcome[] = [
+      ...INITIAL_AUTOMATIC_OUTCOMES,
+      ...Array.from(
+        { length: MAX_LOG_ROWS - INITIAL_AUTOMATIC_OUTCOMES.length },
+        () => ambientOutcome(),
+      ),
+    ];
     seededOutcomes.forEach((outcome, index) => {
       const planet = planets[index % planets.length]!;
       const row = createAttemptRow(
@@ -1665,6 +1731,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       if (row && index < initialAutomaticAttempts.length) {
         row.dataset.trafficSource = 'initial';
         initialAutomaticAttempts[index]!.preferredRow = row;
+      } else if (row) {
+        row.dataset.trafficSource = 'feed';
       }
     });
   }

@@ -895,25 +895,25 @@
     --rcs-core: #d9fbff;
     --rcs-color: #00e5ff;
     position: absolute;
-    inset: -11px -13px;
+    inset: -5px -6px;
     z-index: 0;
     opacity: 0;
     pointer-events: none;
   }
   .sat-rcs {
     position: absolute;
-    width: 16px;
-    height: 5px;
+    width: 13px;
+    height: 4px;
     border-radius: 999px 2px 2px 999px;
     background: linear-gradient(90deg, transparent 0 4%, var(--rcs-color) 48%, var(--rcs-core) 88% 100%);
     box-shadow: 0 0 6px var(--rcs-color), 0 0 13px color-mix(in srgb, var(--rcs-color) 74%, transparent);
     opacity: 0;
-    transform-origin: right center;
+    transform-origin: center;
   }
-  .sat-rcs-left { left: -7px; top: 50%; transform: translateY(-50%); }
-  .sat-rcs-right { right: -7px; top: 50%; transform: translateY(-50%) rotate(180deg); }
-  .sat-rcs-up { left: 50%; top: -7px; transform: translate(-50%, -50%) rotate(90deg); }
-  .sat-rcs-down { left: 50%; bottom: -7px; transform: translate(-50%, 50%) rotate(-90deg); }
+  .sat-rcs-left { left: -3px; top: 50%; transform: translateY(-50%); }
+  .sat-rcs-right { right: -3px; top: 50%; transform: translateY(-50%) rotate(180deg); }
+  .sat-rcs-up { left: 50%; top: -3px; transform: translate(-50%, -50%) rotate(90deg); }
+  .sat-rcs-down { left: 50%; bottom: -3px; transform: translate(-50%, 50%) rotate(-90deg); }
   .authorization-satellite:is(.is-authorizing, .is-capturing, .is-capture-decaying) .sat-rcs-system {
     opacity: 1;
   }
@@ -1489,9 +1489,9 @@
     bottom: 0;
     z-index: 7;
     border-top: 1px solid rgba(122, 184, 237, .28);
-    /* A denser static tint keeps the moving flight field legible without a
-       full-width backdrop filter repainting behind every satellite frame. */
-    background: linear-gradient(180deg, rgba(9, 13, 19, .84), rgba(9, 13, 19, .9));
+    /* Keep the flight field visible beneath the log without a full-width
+       backdrop filter repainting behind every satellite frame. */
+    background: linear-gradient(180deg, rgba(9, 13, 19, .72), rgba(9, 13, 19, .8));
     color: #c7d3e4;
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     overflow: hidden;
@@ -1547,10 +1547,10 @@
     50% { opacity: .35; }
   }
   .hero-tui-rows {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(8, minmax(0, 1fr));
     height: 168px;
-    padding: 2px 0 8px;
+    padding: 0;
     overflow: hidden;
   }
   .hero-tui-row {
@@ -1559,16 +1559,18 @@
     grid-template-columns: 82px 1.15fr .95fr 1.35fr 82px 64px 150px;
     gap: 14px;
     align-items: center;
-    padding: 2px clamp(16px, 4vw, 46px);
-    font-size: 12px;
-    line-height: 1.7;
+    min-height: 0;
+    padding: 0 clamp(16px, 4vw, 46px);
+    font-size: clamp(13px, .85vw, 16px);
+    line-height: 1.25;
     white-space: nowrap;
     animation: heroLogEnter .32s ease both;
   }
   .hero-tui-cols {
+    min-height: 30px;
     padding-top: 6px;
     padding-bottom: 2px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: .14em;
     text-transform: uppercase;
@@ -1604,8 +1606,8 @@
   .tui-status {
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 10.5px;
-    letter-spacing: .08em;
+    font-size: 12px;
+    letter-spacing: .06em;
   }
   .tui-threat-action {
     min-width: 112px;
@@ -3696,6 +3698,12 @@
       padding-bottom: calc(var(--hero-control-reserve) + env(safe-area-inset-bottom));
       row-gap: 22px;
     }
+    .hero-tui-rows {
+      grid-template-rows: repeat(5, minmax(0, 1fr));
+    }
+    .hero-tui-rows .hero-tui-row:not(:nth-last-child(-n + 5)) {
+      display: none;
+    }
     /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
     .hero-tui-row {
       grid-template-columns: 62px minmax(0, .8fr) minmax(0, 1fr) 118px;
@@ -3866,6 +3874,8 @@
     .auth-planet.challenge { --planet-x: calc(100vw - 90px); }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
       height: calc(110px + env(safe-area-inset-bottom));
       padding: 0;
     }
