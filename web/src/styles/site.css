@@ -37,6 +37,19 @@
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
+  /* Compact surfaces: phones and folded screens stack full-width cards, so
+     the same family steps down one notch — tighter blur so shadows don't
+     smear between stacked cards, slightly smaller corners at small sizes.
+     Every card, table, and panel inherits this through the tokens. */
+  @media (max-width: 920px) {
+    :root {
+      --radius-card: 10px;
+      --radius-inset: 7px;
+      --shadow-card: 0 6px 18px rgba(21, 38, 73, .10);
+      --shadow-card-hover: 0 10px 26px rgba(21, 38, 73, .14);
+    }
+  }
+
   /* Ticker-style label: the mono uppercase column-header voice from the hero
      TUI, reused for kickers, table headers, and card metadata. */
   .t-label {
@@ -4102,10 +4115,10 @@
     .primitive-table tr {
       display: grid;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: var(--radius-card);
       overflow: hidden;
       background: #fff;
-      box-shadow: 0 10px 30px rgba(21,38,73,.08);
+      box-shadow: var(--shadow-card);
     }
     .tier-table td,
     .primitive-table td {
@@ -4151,7 +4164,7 @@
       text-align: left;
     }
     .token-button span { display: block; }
-    .token-detail { border-radius: 12px; }
+    .token-detail { border-radius: var(--radius-card); }
 
     .pol-mobile-switcher {
       width: min(100%, 520px);
