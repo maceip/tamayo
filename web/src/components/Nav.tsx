@@ -5,6 +5,7 @@ export const SECTION_LINKS = [
   { href: '#deployments', label: 'Deployments', short: 'Run' },
   { href: '#agents', label: 'Agents', short: 'Agents' },
   { href: '#policy', label: 'Policy', short: 'Policy' },
+  { href: '#interop', label: 'Interop', short: 'Fit' },
   { href: '#quickstart', label: 'Quick start', short: 'Start' },
   { href: '#passes', label: 'Tokens', short: 'Tokens' },
   { href: '#stack', label: 'Stack', short: 'Stack' },

@@ -2868,9 +2868,21 @@
   .tier-table td:last-child { color: rgba(16, 24, 39, .68); }
 
   .primitive-notes {
+    width: min(1180px, 100%);
+    margin: 0 auto;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 14px;
+  }
+
+  /* Agents heading: each sentence is its own unbroken line; cqw sizing keeps
+     the longest sentence inside the container at any viewport. */
+  .agents-head { container-type: inline-size; }
+  .agents-heading span {
+    display: block;
+    white-space: nowrap;
+    font-size: clamp(8px, 3.9cqw, 42px);
+    line-height: 1.18;
   }
   .primitive-note {
     border: 1px solid var(--line);

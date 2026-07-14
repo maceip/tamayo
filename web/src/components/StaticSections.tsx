@@ -123,8 +123,11 @@ export function StaticSections() {
 export function AgentsSection() {
   return (
     <section class="section dark" id="agents">
-      <div class="section-head">
-        <h2>Agents spend credentials at machine speed. Is your authorization stack ready?</h2>
+      <div class="section-head agents-head">
+        <h2 class="agents-heading">
+          <span>Agents spend credentials at machine speed.</span>
+          <span>Is your authorization stack ready?</span>
+        </h2>
         <p>
           Software that browses, remembers, calls tools, and runs code. A session cookie is the
           wrong credential for that. Each privileged action needs its own narrow pass.
@@ -184,10 +187,11 @@ export function AgentsSection() {
           </p>
         </article>
         <article class="primitive-note bb-pulse t-card-resize">
-          <h3>Above policy</h3>
+          <h3>Decide at mint time</h3>
           <p>
-            Policy decides what gets minted; agents then spend it at machine speed. Nothing in the
-            stack assumes a person behind a browser anymore.
+            An agent spends a credential faster than any human can review it. The only moment a
+            real decision can happen is before the credential exists — which is exactly where the
+            policy engine below sits.
           </p>
         </article>
       </div>
