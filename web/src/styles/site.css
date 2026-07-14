@@ -34,6 +34,8 @@
     --code-bg: #0c1118;
     --code-ink: #c7d3e4;
     --label-ink: #5f7391;
+    --card-pad: 20px;
+    --card-band: rgba(15, 44, 92, .05);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -49,6 +51,24 @@
       --shadow-card-hover: 0 10px 26px rgba(21, 38, 73, .14);
     }
   }
+
+  /* Card title band: every titled card opens with the same translucent
+     header strip, pulled to the card edges over the shared --card-pad. */
+  .principle > b,
+  .agent-stat > b,
+  .primitive-note > h3,
+  .case-card > .case-meta,
+  .case-wire > h3,
+  .pol-panel > .pol-title,
+  .runtime-card > h3 {
+    display: block;
+    margin: calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)) 12px;
+    padding: 12px var(--card-pad);
+    background: var(--card-band);
+    border-bottom: 1px solid var(--line);
+    border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
+  }
+  .case-card > .case-meta { display: flex; }
 
   /* Ticker-style label: the mono uppercase column-header voice from the hero
      TUI, reused for kickers, table headers, and card metadata. */
@@ -2890,20 +2910,28 @@
   .tier-table {
     box-shadow: var(--shadow-card);
   }
-  /* Header row speaks the hero-ticker language: dark terminal bar, mono
-     uppercase columns, green prompt on the first cell. */
-  .tier-table thead th {
+  /* Header rows speak the hero-ticker language: dark terminal bar, mono
+     uppercase columns, green prompt on the first cell. Applies to every
+     data table so elevation and chrome stay identical page-wide. */
+  .tier-table thead th,
+  .primitive-table thead th {
     background: var(--code-bg);
     color: #8fa4c0;
     border-bottom: 1px solid rgba(122, 184, 237, .28);
   }
-  .tier-table thead th:first-child::before {
+  .tier-table thead th:first-child,
+  .primitive-table thead th:first-child { white-space: nowrap; }
+  .tier-table thead th:first-child::before,
+  .primitive-table thead th:first-child::before {
     content: "❯ ";
     color: var(--green);
   }
+  .primitive-table tbody tr:nth-child(even) { background: rgba(15, 44, 92, .025); }
+  @media (hover: hover) and (pointer: fine) {
+    .primitive-table tbody tr:hover { background: rgba(35, 104, 255, .045); }
+  }
   .tier-table tbody tr {
     --tier: var(--muted);
-    box-shadow: inset 3px 0 0 var(--tier);
     transition: background .18s ease, transform .18s ease;
   }
   .tier-table tbody tr:nth-child(1) { --tier: #8fa4c0; }
@@ -2917,21 +2945,25 @@
       background: color-mix(in srgb, var(--tier) 6%, #ffffff);
     }
   }
+  /* Tier chips replace the old left-stripe rows: same tinted-chip language
+     as the case-study verdicts and hero ticker statuses. */
   .tier-table td:first-child b {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: var(--navy);
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--tier) 55%, var(--navy));
+    background: color-mix(in srgb, var(--tier) 12%, transparent);
     white-space: nowrap;
   }
   .tier-table td:first-child b::before {
     content: "";
     flex: none;
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--tier);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier) 18%, transparent);
   }
   .tier-table td:last-child { color: rgba(16, 24, 39, .68); }
 
@@ -2955,7 +2987,7 @@
   .primitive-note {
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    padding: 20px;
+    padding: var(--card-pad);
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
   }
@@ -3189,7 +3221,7 @@
     border-radius: var(--radius-card);
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
-    padding: 18px 18px 16px;
+    padding: var(--card-pad);
   }
   /* —— Quick start: three terminal steps —— */
   .qs-grid {
@@ -3530,7 +3562,7 @@
   }
   .runtime-card {
     min-height: 520px;
-    padding: 16px 14px 14px;
+    padding: var(--card-pad);
     border-radius: var(--radius-card);
     border: 1px solid var(--line);
     background: #fff;
@@ -3617,7 +3649,7 @@
   }
   .principle {
     border-radius: var(--radius-card);
-    padding: 22px;
+    padding: var(--card-pad);
     background: var(--card-bg);
     border: 1px solid var(--line);
     color: var(--ink);
@@ -3642,7 +3674,7 @@
   }
   .agent-stat {
     border-radius: var(--radius-card);
-    padding: 22px 24px;
+    padding: var(--card-pad);
     background: var(--card-bg);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-card);
@@ -3680,7 +3712,7 @@
   .case-card {
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    padding: 20px;
+    padding: var(--card-pad);
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
     display: flex;
@@ -3747,7 +3779,7 @@
     margin: 18px auto 0;
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    padding: 20px;
+    padding: var(--card-pad);
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
     display: grid;
