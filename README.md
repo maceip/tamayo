@@ -36,6 +36,15 @@ or leaves a rate-limit bucket up to the caller, fails at
 `tokenauth.Compile`. how we learned that the hard way:
 [you can't vibe code authorization](https://maceip.github.io/tamayo/#sigbird)
 
+none of this replaces what you already run. your identity provider
+keeps doing login (the oidc session is how a caller reaches the mint
+endpoint), your gateway keeps verifying (one stateless
+`/v1/verify/*` call, or the go package next to your jwt filter), and
+opa / cedar keep answering request-time policy. tamayo adds the one
+decision none of them make: whether a credential should exist at
+all. attestation stacks like spiffe, tpm, and tee quotes plug in as
+mint evidence rather than competing machinery.
+
 ## what's here
 
 | package | what it is | verified against |
