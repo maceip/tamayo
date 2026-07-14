@@ -382,6 +382,156 @@
       radial-gradient(ellipse at 30% 60%, rgba(15,44,92,.08), transparent 42%);
     background-size: 16px 16px, 22px 22px, 14px 14px, 28px 28px, 100% 100%;
   }
+  /* Provider identities are clipped into a shallow, elliptical latitude band
+     instead of sitting on top as flat badges. The edge copies, brand mark and
+     fixed terminator shading are all static paint: no filters or extra motion. */
+  .auth-planet-surface-id {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .auth-planet-surface-id::before {
+    content: "";
+    position: absolute;
+    inset: 8% 24%;
+    z-index: 2;
+    border-right: 1px solid rgba(255,255,255,.2);
+    border-left: 1px solid rgba(15,44,92,.1);
+    border-radius: 50%;
+    transform: rotate(-10deg);
+  }
+  .auth-planet-surface-id::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      rgba(15,44,92,.2),
+      transparent 24%,
+      transparent 68%,
+      rgba(255,255,255,.3) 82%,
+      rgba(15,44,92,.15)
+    );
+  }
+  .auth-planet-service-belt {
+    position: absolute;
+    left: -16%;
+    top: 48%;
+    width: 132%;
+    height: 36%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid rgba(15,44,92,.12);
+    border-bottom: 1px solid rgba(255,255,255,.24);
+    border-radius: 50%;
+    background: rgba(255,255,255,.2);
+    transform: translateY(-50%) rotate(-12deg) skewX(-12deg) scaleY(.72);
+    transform-origin: center;
+  }
+  .auth-planet-service-belt::before,
+  .auth-planet-service-belt::after {
+    content: attr(data-edge);
+    position: absolute;
+    top: 50%;
+    color: currentColor;
+    font-size: clamp(8px, calc(var(--planet-size) * .07), 13px);
+    font-weight: 950;
+    line-height: 1;
+    opacity: .18;
+    transform: translateY(-50%) scaleX(.48);
+  }
+  .auth-planet-service-belt::before { left: 9%; }
+  .auth-planet-service-belt::after { right: 9%; }
+  .auth-provider-mark {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, calc(var(--planet-size) * .025), 5px);
+    color: var(--navy);
+    transform: skewX(5deg);
+  }
+  .auth-provider-symbol {
+    position: relative;
+    flex: 0 0 auto;
+    width: auto;
+    height: clamp(15px, calc(var(--planet-size) * .17), 30px);
+    font-size: clamp(15px, calc(var(--planet-size) * .17), 30px);
+    font-weight: 950;
+    font-style: normal;
+    line-height: 1;
+  }
+  .auth-provider-word {
+    font-size: clamp(7px, calc(var(--planet-size) * .07), 12px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.035em;
+    white-space: nowrap;
+  }
+  .provider-paypal .auth-planet-service-belt {
+    color: #003087;
+    background: rgba(0,156,222,.14);
+  }
+  .provider-paypal .auth-provider-symbol {
+    width: .75em;
+    color: #003087;
+    font-style: italic;
+    letter-spacing: -.18em;
+  }
+  .provider-paypal .auth-provider-symbol::before {
+    content: "P";
+    position: absolute;
+    left: .2em;
+    top: .08em;
+    color: #009cde;
+    opacity: .78;
+  }
+  .provider-linkedin .auth-planet-service-belt {
+    color: #075a8c;
+    background: rgba(10,102,194,.13);
+  }
+  .provider-linkedin .auth-provider-symbol {
+    height: auto;
+    padding: .13em .16em .09em;
+    border-radius: .13em;
+    background: #0a66c2;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: clamp(12px, calc(var(--planet-size) * .14), 25px);
+    letter-spacing: -.12em;
+  }
+  .provider-google .auth-planet-service-belt {
+    color: #185abc;
+    background: rgba(66,133,244,.11);
+  }
+  .provider-google .auth-provider-symbol {
+    height: auto;
+    background: conic-gradient(from -40deg, #4285f4 0 26%, #34a853 0 44%, #fbbc05 0 66%, #ea4335 0 82%, #4285f4 0);
+    background-clip: text;
+    color: transparent;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .provider-cloudflare .auth-planet-service-belt {
+    color: #8c3d00;
+    background: rgba(246,130,31,.15);
+  }
+  .provider-cloudflare .auth-provider-symbol {
+    width: clamp(20px, calc(var(--planet-size) * .25), 44px);
+    fill: #f48120;
+  }
+  .provider-cloudflare .auth-provider-cloudline {
+    fill: none;
+    stroke: #faae40;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+  }
   .auth-planet-label {
     position: absolute;
     top: calc(100% + 10px);
@@ -635,6 +785,109 @@
   }
   .sat-panel-left { margin-right: 1px; }
   .sat-panel-right { margin-left: 1px; }
+
+  /* Token payload: a small physical module keyed to the ticker's token family.
+     It is part of the craft DOM, so it follows every flight/capture transform
+     without its own animation or compositing layer. */
+  .sat-payload {
+    --payload-a: #67e8f9;
+    --payload-b: #2563eb;
+    --payload-c: #4c1d95;
+    position: absolute;
+    left: 3px;
+    bottom: 0;
+    z-index: 4;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(15, 44, 92, .52);
+    border-radius: 4px;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.88) 0 18%, rgba(255,255,255,.16) 19% 42%, transparent 43%),
+      linear-gradient(135deg, var(--payload-a), var(--payload-b) 58%, var(--payload-c));
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.28),
+      0 2px 4px rgba(15,44,92,.3);
+    transform: translate(-10%, 18%) rotate(-4deg);
+    pointer-events: none;
+  }
+  .sat-payload::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: -4px;
+    width: 4px;
+    height: 4px;
+    border-radius: 1px 1px 0 0;
+    background: var(--sat-metal-c);
+    box-shadow: inset 1px 0 rgba(255,255,255,.35);
+  }
+  .sat-payload-gem {
+    position: absolute;
+    inset: 2px;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.82) 0 24%, transparent 25%),
+      linear-gradient(315deg, rgba(3,17,45,.34) 0 32%, transparent 33%),
+      var(--payload-a);
+    clip-path: polygon(50% 0, 100% 34%, 82% 100%, 18% 100%, 0 34%);
+  }
+  .sat-payload-glyph {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 1px rgba(3,17,45,.72);
+  }
+  .sat-payload-burn {
+    --payload-a: #ffe263;
+    --payload-b: #ff7a18;
+    --payload-c: #a61b18;
+  }
+  .sat-payload-burn .sat-payload-gem {
+    clip-path: polygon(50% 0, 88% 22%, 100% 68%, 50% 100%, 0 68%, 12% 22%);
+  }
+  .sat-payload-email {
+    --payload-a: #9df7c7;
+    --payload-b: #16a985;
+    --payload-c: #08605f;
+  }
+  .sat-payload-email .sat-payload-gem {
+    clip-path: polygon(22% 0, 78% 0, 100% 22%, 100% 78%, 78% 100%, 22% 100%, 0 78%, 0 22%);
+  }
+  .sat-payload-event {
+    --payload-a: #f0abfc;
+    --payload-b: #8b5cf6;
+    --payload-c: #4338ca;
+  }
+  .sat-payload-event .sat-payload-gem {
+    clip-path: polygon(50% 0, 65% 28%, 100% 50%, 65% 72%, 50% 100%, 35% 72%, 0 50%, 35% 28%);
+  }
+  .sat-payload-threat {
+    --payload-a: #fff36a;
+    --payload-b: #ff213f;
+    --payload-c: #49000e;
+    border-color: #ffeb70;
+    background: linear-gradient(135deg, #ff3d21, #a0001f 55%, #240009);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.3),
+      0 0 0 2px rgba(255,0,60,.28),
+      0 2px 5px rgba(91,0,24,.55);
+  }
+  .sat-payload-threat .sat-payload-gem {
+    inset: 1px;
+    background: linear-gradient(145deg, #fff56a, #ff3b21 48%, #850018);
+    clip-path: polygon(50% 0, 100% 92%, 0 92%);
+  }
+  .sat-payload-threat .sat-payload-glyph {
+    margin-top: 1px;
+    color: #2a0008;
+    font-size: 10px;
+    text-shadow: 0 1px rgba(255,255,255,.5);
+  }
 
   /* Four-axis cold-gas jets: blue while the pass is evaluated, ice-white
      during destination capture, then removed by the phase controller. */
@@ -1296,8 +1549,9 @@
   .hero-tui-rows {
     display: flex;
     flex-direction: column;
+    height: 168px;
     padding: 2px 0 8px;
-    min-height: 168px;
+    overflow: hidden;
   }
   .hero-tui-row {
     position: relative;
@@ -3220,6 +3474,40 @@
   }
   .footer a { color: #ffffff; text-decoration: none; font-weight: 800; }
 
+  /* Desktop hero chrome: the fixed navigation gets the same translucent blue
+     material as the action shelf, one shade denser so it reads as the page
+     header without adding another backdrop-filter layer. */
+  @media (min-width: 921px) {
+    .site-nav {
+      border-bottom: 1px solid rgba(122, 184, 237, .44);
+      background: linear-gradient(
+        90deg,
+        rgba(143, 205, 248, .52) 0%,
+        rgba(168, 216, 248, .48) 48%,
+        rgba(137, 198, 241, .32) 74%,
+        rgba(112, 179, 232, .24) 100%
+      );
+      box-shadow:
+        0 8px 28px rgba(35, 104, 255, .08),
+        inset 0 1px 0 rgba(255, 255, 255, .55);
+    }
+  }
+
+  /* On full-height desktop canvases, let the flight field begin directly
+     behind the headline and give the authorization log the taller footprint
+     shown in the annotated reference. Compact, fold, and landscape layouts
+     retain their independently tuned geometry below. */
+  @media (min-width: 921px) and (min-height: 640px) {
+    .hero {
+      --hero-flight-y-shift: clamp(-500px, -44svh, -196px);
+      --hero-flight-top: clamp(56px, 8svh, 88px);
+    }
+
+    .hero-tui-rows {
+      height: clamp(252px, calc(48svh - 56px), 500px);
+    }
+  }
+
   @media (max-width: 920px) {
     .site-nav { position: absolute; mix-blend-mode: normal; }
     .nav-links { display: none; }
@@ -3399,7 +3687,7 @@
     .auth-planet.challenge { --planet-x: calc(100vw - 90px); }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
-      min-height: 92px;
+      height: calc(110px + env(safe-area-inset-bottom));
       padding: 0;
     }
     .hero-tui-rows .hero-tui-row:not(:last-child) { display: none; }
@@ -3410,7 +3698,7 @@
         "token token"
         "audience audience";
       gap: 5px 12px;
-      min-height: calc(92px + env(safe-area-inset-bottom));
+      min-height: calc(110px + env(safe-area-inset-bottom));
       padding: 10px max(16px, env(safe-area-inset-right)) calc(11px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       font-size: 12px;
       line-height: 1.35;
