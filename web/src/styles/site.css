@@ -3958,7 +3958,7 @@
     .hero {
       --hero-flight-y-shift: 0px;
       --hero-flight-top: clamp(360px, calc(508px - 40vw), 390px);
-      min-height: max(100svh, 720px);
+      min-height: max(100svh, 680px);
       padding-top: calc(82px + env(safe-area-inset-top));
       row-gap: 18px;
     }
@@ -4221,7 +4221,19 @@
       --fold-rail-width: 68px;
       padding-left: var(--fold-rail-width);
     }
-    .page-shell.is-fold-layout .site-nav { left: var(--fold-rail-width); }
+    .page-shell.is-fold-layout .site-nav {
+      position: fixed;
+      left: var(--fold-rail-width);
+      padding: 14px clamp(22px, 3vw, 34px);
+      border-bottom: 1px solid rgba(122, 184, 237, .4);
+      background: linear-gradient(
+        90deg,
+        rgba(143, 205, 248, .48),
+        rgba(168, 216, 248, .42) 54%,
+        rgba(137, 198, 241, .26)
+      );
+      box-shadow: 0 8px 28px rgba(35, 104, 255, .07), inset 0 1px 0 rgba(255, 255, 255, .52);
+    }
     .page-shell.is-fold-layout .nav-menu-button,
     .page-shell.is-fold-layout .nav-mobile-menu,
     .page-shell.is-fold-layout .nav-links { display: none; }

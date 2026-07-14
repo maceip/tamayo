@@ -155,13 +155,22 @@ function syncVisibleLogWindow(log: HTMLElement): number {
     (child): child is HTMLElement => child instanceof HTMLElement,
   );
   const focusedRow = rows.find((row) => row.contains(document.activeElement));
+  const threatRow = [...rows].reverse().find(
+    (row) => row.dataset.status === 'threat' && rowSatellites.get(row)?.isConnected,
+  );
   const visibleRows = rows.slice(-capacity);
 
-  // Never hide the control a keyboard user is operating merely because a new
-  // tail entry arrived. Once focus leaves, the newest full window returns.
-  if (focusedRow && !visibleRows.includes(focusedRow)) {
-    visibleRows.shift();
-    visibleRows.push(focusedRow);
+  // Never hide the control a keyboard user is operating or the defense action
+  // for a live threat merely because a new tail entry arrived. Focus wins the
+  // single-row phone slot while it is actively in use; otherwise Neutralize is
+  // pinned until the threat resolves.
+  const priorityRows = [focusedRow, threatRow].filter(
+    (row, index, priorities): row is HTMLElement => !!row && priorities.indexOf(row) === index,
+  );
+  for (const priorityRow of priorityRows) {
+    if (visibleRows.includes(priorityRow)) continue;
+    const replaceIndex = visibleRows.findIndex((row) => !priorityRows.includes(row));
+    if (replaceIndex >= 0) visibleRows.splice(replaceIndex, 1, priorityRow);
   }
 
   const visibleSet = new Set(visibleRows);
