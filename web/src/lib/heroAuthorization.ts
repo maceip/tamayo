@@ -50,11 +50,24 @@ const TOOLTIP_COPY: Record<SatelliteStatus, { label: string; detail: string }> =
 };
 
 const MAX_LOG_ROWS = 6;
+const AUTOMATIC_DEMO_LIMIT = 3;
 const FIRST_LAUNCH_DELAY = 900;
+const AUTOMATIC_LAUNCH_STAGGER = 850;
 const NEXT_LAUNCH_DELAY = 1_600;
+const ORBIT_RESIDENCY_HOLD = 12_000;
+const MANUAL_ORBIT_WATCHDOG = 52_000;
 const STATIC_RESULT_HOLD = 6_500;
 const STATIC_THREAT_HOLD = 30_000;
 const STATIC_NEUTRALIZED_HOLD = 2_400;
+const PARALLAX_START_EVENT = 'tamayo:hero-parallax-start';
+
+type ConnectionPowerHints = EventTarget & { saveData?: boolean };
+type BatteryPowerHints = EventTarget & { charging: boolean; level: number };
+type NavigatorPowerHints = Navigator & {
+  connection?: ConnectionPowerHints;
+  deviceMemory?: number;
+  getBattery?: () => Promise<BatteryPowerHints>;
+};
 
 function planetKey(planet: HTMLElement): string {
   return [...planet.classList].find((name) => name !== 'auth-planet') || 'planet';
@@ -363,6 +376,9 @@ function onOwnAnimationEnd(
 
 export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLElement | null): () => void {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const lowPowerPreference = window.matchMedia('(prefers-reduced-data: reduce), (update: slow)');
+  const powerNavigator = navigator as NavigatorPowerHints;
+  const connection = powerNavigator.connection ?? null;
   const planets = [...field.querySelectorAll<HTMLElement>('.auth-planet')];
   const hero = field.closest('.hero') as HTMLElement | null;
   const defenseLayer = hero?.querySelector<HTMLElement>('[data-authorization-defense-layer]') ?? null;
@@ -386,14 +402,23 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       row: HTMLElement | null;
       satellite: HTMLElement;
       animation: Animation;
+      scheduleRelease: (delay: number) => void;
     }
   >();
-  const ownedTimeouts = new Set<number>();
+  const ownedTimeouts = new Map<
+    number,
+    {
+      callback: () => void;
+      remaining: number;
+      startedAt: number;
+      nativeId: number;
+    }
+  >();
   const activeThreatFlights = new Set<HTMLElement>();
   let attemptSerial = 0;
   let flightSerial = 0;
+  let automaticLaunchesRemaining = AUTOMATIC_DEMO_LIMIT;
   let launchTimer = 0;
-  let ambientTimer = 0;
   let threatDetectionTimer = 0;
   let tooltip: HTMLElement | null = null;
   let tooltipTarget: HTMLElement | null = null;
@@ -402,15 +427,32 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   let tooltipRaf = 0;
   let tooltipLastPosition = 0;
   let resizeRaf = 0;
+  let geometryDirty = false;
   let tooltipWidth = 0;
   let tooltipHeight = 0;
   let tooltipLayerWidth = 0;
   let tooltipLayerHeight = 0;
   let paused = false;
-  let motionDisabled = reduced.matches;
+  let battery: BatteryPowerHints | null = null;
+  const hasLimitedMemory =
+    typeof powerNavigator.deviceMemory === 'number' && powerNavigator.deviceMemory <= 4;
+  const requestsLowPower = (): boolean =>
+    lowPowerPreference.matches ||
+    connection?.saveData === true ||
+    hasLimitedMemory ||
+    (!!battery && !battery.charging && battery.level <= 0.2);
+  let lowPowerMode = requestsLowPower();
+  let motionDisabled = reduced.matches || lowPowerMode;
   let disposed = false;
+  let ownedTimeoutSerial = 0;
+
+  hero?.classList.toggle('is-low-power', lowPowerMode);
+  if (hero) hero.dataset.authorizationPower = lowPowerMode ? 'low' : 'full';
 
   const shouldPauseMotion = (): boolean => paused || motionDisabled || document.hidden;
+  // Reduced/low-power mode still permits static, time-bounded simulations.
+  // Only loss of visibility suspends their active-duration clocks.
+  const shouldSuspendTimeouts = (): boolean => paused || document.hidden;
 
   const registerAnimation = (animation: Animation): Animation => {
     activeAnimations.add(animation);
@@ -438,19 +480,51 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     }
   };
 
-  const later = (callback: () => void, delay: number): number => {
-    const id = window.setTimeout(() => {
+  const armOwnedTimeout = (id: number): void => {
+    const timer = ownedTimeouts.get(id);
+    if (!timer || timer.nativeId || disposed || shouldSuspendTimeouts()) return;
+    timer.startedAt = performance.now();
+    timer.nativeId = window.setTimeout(() => {
+      const current = ownedTimeouts.get(id);
+      if (!current) return;
       ownedTimeouts.delete(id);
-      if (!disposed) callback();
-    }, delay);
-    ownedTimeouts.add(id);
+      current.nativeId = 0;
+      if (!disposed) current.callback();
+    }, timer.remaining);
+  };
+
+  const later = (callback: () => void, delay: number): number => {
+    const id = ++ownedTimeoutSerial;
+    ownedTimeouts.set(id, {
+      callback,
+      remaining: Math.max(0, delay),
+      startedAt: 0,
+      nativeId: 0,
+    });
+    armOwnedTimeout(id);
     return id;
   };
 
   const clearOwnedTimeout = (id: number): void => {
     if (!id) return;
-    window.clearTimeout(id);
+    const timer = ownedTimeouts.get(id);
+    if (timer?.nativeId) window.clearTimeout(timer.nativeId);
     ownedTimeouts.delete(id);
+  };
+
+  const suspendOwnedTimeouts = (): void => {
+    const now = performance.now();
+    for (const timer of ownedTimeouts.values()) {
+      if (!timer.nativeId) continue;
+      window.clearTimeout(timer.nativeId);
+      timer.nativeId = 0;
+      timer.remaining = Math.max(0, timer.remaining - (now - timer.startedAt));
+    }
+  };
+
+  const resumeOwnedTimeouts = (): void => {
+    if (disposed || shouldSuspendTimeouts()) return;
+    for (const id of ownedTimeouts.keys()) armOwnedTimeout(id);
   };
 
   const announce = (message: string): void => {
@@ -531,6 +605,9 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     if (row.dataset.status !== 'speculative' || rowSatellites.get(row)?.isConnected) return;
     const action = row.querySelector<HTMLButtonElement>('.tui-simulate-action');
     if (action) action.disabled = true;
+    // Explicit interaction supersedes the bounded ambient demonstration. A
+    // manual result must never be followed by an unsolicited launch.
+    automaticLaunchesRemaining = 0;
     clearOwnedTimeout(launchTimer);
     launchTimer = 0;
     if (!fire(row, true)) {
@@ -582,12 +659,24 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     tooltipLayerHeight = tooltipLayer.offsetHeight;
   };
 
+  const tooltipNeedsTracking = (): boolean => {
+    if (!tooltipTarget?.isConnected || shouldPauseMotion()) return false;
+    if (tooltipTarget.closest('[data-static-simulation="true"]')) return false;
+    // Targeted threats are stationary except while scroll parallax is changing
+    // their local coordinate. Track only for that short scroll window.
+    return (
+      tooltipTarget.dataset.authStatus !== 'threat' ||
+      hero?.classList.contains('is-scrolling') === true
+    );
+  };
+
   const positionTooltip = (timestamp = performance.now()): void => {
     tooltipRaf = 0;
     if (!tooltip?.classList.contains('is-visible') || !tooltipTarget?.isConnected) return;
+    const keepTracking = tooltipNeedsTracking();
     // The craft is continuously moving, but a 30fps tooltip is visually
     // responsive and avoids forcing two layout reads on every display frame.
-    if (timestamp - tooltipLastPosition < 32) {
+    if (keepTracking && timestamp - tooltipLastPosition < 32) {
       tooltipRaf = window.requestAnimationFrame(positionTooltip);
       return;
     }
@@ -605,7 +694,17 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     tooltip.classList.toggle('is-below', placeBelow);
     tooltip.style.left = `${Math.min(Math.max(unclampedX, minX), Math.max(minX, maxX))}px`;
     tooltip.style.top = placeBelow ? `${localBottom + 8}px` : `${localTop - 8}px`;
-    tooltipRaf = window.requestAnimationFrame(positionTooltip);
+    if (keepTracking) tooltipRaf = window.requestAnimationFrame(positionTooltip);
+  };
+
+  const onParallaxStart = (): void => {
+    if (
+      tooltipTarget?.dataset.authStatus === 'threat' &&
+      tooltip?.classList.contains('is-visible') &&
+      !tooltipRaf
+    ) {
+      tooltipRaf = window.requestAnimationFrame(positionTooltip);
+    }
   };
 
   const closeTooltip = (): void => {
@@ -621,8 +720,27 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     tooltipLastPosition = 0;
   };
 
-  const showTooltip = (satellite: HTMLElement, sticky = false): void => {
+  const priorityThreatTarget = (): HTMLElement | null => {
+    if (tooltipTarget?.isConnected && tooltipTarget.dataset.authStatus === 'threat') {
+      return tooltipTarget;
+    }
+    for (const owner of activeThreatFlights) {
+      const threat = owner.querySelector<HTMLElement>('.authorization-satellite');
+      if (threat?.isConnected) return threat;
+    }
+    return null;
+  };
+
+  const showTooltip = (
+    satellite: HTMLElement,
+    sticky = false,
+    allowThreatOverride = false,
+  ): void => {
     if (!satellite.isConnected) return;
+    const priorityThreat = priorityThreatTarget();
+    // Ambient result transitions and passive hover/focus must not steal the
+    // shared popover from an active defense target. A deliberate click may.
+    if (priorityThreat && priorityThreat !== satellite && !allowThreatOverride) return;
     if (tooltipTarget && tooltipTarget !== satellite) {
       tooltipTarget.removeAttribute('aria-describedby');
       tooltipTarget.setAttribute('aria-expanded', 'false');
@@ -651,7 +769,11 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   };
 
   const refreshTooltip = (satellite: HTMLElement): void => {
-    if (tooltipTarget === satellite) updateTooltip(satellite);
+    if (tooltipTarget !== satellite) return;
+    updateTooltip(satellite);
+    if (!tooltipRaf && tooltipNeedsTracking()) {
+      tooltipRaf = window.requestAnimationFrame(positionTooltip);
+    }
   };
 
   const cleanupOrbitIfEmpty = (key: string, orbit: HTMLElement): void => {
@@ -733,6 +855,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     key: string,
     row: HTMLElement | null,
     before: DOMRect,
+    userInitiated: boolean,
   ): void => {
     if (!flight.isConnected) return;
     const track = document.createElement('span');
@@ -759,6 +882,30 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     const arcDirection = deltaX < 0 ? -1 : 1;
     const transformAt = (x: number, y: number, rotation: number, scale = 1) =>
       `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rotation}deg) scale(${scale})`;
+    let orbitResidencyTimer = 0;
+    let trackReleased = false;
+    const removeAfterRevolution = (event: AnimationEvent): void => {
+      if (event.target !== track || event.animationName !== 'satelliteOrbit') return;
+      releaseTrack();
+    };
+    const releaseTrack = (): void => {
+      if (trackReleased) return;
+      trackReleased = true;
+      clearOwnedTimeout(orbitResidencyTimer);
+      orbitResidencyTimer = 0;
+      track.removeEventListener('animationend', removeAfterRevolution);
+      if (tooltipTarget === satellite) closeTooltip();
+      const restoreFocus =
+        document.activeElement === satellite || !!row?.contains(document.activeElement);
+      returnRowToSpeculative(row, restoreFocus);
+      track.remove();
+      cleanupOrbitIfEmpty(key, orbit);
+      scheduleLaunch(NEXT_LAUNCH_DELAY);
+    };
+    const scheduleRelease = (delay: number): void => {
+      clearOwnedTimeout(orbitResidencyTimer);
+      orbitResidencyTimer = later(releaseTrack, delay);
+    };
     const capture = registerAnimation(satellite.animate(
       [
         {
@@ -790,7 +937,15 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       ],
       { duration: 1_100, easing: 'cubic-bezier(.2,.72,.22,1)', fill: 'both' },
     ));
-    activeCaptures.set(track, { flight, key, orbit, row, satellite, animation: capture });
+    activeCaptures.set(track, {
+      flight,
+      key,
+      orbit,
+      row,
+      satellite,
+      animation: capture,
+      scheduleRelease,
+    });
     capture.addEventListener(
       'finish',
       () => {
@@ -812,6 +967,9 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
         // Off-screen pausing belongs to `.hero.is-away`; an inline paused value
         // would survive resume and strand this track before its first revolution.
         track.style.animationPlayState = 'running';
+        // Automatic demos leave after a short sample; an explicit simulation
+        // may complete the CSS revolution, with a watchdog for missed events.
+        scheduleRelease(userInitiated ? MANUAL_ORBIT_WATCHDOG : ORBIT_RESIDENCY_HOLD);
 
         const rcs = satellite.querySelector<HTMLElement>('.sat-rcs-system');
         if (!rcs || motionDisabled) {
@@ -846,26 +1004,11 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       { once: true },
     );
 
-    const removeAfterRevolution = (event: AnimationEvent) => {
-      if (event.target !== track || event.animationName !== 'satelliteOrbit') return;
-      track.removeEventListener('animationiteration', removeAfterRevolution);
-      if (tooltipTarget === satellite) closeTooltip();
-      if (document.activeElement === satellite || row?.contains(document.activeElement)) {
-        returnRowToSpeculative(row, true);
-      } else {
-        returnRowToSpeculative(row);
-      }
-      track.remove();
-      cleanupOrbitIfEmpty(key, orbit);
-      scheduleLaunch(NEXT_LAUNCH_DELAY);
-    };
-    track.addEventListener('animationiteration', removeAfterRevolution);
+    track.addEventListener('animationend', removeAfterRevolution);
   };
 
   const beginThreatState = (flight: HTMLElement): void => {
     clearOwnedTimeout(threatDetectionTimer);
-    clearOwnedTimeout(ambientTimer);
-    ambientTimer = 0;
     activeThreatFlights.add(flight);
     hero?.classList.add('is-threat-detected', 'is-under-attack');
     document.documentElement.classList.add('authorization-alert');
@@ -884,7 +1027,6 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     threatDetectionTimer = 0;
     hero?.classList.remove('is-threat-detected', 'is-under-attack');
     document.documentElement.classList.remove('authorization-alert');
-    if (!disposed) scheduleAmbient();
   };
 
   const bindSatelliteInteractions = (
@@ -908,7 +1050,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
         return;
       }
       if (pinnedTarget === satellite) closeTooltip();
-      else showTooltip(satellite, true);
+      else showTooltip(satellite, true, true);
     });
   };
 
@@ -1018,9 +1160,9 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
           announce('Malicious authorization neutralized.');
           scheduleStaticCleanup(STATIC_NEUTRALIZED_HOLD);
         };
-        beginThreatState(track);
         refreshTooltip(satellite);
         showTooltip(satellite, true);
+        beginThreatState(track);
         assertLogIntegrity();
         if (userInitiated || claimedFocusedRow) {
           logRow?.querySelector<HTMLElement>('.tui-threat-action')?.focus({ preventScroll: true });
@@ -1089,7 +1231,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     if (outcome === 'approved') {
       onOwnAnimationEnd(flight, 'authorizationApproach', () => {
         beginAuthorizationHold(flight, satellite, (holdRect) => {
-          beginCapture(flight, orbit, satellite, key, logRow, holdRect);
+          beginCapture(flight, orbit, satellite, key, logRow, holdRect, userInitiated);
         });
       });
       return true;
@@ -1121,8 +1263,6 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
         setSatelliteStatus(satellite, 'threat');
         refreshTooltip(satellite);
         resolveLogRow(logRow, 'threat');
-        announce('Malicious authorization detected. Defense target locked.');
-        beginThreatState(flight);
 
         const blastThreat = () => {
           if (threatPhase !== 'targeted') return;
@@ -1154,6 +1294,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
         onOwnAnimationEnd(flight, 'authorizationTargetHold', blastThreat);
         flight.classList.add('is-targeted');
         showTooltip(satellite, true);
+        beginThreatState(flight);
+        announce('Malicious authorization detected. Defense target locked.');
       });
     });
     return true;
@@ -1162,8 +1304,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const scheduleLaunch = (delay = NEXT_LAUNCH_DELAY): void => {
     if (
       launchTimer ||
-      activeFlights.size > 0 ||
-      activeAnimations.size > 0 ||
+      automaticLaunchesRemaining <= 0 ||
       activeThreatFlights.size > 0 ||
       paused ||
       motionDisabled ||
@@ -1171,47 +1312,26 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     ) return;
     launchTimer = later(() => {
       launchTimer = 0;
-      if (!fire()) scheduleLaunch(NEXT_LAUNCH_DELAY);
-    }, delay);
-  };
-
-  const scheduleAmbient = (): void => {
-    if (
-      !log ||
-      ambientTimer ||
-      activeThreatFlights.size > 0 ||
-      paused ||
-      motionDisabled ||
-      document.hidden ||
-      disposed
-    ) return;
-    ambientTimer = later(() => {
-      ambientTimer = 0;
-      // Background entries are scenarios, never fabricated live decisions. Do
-      // not append while a craft is linked: on phones the last row is the visible
-      // card and must continue to represent that in-flight satellite.
-      if (!log.querySelector('.hero-tui-row.has-sat')) {
-        const planet = planets[attemptSerial % planets.length]!;
-        createAttemptRow(planetKey(planet), ambientOutcome());
+      if (!fire()) {
+        automaticLaunchesRemaining = 0;
+        return;
       }
-      scheduleAmbient();
-    }, 6_500 + Math.random() * 4_500);
+      automaticLaunchesRemaining -= 1;
+      if (automaticLaunchesRemaining > 0) scheduleLaunch(AUTOMATIC_LAUNCH_STAGGER);
+    }, delay);
   };
 
   const stopSchedulers = (): void => {
     clearOwnedTimeout(launchTimer);
-    clearOwnedTimeout(ambientTimer);
     launchTimer = 0;
-    ambientTimer = 0;
   };
 
-  const startSchedulers = (firstDelay = 900): void => {
+  const startSchedulers = (firstDelay = FIRST_LAUNCH_DELAY): void => {
     if (paused || motionDisabled || document.hidden) return;
-    if (activeFlights.size === 0 && activeAnimations.size === 0) scheduleLaunch(firstDelay);
-    scheduleAmbient();
+    scheduleLaunch(firstDelay);
   };
 
-  const settleForReducedMotion = (): void => {
+  const settleForStaticMode = (message: string): void => {
     for (const [flight, record] of activeFlightRecords) {
       const removesCraft = flight.isConnected;
       if (removesCraft) {
@@ -1235,6 +1355,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
       capture.satellite.querySelector('.sat-rcs-system')?.remove();
       setSatelliteStatus(capture.satellite, 'approved');
       resolveLogRow(capture.row, 'approved');
+      capture.scheduleRelease(STATIC_RESULT_HOLD);
     }
     activeCaptures.clear();
     activeFlightRecords.clear();
@@ -1250,7 +1371,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     for (const [key, orbit] of orbits) cleanupOrbitIfEmpty(key, orbit);
     closeTooltip();
     clearThreatState();
-    announce('Animation paused because reduced motion is enabled.');
+    announce(message);
   };
 
   const clearMotion = (): void => {
@@ -1269,15 +1390,46 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     clearThreatState();
   };
 
+  const settleCapturesForGeometry = (): void => {
+    for (const capture of activeCaptures.values()) {
+      if (capture.animation.playState !== 'finished') capture.animation.finish();
+    }
+  };
+
   const syncMotionPauseState = (closeActiveTooltip = false): void => {
     const shouldPause = shouldPauseMotion();
     hero?.classList.toggle('is-away', shouldPause);
+    if (shouldSuspendTimeouts()) {
+      suspendOwnedTimeouts();
+      // The body-level shake cannot inherit `.hero.is-away`; remove it while
+      // hidden and restart it when the remaining detection window is visible.
+      if (threatDetectionTimer) document.documentElement.classList.remove('authorization-alert');
+    } else {
+      resumeOwnedTimeouts();
+      if (threatDetectionTimer && activeThreatFlights.size > 0) {
+        document.documentElement.classList.add('authorization-alert');
+      }
+    }
     if (shouldPause) {
       stopSchedulers();
+      if (resizeRaf) {
+        window.cancelAnimationFrame(resizeRaf);
+        resizeRaf = 0;
+        geometryDirty = true;
+      }
       for (const animation of activeAnimations) animation.pause();
       if (closeActiveTooltip) closeTooltip();
     } else {
-      for (const animation of activeAnimations) animation.play();
+      if (geometryDirty) {
+        geometryDirty = false;
+        settleCapturesForGeometry();
+      }
+      syncResponsiveGeometry();
+      // A forced capture settlement queues its finish handler asynchronously.
+      // Never replay that finished FLIP from frame zero while the event drains.
+      for (const animation of activeAnimations) {
+        if (animation.playState === 'paused') animation.play();
+      }
       startSchedulers();
     }
   };
@@ -1302,27 +1454,48 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   };
 
   const onResize = (): void => {
+    if (shouldPauseMotion()) {
+      geometryDirty = true;
+      return;
+    }
     if (resizeRaf) return;
     resizeRaf = window.requestAnimationFrame(() => {
       resizeRaf = 0;
+      if (shouldPauseMotion()) {
+        geometryDirty = true;
+        return;
+      }
       // A responsive destination can move underneath an in-progress fixed FLIP.
       // Settle that short arc first so resize/orientation changes cannot bend it
       // from stale coordinates or introduce a mid-capture teleport.
-      for (const capture of activeCaptures.values()) {
-        if (capture.animation.playState !== 'finished') capture.animation.finish();
-      }
+      settleCapturesForGeometry();
       syncResponsiveGeometry();
       refreshTooltipMetrics();
+      if (tooltip?.classList.contains('is-visible') && !tooltipRaf) {
+        tooltipRaf = window.requestAnimationFrame(positionTooltip);
+      }
     });
   };
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('resize', onResize, { passive: true });
+  hero?.addEventListener(PARALLAX_START_EVENT, onParallaxStart);
 
-  const onReducedMotion = (event: MediaQueryListEvent) => {
-    motionDisabled = event.matches;
+  const syncPowerMode = (): void => {
+    const wasMotionDisabled = motionDisabled;
+    lowPowerMode = requestsLowPower();
+    motionDisabled = reduced.matches || lowPowerMode;
+    hero?.classList.toggle('is-low-power', lowPowerMode);
+    if (hero) hero.dataset.authorizationPower = lowPowerMode ? 'low' : 'full';
+    if (motionDisabled === wasMotionDisabled) return;
+
     if (motionDisabled) {
       stopSchedulers();
-      settleForReducedMotion();
+      settleForStaticMode(
+        reduced.matches
+          ? 'Animation paused because reduced motion is enabled.'
+          : 'Animation paused to conserve device power. Simulations remain available.',
+      );
+      syncMotionPauseState(true);
     } else {
       field
         .querySelectorAll<HTMLElement>('.authorization-track:not([data-static-simulation="true"])')
@@ -1330,15 +1503,36 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
           track.style.removeProperty('animation');
           track.style.animationPlayState = 'running';
         });
-      startSchedulers(FIRST_LAUNCH_DELAY);
+      syncMotionPauseState();
     }
   };
+  const onReducedMotion = () => syncPowerMode();
+  const onPowerHintChange = () => syncPowerMode();
   reduced.addEventListener('change', onReducedMotion);
+  lowPowerPreference.addEventListener('change', onPowerHintChange);
+  connection?.addEventListener('change', onPowerHintChange);
+
+  try {
+    const batteryPromise = powerNavigator.getBattery?.();
+    if (batteryPromise) {
+      void batteryPromise
+        .then((manager) => {
+          if (disposed) return;
+          battery = manager;
+          battery.addEventListener('chargingchange', onPowerHintChange);
+          battery.addEventListener('levelchange', onPowerHintChange);
+          syncPowerMode();
+        })
+        .catch(() => {});
+    }
+  } catch {
+    // Battery Status is optional and may be blocked by browser policy.
+  }
 
   // Pause scheduling and CSS motion when the hero is off-screen.
   const observer = new IntersectionObserver(
     ([entry]) => {
-      paused = !entry?.isIntersecting;
+      paused = !entry?.isIntersecting || entry.intersectionRatio < 0.08;
       syncMotionPauseState(paused || document.hidden);
     },
     { root: null, threshold: 0.08, rootMargin: '0px' },
@@ -1347,7 +1541,8 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
 
   if (log && log.children.length === 0) {
     const now = Date.now();
-    const seededOutcomes: AuthOutcome[] = ['approved', 'malicious', 'approved', 'denied', 'approved'];
+    // The initial three-flight vignette demonstrates each outcome class once.
+    const seededOutcomes: AuthOutcome[] = ['approved', 'malicious', 'denied', 'approved', 'approved'];
     seededOutcomes.forEach((outcome, index) => {
       const planet = planets[index % planets.length]!;
       createAttemptRow(
@@ -1358,20 +1553,28 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     });
   }
 
-  startSchedulers(FIRST_LAUNCH_DELAY);
+  syncMotionPauseState(motionDisabled);
 
   return () => {
     disposed = true;
     stopSchedulers();
-    for (const id of ownedTimeouts) window.clearTimeout(id);
+    for (const timer of ownedTimeouts.values()) {
+      if (timer.nativeId) window.clearTimeout(timer.nativeId);
+    }
     ownedTimeouts.clear();
     if (tooltipRaf) window.cancelAnimationFrame(tooltipRaf);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('resize', onResize);
+    hero?.removeEventListener(PARALLAX_START_EVENT, onParallaxStart);
     if (resizeRaf) window.cancelAnimationFrame(resizeRaf);
     reduced.removeEventListener('change', onReducedMotion);
+    lowPowerPreference.removeEventListener('change', onPowerHintChange);
+    connection?.removeEventListener('change', onPowerHintChange);
+    battery?.removeEventListener('chargingchange', onPowerHintChange);
+    battery?.removeEventListener('levelchange', onPowerHintChange);
     observer.disconnect();
-    hero?.classList.remove('is-away');
+    hero?.classList.remove('is-away', 'is-low-power');
+    if (hero) delete hero.dataset.authorizationPower;
     clearMotion();
     log?.replaceChildren();
     tooltip?.remove();

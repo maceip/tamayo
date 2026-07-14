@@ -21,10 +21,9 @@ function PageDials() {
 
   onMount(() => {
     const sections = [...document.querySelectorAll<HTMLElement>('.section')];
-    const margin = 240;
     const setInitialState = (section: HTMLElement) => {
       const rect = section.getBoundingClientRect();
-      section.classList.toggle('is-offscreen', rect.bottom < -margin || rect.top > window.innerHeight + margin);
+      section.classList.toggle('is-offscreen', rect.bottom <= 0 || rect.top >= window.innerHeight);
     };
     sections.forEach(setInitialState);
 
@@ -34,7 +33,9 @@ function PageDials() {
           entry.target.classList.toggle('is-offscreen', !entry.isIntersecting);
         }
       },
-      { rootMargin: `${margin}px 0px`, threshold: 0.01 },
+      // Decorative motion should not pre-warm below the fold. Start it only
+      // once the section actually contributes pixels to the viewport.
+      { rootMargin: '0px', threshold: 0.01 },
     );
     sections.forEach((section) => observer.observe(section));
     onCleanup(() => observer.disconnect());

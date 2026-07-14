@@ -178,24 +178,26 @@
       radial-gradient(circle at 58% 34%, rgba(255, 218, 0, .18), rgba(255, 0, 60, .38) 36%, rgba(112, 0, 28, .64) 72%),
       repeating-linear-gradient(118deg, rgba(255, 42, 0, .2) 0 8px, transparent 8px 26px),
       linear-gradient(180deg, rgba(255, 0, 60, .22), rgba(94, 0, 26, .56));
-    box-shadow: inset 0 0 0 0 rgba(255, 0, 60, 0), inset 0 0 120px rgba(255, 0, 60, .34);
+    /* The alert layer is rasterized once; threat animations only change its
+       opacity instead of repainting a viewport-sized shadow every frame. */
+    box-shadow: inset 0 0 0 4px rgba(255, 42, 0, .78), inset 0 0 132px rgba(255, 0, 60, .58);
   }
   .hero.is-under-attack::after {
-    animation: authorizationHeroAlert .28s steps(2, end) infinite alternate;
+    animation: authorizationHeroAlert .4s steps(2, end) 16 alternate both;
   }
   .hero.is-threat-detected::after {
     animation: authorizationThreatFlash .72s steps(2, end) both;
   }
   @keyframes authorizationThreatFlash {
-    0% { opacity: 0; box-shadow: inset 0 0 0 0 rgba(255, 234, 120, 0), inset 0 0 100px rgba(255,0,60,.2); }
-    18% { opacity: 1; box-shadow: inset 0 0 0 9px #ffea78, inset 0 0 180px rgba(255,0,60,.9); }
-    42% { opacity: .38; box-shadow: inset 0 0 0 4px #ff003c, inset 0 0 110px rgba(255,42,0,.5); }
-    68% { opacity: .96; box-shadow: inset 0 0 0 7px #ff2a00, inset 0 0 170px rgba(255,0,60,.78); }
-    100% { opacity: .72; box-shadow: inset 0 0 0 3px rgba(255,0,60,.9), inset 0 0 130px rgba(255,0,60,.56); }
+    0% { opacity: 0; }
+    18% { opacity: 1; }
+    42% { opacity: .38; }
+    68% { opacity: .96; }
+    100% { opacity: .72; }
   }
   @keyframes authorizationHeroAlert {
-    from { opacity: .38; box-shadow: inset 0 0 0 2px rgba(255,0,60,.72), inset 0 0 100px rgba(255,0,60,.34); }
-    to { opacity: .82; box-shadow: inset 0 0 0 5px rgba(255,42,0,.95), inset 0 0 160px rgba(255,0,60,.7); }
+    from { opacity: .38; }
+    to { opacity: .82; }
   }
   html.authorization-alert body {
     animation: authorizationScreenShake .58s steps(2, end);
@@ -214,7 +216,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: .78;
+    opacity: 1;
     contain: paint;
   }
   .hero-scene::before,
@@ -225,8 +227,7 @@
     right: -18%;
     height: 34%;
     border-radius: 999px;
-    opacity: .5;
-    filter: blur(20px);
+    opacity: .36;
     transform: rotate(-9deg);
     background:
       radial-gradient(closest-side at 18% 42%, rgba(229, 61, 69, .72), transparent 72%),
@@ -247,37 +248,27 @@
     height: clamp(12px, 1.8vw, 23px);
     border-radius: 999px;
     opacity: .25;
-    filter: blur(.2px);
     background:
       radial-gradient(circle at 30% 35%, rgba(255,255,255,.82), transparent 25%),
       linear-gradient(90deg, rgba(229,61,69,.5), rgba(35,104,255,.5));
     box-shadow: 0 8px 26px rgba(35,104,255,.13);
-    animation: cellDrift 26s linear infinite;
   }
-  .flow-cell.c1 { top: 20%; left: 6%; animation-delay: -2s; }
-  .flow-cell.c2 { top: 29%; left: 32%; animation-delay: -5s; background: linear-gradient(90deg, rgba(240,178,63,.52), rgba(25,185,135,.5)); }
-  .flow-cell.c3 { top: 44%; left: 12%; animation-delay: -8s; }
-  .flow-cell.c4 { top: 55%; left: 58%; animation-delay: -11s; background: linear-gradient(90deg, rgba(217,75,197,.45), rgba(35,104,255,.52)); }
-  .flow-cell.c5 { top: 68%; left: 25%; animation-delay: -14s; background: linear-gradient(90deg, rgba(229,61,69,.46), rgba(240,178,63,.5)); }
-  @keyframes cellDrift {
-    0% { transform: translate3d(-20vw, 18px, 0) rotate(-10deg); }
-    100% { transform: translate3d(118vw, -38px, 0) rotate(-10deg); }
-  }
+  .flow-cell.c1 { top: 20%; left: 6%; transform: rotate(-10deg); }
+  .flow-cell.c2 { top: 29%; left: 32%; transform: rotate(7deg); background: linear-gradient(90deg, rgba(240,178,63,.52), rgba(25,185,135,.5)); }
+  .flow-cell.c3 { top: 44%; left: 12%; transform: rotate(-6deg); }
+  .flow-cell.c4 { top: 55%; left: 58%; transform: rotate(9deg); background: linear-gradient(90deg, rgba(217,75,197,.45), rgba(35,104,255,.52)); }
+  .flow-cell.c5 { top: 68%; left: 25%; transform: rotate(-4deg); background: linear-gradient(90deg, rgba(229,61,69,.46), rgba(240,178,63,.5)); }
   .hero-line {
     position: absolute;
     height: 10px;
     border-radius: 999px;
     background: linear-gradient(90deg, transparent, rgba(35,104,255,.26), rgba(229,61,69,.2), transparent);
     transform-origin: left center;
-    animation: pulseLine 8s ease-in-out infinite;
+    opacity: .42;
   }
   .hero-line.one { width: 44vw; left: 14vw; top: 32%; transform: rotate(12deg); }
-  .hero-line.two { width: 50vw; right: 8vw; top: 52%; transform: rotate(-10deg); animation-delay: .8s; }
-  .hero-line.three { width: 38vw; left: 26vw; bottom: 20%; transform: rotate(-4deg); animation-delay: 1.5s; }
-  @keyframes pulseLine {
-    0%, 100% { opacity: .18; }
-    50% { opacity: .7; }
-  }
+  .hero-line.two { width: 50vw; right: 8vw; top: 52%; transform: rotate(-10deg); opacity: .3; }
+  .hero-line.three { width: 38vw; left: 26vw; bottom: 20%; transform: rotate(-4deg); opacity: .24; }
   .hero-orbit-field {
     position: absolute;
     inset: 0;
@@ -349,6 +340,7 @@
     z-index: 1;
     width: var(--planet-size);
     color: var(--navy);
+    opacity: .82;
     transform: translate3d(-50%, calc(-50% + (var(--parallax-factor) * var(--parallax-scroll))), 0);
   }
   .auth-planet-body {
@@ -365,8 +357,6 @@
       inset -16px -18px 34px rgba(15,44,92,.12),
       inset 12px 14px 22px rgba(255,255,255,.42),
       0 18px 58px rgba(35,104,255,.12);
-    animation: planetSurfacePulse 20s ease-in-out infinite;
-    will-change: transform;
   }
   .auth-planet-body::before {
     content: "";
@@ -383,8 +373,7 @@
     inset: 0;
     border-radius: 50%;
     pointer-events: none;
-    opacity: .4;
-    mix-blend-mode: multiply;
+    opacity: .3;
     background-image:
       radial-gradient(circle at 22% 28%, rgba(15,44,92,.16) 0 1.2px, transparent 2px),
       radial-gradient(circle at 68% 36%, rgba(15,44,92,.12) 0 1.6px, transparent 2.4px),
@@ -451,14 +440,6 @@
       radial-gradient(circle at 64% 62%, rgba(255,255,255,.18), transparent 36%),
       linear-gradient(145deg, rgba(245,247,250,.94), rgba(217,75,197,.26) 44%, rgba(178,188,204,.74));
   }
-  .auth-planet.finance .auth-planet-body { animation-delay: -3s; }
-  .auth-planet.identity .auth-planet-body { animation-delay: -8s; }
-  .auth-planet.device .auth-planet-body { animation-delay: -13s; }
-  .auth-planet.challenge .auth-planet-body { animation-delay: -17s; }
-  @keyframes planetSurfacePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.018); }
-  }
   .authorization-flight {
     --planet-x: 50vw;
     --planet-y: calc(50svh + var(--hero-flight-y-shift));
@@ -480,7 +461,6 @@
     transform: translate3d(-14vw, var(--authorization-launch-y), 0) translate(-50%, -50%) scale(.82);
     animation: authorizationApproach 6.8s cubic-bezier(.2,.72,.26,1) forwards;
     pointer-events: none;
-    will-change: transform, opacity;
   }
   .authorization-flight.denied {
     --authorization-hold-x: calc(var(--planet-x) + (var(--miss-x) * .22));
@@ -539,9 +519,10 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    animation: satelliteOrbit 48s linear infinite;
+    /* One bounded revolution. The controller removes the track on animationend,
+       so an approved craft never leaves a perpetual compositor animation. */
+    animation: satelliteOrbit 48s linear both;
     pointer-events: none;
-    will-change: transform;
   }
   .authorization-track.is-capturing {
     animation: none;
@@ -576,7 +557,6 @@
     appearance: none;
     -webkit-appearance: none;
     transform: translate(-50%, -50%) rotate(-8deg);
-    filter: drop-shadow(0 4px 8px rgba(15, 44, 92, .18));
   }
   .authorization-flight .authorization-satellite {
     left: 50%;
@@ -676,7 +656,6 @@
     box-shadow: 0 0 6px var(--rcs-color), 0 0 13px color-mix(in srgb, var(--rcs-color) 74%, transparent);
     opacity: 0;
     transform-origin: right center;
-    will-change: transform, opacity;
   }
   .sat-rcs-left { left: -7px; top: 50%; transform: translateY(-50%); }
   .sat-rcs-right { right: -7px; top: 50%; transform: translateY(-50%) rotate(180deg); }
@@ -888,7 +867,6 @@
     --sat-panel-b: #5b0018;
     --sat-panel-line: rgba(255, 234, 120, .82);
     --sat-glow: rgba(255, 0, 60, .92);
-    filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 14px var(--sat-glow)) drop-shadow(0 0 24px rgba(255,42,0,.74));
   }
   .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-bay {
     background: linear-gradient(135deg, #fff56a, #ff2a00 42%, #ff003c 72%, #5a0010);
@@ -897,6 +875,10 @@
   .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-bus {
     border-color: rgba(255, 234, 120, .95);
     box-shadow: inset 0 0 6px rgba(255,255,255,.7), 0 0 10px rgba(255,0,60,.9);
+  }
+  .authorization-satellite.malicious:is([data-auth-status="threat"], [data-auth-status="neutralized"]) .sat-panel {
+    border-color: rgba(255, 234, 120, .92);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 0 9px rgba(255,0,60,.88);
   }
 
   /* Denied (not malicious): muted craft that coasts away without thrust. */
@@ -907,7 +889,6 @@
     --sat-panel-a: #5a6b82;
     --sat-panel-b: #3a4658;
     --sat-panel-line: rgba(220, 230, 240, .4);
-    filter: drop-shadow(0 3px 6px rgba(15, 44, 92, .12));
   }
   .authorization-satellite.denied .sat-bay {
     background: linear-gradient(135deg, #c5d0dc, #7a8799 60%, #3a4658);
@@ -1255,10 +1236,9 @@
     bottom: 0;
     z-index: 7;
     border-top: 1px solid rgba(122, 184, 237, .28);
-    /* ~70% opacity: satellites stay visible passing behind the log. */
-    background: rgba(9, 13, 19, .72);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+    /* A denser static tint keeps the moving flight field legible without a
+       full-width backdrop filter repainting behind every satellite frame. */
+    background: linear-gradient(180deg, rgba(9, 13, 19, .84), rgba(9, 13, 19, .9));
     color: #c7d3e4;
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     overflow: hidden;
@@ -1307,7 +1287,7 @@
     height: 6px;
     border-radius: 50%;
     background: var(--green);
-    animation: heroLogPulse 2.4s ease-in-out infinite;
+    animation: heroLogPulse 1.3s ease-in-out 2;
   }
   @keyframes heroLogPulse {
     0%, 100% { opacity: 1; }
@@ -1358,8 +1338,6 @@
     width: 14px;
     height: 14px;
     border-radius: 3px;
-    /* Dark-mode legibility for mono-color marks drawn for light backgrounds */
-    filter: drop-shadow(0 0 1px rgba(255,255,255,.25));
     background: rgba(255,255,255,.92);
     padding: 1px;
   }
@@ -1406,7 +1384,9 @@
     color: #fff;
     background: linear-gradient(90deg, rgba(255,0,60,.26), rgba(255,42,0,.68), rgba(255,0,60,.3));
     box-shadow: inset 6px 0 0 #fff56a, inset 0 0 28px rgba(255,0,60,.5);
-    animation: heroThreatRowPulse .24s steps(2, end) infinite alternate;
+    /* The automatic target hold is 4.8s, so twenty pulses cover the entire
+       actionable phase without leaving an unbounded ticker animation. */
+    animation: heroThreatRowPulse .24s steps(2, end) 20 alternate both;
   }
   .hero-tui-row[data-status="threat"] .tui-status { color: #fff56a; }
   .hero-tui-row[data-status="threat"] .tui-status::before { content: "[!] "; color: #fff; }
@@ -1706,9 +1686,8 @@
     position: absolute;
     inset: 0;
     border-radius: 999px;
-    background: rgba(7, 18, 40, .3);
-    filter: blur(3px);
-    will-change: transform;
+    background: rgba(7, 18, 40, .2);
+    box-shadow: 0 4px 6px rgba(7, 18, 40, .24);
     transform: translateY(2px);
     transition: transform 600ms cubic-bezier(.3, .7, .4, 1);
   }
@@ -1737,7 +1716,6 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .28),
       inset 0 -4px 8px rgba(4, 12, 28, .35);
-    will-change: transform;
     transform: translateY(calc(-1 * var(--lift)));
     transition: transform 600ms cubic-bezier(.3, .7, .4, 1);
   }
@@ -1804,7 +1782,7 @@
     background: conic-gradient(from var(--bb-angle, 0deg), transparent 0 58%, var(--bb-a), var(--bb-b), var(--bb-c), transparent 83% 100%);
     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude;
-    animation: bb-spin var(--bb-speed) linear infinite;
+    animation: bb-spin var(--bb-speed) linear 1 both;
     filter: saturate(1.25);
   }
   .bb-line::after {
@@ -1814,9 +1792,9 @@
     border-radius: 0;
     background: linear-gradient(90deg, transparent, var(--bb-a), var(--bb-b), transparent);
     mask: none;
-    animation: t-shimmer 3.4s linear infinite;
+    animation: t-shimmer 3.4s linear 1 both;
   }
-  .bb-pulse::after { animation: bb-pulse 2.8s ease-in-out infinite; }
+  .bb-pulse::after { animation: bb-pulse 2.8s ease-in-out 1 both; }
   @property --bb-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
   @keyframes bb-spin { to { --bb-angle: 360deg; } }
   @keyframes bb-pulse { 0%, 100% { opacity: .32; filter: blur(.1px) saturate(1.1); } 50% { opacity: .9; filter: blur(.45px) saturate(1.5); } }
@@ -1830,7 +1808,7 @@
   .t-stagger > *:nth-child(2) { animation-delay: 70ms; }
   .t-stagger > *:nth-child(3) { animation-delay: 140ms; }
   .t-stagger > *:nth-child(4) { animation-delay: 210ms; }
-  .t-shimmer { background-image: linear-gradient(90deg, currentColor 0 35%, var(--blue) 45%, var(--pink) 55%, currentColor 68% 100%); background-size: 220% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: t-shimmer 4s linear infinite; }
+  .t-shimmer { background-image: linear-gradient(90deg, currentColor 0 35%, var(--blue) 45%, var(--pink) 55%, currentColor 68% 100%); background-size: 220% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: t-shimmer 4s linear 1 both; }
   .t-token-swap { transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease; }
   .t-token-swap.is-swapping { opacity: .35; filter: blur(var(--t-blur)); transform: translateY(4px); }
   @keyframes t-panel-in { from { opacity: 0; transform: translateY(12px); filter: blur(var(--t-blur)); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
@@ -2296,7 +2274,7 @@
     stroke-linecap: round;
     transition: stroke .4s ease, opacity .4s ease, stroke-dashoffset 1s ease;
   }
-  .route-svg path.good { stroke: var(--blue); opacity: 0; stroke-dasharray: 8 12; animation: dash 2.8s linear infinite; }
+  .route-svg path.good { stroke: var(--blue); opacity: 0; stroke-dasharray: 8 12; animation: dash 2.8s linear 1 both; }
   @keyframes dash { to { stroke-dashoffset: -80; } }
 
   /* —— Story scene choreography (6 beats) —— */
@@ -2680,7 +2658,7 @@
     transform: perspective(520px) rotateX(58deg);
     transform-origin: 50% 100%;
     mask-image: linear-gradient(180deg, transparent 4%, #000 48%, #000 90%, transparent);
-    animation: deckDrift 16s linear infinite;
+    animation: deckDrift 16s linear 1 both;
   }
   @keyframes deckDrift {
     from { background-position: 0 0; }
@@ -2691,7 +2669,7 @@
     z-index: 2;
     width: 148px;
     height: 148px;
-    animation: chipFloat 5.2s ease-in-out infinite;
+    animation: chipFloat 5.2s ease-in-out 2 both;
     filter: drop-shadow(0 18px 30px color-mix(in srgb, var(--chip) 34%, transparent));
   }
   @keyframes chipFloat {
@@ -2711,7 +2689,7 @@
       color-mix(in srgb, var(--chip) 88%, #ffffff)
     );
     mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-    animation: chipSpin 9s linear infinite;
+    animation: chipSpin 9s linear 1 both;
   }
   @keyframes chipSpin { to { transform: rotate(360deg); } }
   .chip-core {
@@ -3287,8 +3265,7 @@
   }
   @media (max-width: 560px) {
     .hero { padding-inline: 18px; }
-    .hero-scene { opacity: .5; }
-    .auth-planet { --planet-size: 70px; --orbit-size: 98px; }
+    .auth-planet { --planet-size: 70px; --orbit-size: 98px; opacity: .64; }
     .auth-planet.finance { --planet-x: 78vw; --planet-y: calc(68svh + var(--hero-flight-y-shift)); }
     .auth-planet.identity { --planet-x: 16vw; --planet-y: calc(86svh + var(--hero-flight-y-shift)); }
     .auth-planet.device { --planet-x: 31vw; --planet-y: calc(64svh + var(--hero-flight-y-shift)); }
@@ -3738,31 +3715,66 @@
     .chip-ring { animation-play-state: paused; }
   }
 
-  .section.is-offscreen .bb::after,
-  .section.is-offscreen .bb-line::after,
-  .section.is-offscreen .bb-pulse::after,
-  .section.is-offscreen .t-stagger > *,
-  .section.is-offscreen .deck-grid,
-  .section.is-offscreen .deck-chip,
-  .section.is-offscreen .chip-ring {
+  /* Explicit low-power mode. The flight controller adds this class for
+     reduced-motion/data and slow-update displays; embedders can also apply it
+     directly. Geometry and state transitions stay identical, while secondary
+     particles and idle decoration become static. */
+  .hero.is-low-power .auth-planet { opacity: .66; }
+  .hero.is-low-power .hero-scene::after,
+  .hero.is-low-power .flow-cell.c2,
+  .hero.is-low-power .flow-cell.c4,
+  .hero.is-low-power .flow-cell.c5,
+  .hero.is-low-power .hero-line.two,
+  .hero.is-low-power .hero-line.three {
+    display: none;
+  }
+  .hero.is-low-power .auth-planet-body {
+    box-shadow:
+      inset -10px -12px 24px rgba(15,44,92,.1),
+      inset 8px 9px 16px rgba(255,255,255,.34),
+      0 10px 28px rgba(35,104,255,.08);
+  }
+  .hero.is-low-power .sat-spark { display: none !important; }
+  .hero.is-low-power .sat-flame,
+  .hero.is-low-power .sat-rcs,
+  .hero.is-low-power .hero-tui-live::before,
+  .hero.is-low-power .hero-tui-row[data-status="threat"],
+  .hero.is-low-power .authorization-satellite.is-spotted::after,
+  .hero.is-low-power .tui-simulate-beam {
+    animation: none !important;
+  }
+  .hero.is-low-power .authorization-satellite:is(.is-authorizing, .is-capturing, .is-capture-decaying) .sat-rcs {
+    opacity: .86;
+    scale: .9 1;
+  }
+  .hero.is-low-power.is-under-attack::after {
+    animation: none;
+    opacity: .64;
+  }
+  .hero.is-low-power.is-threat-detected::after {
+    animation: none;
+    opacity: .84;
+  }
+  .hero.is-low-power .hero-control-shelf { box-shadow: inset 0 1px 0 rgba(255,255,255,.42); }
+
+  /* Sections opt into a single containment policy: every CSS animation,
+     including pseudo-element borders, token art, shimmer, and route dashes,
+     sleeps while its section is outside the observer margin. */
+  .section.is-offscreen,
+  .section.is-offscreen::before,
+  .section.is-offscreen::after,
+  .section.is-offscreen *,
+  .section.is-offscreen *::before,
+  .section.is-offscreen *::after {
     animation-play-state: paused !important;
   }
 
   /* Scroll / off-screen: pause expensive hero motion so the page stays smooth */
-  .hero.is-scrolling .hero-scene::before,
-  .hero.is-scrolling .hero-scene::after,
-  .hero.is-scrolling .flow-cell,
-  .hero.is-scrolling .hero-line,
   .hero.is-scrolling .sat-flame,
   .hero.is-scrolling .sat-spark,
   .hero.is-scrolling .sat-rcs {
     animation-play-state: paused !important;
   }
-  .hero.is-away .hero-scene::before,
-  .hero.is-away .hero-scene::after,
-  .hero.is-away .flow-cell,
-  .hero.is-away .hero-line,
-  .hero.is-away .auth-planet-body,
   .hero.is-away .authorization-flight,
   .hero.is-away .authorization-track,
   .hero.is-away .sat-flame,
@@ -3778,9 +3790,6 @@
   .hero.is-away .tui-simulate-beam,
   .hero.is-away::after {
     animation-play-state: paused !important;
-  }
-  .hero.is-scrolling .auth-planet {
-    will-change: transform;
   }
 
   @media (prefers-reduced-motion: reduce) {

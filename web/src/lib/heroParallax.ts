@@ -6,6 +6,7 @@ const FACTORS: Record<string, number> = {
   identity: 0.32,
   challenge: 0.26,
 };
+const PARALLAX_START_EVENT = 'tamayo:hero-parallax-start';
 
 function planetKey(element: Element): string {
   return [...element.classList].find((name) => name !== 'auth-planet') || 'planet';
@@ -23,6 +24,11 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
   let scrolling = false;
   let scrollEndTimer = 0;
   let listening = false;
+  const initialRect = hero.getBoundingClientRect();
+  let inView = initialRect.bottom > 0 && initialRect.top < window.innerHeight;
+
+  const lowPower = () => hero.dataset.authorizationPower === 'low';
+  const shouldListen = () => inView && !document.hidden && !reduced.matches && !lowPower();
 
   const measureMax = () => {
     const stack = document.getElementById('stack');
@@ -42,8 +48,10 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
   };
 
   const onScroll = () => {
+    let startedScrolling = false;
     if (!scrolling) {
       scrolling = true;
+      startedScrolling = true;
       hero.classList.add('is-scrolling');
     }
     window.clearTimeout(scrollEndTimer);
@@ -52,6 +60,11 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
       hero.classList.remove('is-scrolling');
     }, 120);
     if (!raf) raf = window.requestAnimationFrame(apply);
+    if (startedScrolling) {
+      // Register the parallax write before waking the tooltip tracker so both
+      // stay aligned without a permanent positioning loop.
+      hero.dispatchEvent(new Event(PARALLAX_START_EVENT));
+    }
   };
 
   const onResize = () => {
@@ -72,33 +85,55 @@ export function startPlanetParallax(hero: HTMLElement, field: HTMLElement): () =
   };
 
   const startListening = () => {
-    if (listening || reduced.matches) return;
+    if (listening || !shouldListen()) return;
     listening = true;
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize, { passive: true });
     onResize();
   };
 
-  const onReducedMotion = (event: MediaQueryListEvent) => {
-    if (event.matches) {
-      stopListening();
-      field.style.setProperty('--parallax-scroll', '0px');
-      defenseLayer?.style.setProperty('--parallax-scroll', '0px');
-    } else {
-      startListening();
-    }
-  };
-
-  reduced.addEventListener('change', onReducedMotion);
-  startListening();
-  if (reduced.matches) {
+  const resetParallax = () => {
     field.style.setProperty('--parallax-scroll', '0px');
     defenseLayer?.style.setProperty('--parallax-scroll', '0px');
-  }
+  };
+
+  const syncListening = () => {
+    if (shouldListen()) {
+      startListening();
+      return;
+    }
+    stopListening();
+    if (reduced.matches || lowPower()) resetParallax();
+  };
+
+  const onReducedMotion = () => syncListening();
+  const onVisibility = () => syncListening();
+
+  reduced.addEventListener('change', onReducedMotion);
+  document.addEventListener('visibilitychange', onVisibility);
+
+  const viewObserver = new IntersectionObserver(
+    ([entry]) => {
+      inView = !!entry?.isIntersecting;
+      syncListening();
+    },
+    { threshold: 0, rootMargin: '120px 0px' },
+  );
+  viewObserver.observe(hero);
+
+  // The authorization controller owns dynamic power detection. Observe only
+  // its compact data flag so parallax does not install a second battery/network
+  // listener stack.
+  const powerObserver = new MutationObserver(syncListening);
+  powerObserver.observe(hero, { attributes: true, attributeFilter: ['data-authorization-power'] });
+  syncListening();
 
   return () => {
     stopListening();
     reduced.removeEventListener('change', onReducedMotion);
+    document.removeEventListener('visibilitychange', onVisibility);
+    viewObserver.disconnect();
+    powerObserver.disconnect();
     field.style.removeProperty('--parallax-scroll');
     defenseLayer?.style.removeProperty('--parallax-scroll');
   };
