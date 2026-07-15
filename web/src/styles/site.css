@@ -4003,7 +4003,11 @@
     .hero {
       --hero-flight-y-shift: 0px;
       --hero-flight-top: clamp(360px, calc(508px - 40vw), 390px);
-      min-height: max(100svh, 680px);
+      /* 568px is the smallest fully composed phone frame: copy ends before
+         the translucent log begins, one complete log row remains visible,
+         and the full CTA shelf stays inside the initial viewport. Taller
+         phones continue to grow naturally with svh. */
+      min-height: max(100svh, 568px);
       padding-top: calc(82px + env(safe-area-inset-top));
       row-gap: 18px;
     }

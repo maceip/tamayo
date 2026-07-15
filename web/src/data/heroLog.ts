@@ -3,12 +3,13 @@
  * tokens get presented to; only four of them have visible planets in the
  * scene — the rest stream through the log as ambient traffic.
  *
- * Icons come from https://github.com/selfhst/icons via the jsDelivr CDN.
+ * Icons are vendored in public/icons so the live authorization log never
+ * depends on a third-party request. See public/icons/README.md for provenance.
  */
 
-const ICON_CDN = 'https://cdn.jsdelivr.net/gh/selfhst/icons/svg';
+const ICON_ROOT = `${import.meta.env.BASE_URL}icons`;
 
-export const iconURL = (slug: string) => `${ICON_CDN}/${slug}.svg`;
+export const iconURL = (slug: string) => `${ICON_ROOT}/${slug}.svg`;
 
 export type LogAudience = { slug: string; domain: string };
 

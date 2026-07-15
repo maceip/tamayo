@@ -27,15 +27,15 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # DialKit is file:../../dialkit locally; in CI check it out as a sibling.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: maceip/dialkit
           path: _dialkit
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
