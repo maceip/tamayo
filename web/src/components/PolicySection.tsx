@@ -1,5 +1,6 @@
 import { createSignal, For, type JSX } from 'solid-js';
 import { createMediaQuery } from '../lib/media';
+import { DecorSatellite } from './SpaceDecor';
 
 const CEDAR = 'https://www.cedarpolicy.com/';
 const CEDAR_GH = 'https://github.com/cedar-policy/cedar';
@@ -66,7 +67,8 @@ export function PolicySection() {
   };
 
   return (
-    <section class="section" id="policy">
+    <section class="section has-space-decor" id="policy">
+      <DecorSatellite class="deco-sat-policy" payload="identity" />
       <div class="section-head">
         <p class="section-path" aria-hidden="true">tamayo/policy</p>
         <h2>Simplicity scaled</h2>

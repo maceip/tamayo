@@ -1,4 +1,5 @@
 import { For } from 'solid-js';
+import { DecorPlanet } from './SpaceDecor';
 
 type Tier = {
   name: string;
@@ -59,7 +60,8 @@ export function DeployTiers() {
         </p>
       </div>
 
-      <div class="hw-table-wrap t-stagger">
+      <div class="hw-table-wrap has-space-decor t-stagger">
+        <DecorPlanet class="deco-planet-tiers" ink="#19b987" />
         <table class="hw-table bb tier-table">
           <caption class="sr-only">Deployment tiers, evidence requirements, and credential impact</caption>
           <thead>

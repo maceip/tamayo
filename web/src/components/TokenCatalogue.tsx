@@ -1,5 +1,6 @@
 import { createMemo, createSelector, createSignal, For, Show } from 'solid-js';
 import { tokens } from '../data/tokens';
+import { DecorSatellite } from './SpaceDecor';
 
 export function TokenCatalogue() {
   const [index, setIndex] = createSignal(0);
@@ -20,7 +21,8 @@ export function TokenCatalogue() {
   };
 
   return (
-    <section class="section" id="passes">
+    <section class="section has-space-decor" id="passes">
+      <DecorSatellite class="deco-sat-tokens" payload="burn" />
       <div class="section-head">
         <p class="section-path" aria-hidden="true">tamayo/tokens</p>
         <h2>Token types</h2>

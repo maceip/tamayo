@@ -1,5 +1,6 @@
 import { For } from 'solid-js';
 import { caseIterations, caseLesson, wireMath } from '../data/caseStudy';
+import { DecorSatellite } from './SpaceDecor';
 
 const SEGMENT_TITLES = { model: 'What the model built', broke: 'Broke', fix: 'Fix' } as const;
 const SIGBIRD_PR = 'https://github.com/maceip/SigBird/pull/17';
@@ -7,7 +8,8 @@ const SIGBIRD = 'https://github.com/maceip/SigBird';
 
 export function CaseStudy() {
   return (
-    <section class="section" id="sigbird">
+    <section class="section has-space-decor" id="sigbird">
+      <DecorSatellite class="deco-sat-case" payload="email" />
       <div class="section-head">
         <p class="section-path" aria-hidden="true">tamayo/case-study</p>
         <h2>You can't vibe code authorization. We tried.</h2>

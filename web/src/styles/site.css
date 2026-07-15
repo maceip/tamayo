@@ -1652,10 +1652,12 @@
     display: grid;
     grid-auto-rows: var(--ticker-row-height);
     align-content: end;
+    /* Every bound is 45px shorter than the flight field would allow, so the
+       ticker's top line sits lower and the satellites keep more sky. */
     height: clamp(
-      168px,
-      min(calc(45vw - 138px), calc(48svh - 56px)),
-      500px
+      123px,
+      min(calc(45vw - 183px), calc(48svh - 101px)),
+      455px
     );
     margin-bottom: var(--hero-action-lane-height);
     padding: 0;
@@ -2922,6 +2924,51 @@
   }
   .hw-footnote code { font-size: 12px; }
 
+  /* Static scenery: a parked planet peeking out from under the tier table and
+     a few coasting satellites further down the page. They reuse the hero's
+     paint but never join the flight controller — no motion, no pointer. */
+  .has-space-decor { position: relative; }
+  .deco-planet {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+  .deco-planet-tiers {
+    right: -58px;
+    bottom: -52px;
+    width: clamp(140px, 15vw, 210px);
+  }
+  .deco-planet .auth-planet-body {
+    box-shadow:
+      inset -16px -18px 34px rgba(15,44,92,.12),
+      inset 12px 14px 22px rgba(255,255,255,.42),
+      0 12px 38px rgba(15,44,92,.14);
+  }
+  /* The table paints over the planet, so it reads as parked underneath. */
+  .tier-table { position: relative; z-index: 1; }
+  .deco-sat {
+    position: absolute;
+    /* Below every in-flow card and paragraph: these coast in the page margins
+       and duck behind content instead of sitting on top of it. */
+    z-index: -1;
+    width: 56px;
+    height: 44px;
+    pointer-events: none;
+    user-select: none;
+    opacity: .78;
+  }
+  .deco-sat .authorization-satellite {
+    pointer-events: none;
+    cursor: default;
+    transform: translate(-50%, -50%) rotate(var(--decor-rot, -8deg)) scale(var(--decor-scale, 1));
+  }
+  .deco-sat-policy { top: clamp(46px, 7vw, 110px); right: 5%; --decor-rot: 16deg; }
+  .deco-sat-tokens { bottom: 9%; left: 3.5%; --decor-rot: -26deg; --decor-scale: .88; }
+  .deco-sat-case { bottom: 54px; right: 7%; --decor-rot: 6deg; --decor-scale: 1.12; }
+  /* Decor hangs past the content column; never let it grow a horizontal scrollbar. */
+  main#content { overflow-x: clip; }
+
   /* —— Deployment tier table: care ramp from commodity to critical —— */
   .tier-table {
     box-shadow: var(--shadow-card);
@@ -3859,6 +3906,9 @@
   }
 
   @media (max-width: 920px) {
+    /* Static scenery is a wide-screen garnish; compact layouts have no spare
+       margin for it and it would collide with stacked cards. */
+    .deco-sat, .deco-planet { display: none; }
     .site-nav { position: absolute; mix-blend-mode: normal; }
     /* Same links as desktop, restyled as tappable pills over the hero art. */
     .nav-links { gap: 8px; }
