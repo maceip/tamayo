@@ -1,27 +1,18 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, onMount } from 'solid-js';
 import { createMediaQuery } from '../lib/media';
 import { jumpToHash } from '../lib/pageNavigation';
 
-export const SECTION_LINKS = [
-  { href: '#deployments', label: 'Deployments', short: 'Run' },
+/* Single source of truth for site navigation. Every nav surface (desktop
+   header, mobile header, foldable rail) renders from this list, so they
+   cannot drift apart. */
+export const NAV_LINKS = [
   { href: '#agents', label: 'Agents', short: 'Agents' },
-  { href: '#policy', label: 'Policy', short: 'Policy' },
-  { href: '#interop', label: 'Interop', short: 'Fit' },
-  { href: '#quickstart', label: 'Quick start', short: 'Start' },
-  { href: '#passes', label: 'Tokens', short: 'Tokens' },
-  { href: '#stack', label: 'Stack', short: 'Stack' },
-  { href: '#sigbird', label: 'Case study', short: 'Case' },
 ] as const;
 
-const DESKTOP_LINKS = SECTION_LINKS.filter((item) => item.href === '#agents');
-
-export function Nav(props: { foldLayout?: boolean }) {
-  const [open, setOpen] = createSignal(false);
+export function Nav(_props: { foldLayout?: boolean }) {
   const [markSpinning, setMarkSpinning] = createSignal(false);
   const [markStoppedByUser, setMarkStoppedByUser] = createSignal(false);
-  const compactNav = createMediaQuery('(max-width: 920px)');
   const reducedMotion = createMediaQuery('(prefers-reduced-motion: reduce)');
-  let menuButton!: HTMLButtonElement;
   let brandMark!: HTMLButtonElement;
   let brandMarkDisc!: HTMLSpanElement;
   let markAnimation: Animation | undefined;
@@ -36,25 +27,12 @@ export function Nav(props: { foldLayout?: boolean }) {
     pendingMarkMovement = 0;
   };
 
-  createEffect(() => {
-    if (!compactNav() || props.foldLayout) setOpen(false);
-  });
-
   onMount(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !open()) return;
-      setOpen(false);
-      menuButton.focus();
-    };
-    document.addEventListener('keydown', closeOnEscape);
     onCleanup(() => {
-      document.removeEventListener('keydown', closeOnEscape);
       cancelMarkNudge();
       markAnimation?.cancel();
     });
   });
-
-  const close = () => setOpen(false);
 
   const ensureMarkAnimation = () => {
     if (reducedMotion()) return undefined;
@@ -188,7 +166,7 @@ export function Nav(props: { foldLayout?: boolean }) {
         </a>
       </div>
       <div class="nav-links">
-        <For each={DESKTOP_LINKS}>
+        <For each={NAV_LINKS}>
           {(item) => (
             <a href={item.href} onClick={(event) => jumpToHash(event, item.href)}>
               {item.label}
@@ -197,40 +175,6 @@ export function Nav(props: { foldLayout?: boolean }) {
         </For>
         <a href="https://github.com/maceip/tamayo">GitHub</a>
       </div>
-      <button
-        class="nav-menu-button"
-        type="button"
-        ref={menuButton}
-        aria-expanded={open() ? 'true' : 'false'}
-        aria-controls="mobile-section-menu"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span aria-hidden="true">{open() ? 'Close' : 'Explore'}</span>
-        <span class="sr-only">{open() ? 'Close section menu' : 'Open section menu'}</span>
-      </button>
-      <Show when={open()}>
-        <div id="mobile-section-menu" class="nav-mobile-menu">
-          <span class="nav-mobile-kicker">Jump to</span>
-          <For each={SECTION_LINKS}>
-            {(item, index) => (
-              <a
-                href={item.href}
-                onClick={(event) => {
-                  close();
-                  jumpToHash(event, item.href);
-                }}
-              >
-                <span aria-hidden="true">{String(index() + 1).padStart(2, '0')}</span>
-                <strong>{item.label}</strong>
-              </a>
-            )}
-          </For>
-          <a href="https://github.com/maceip/tamayo" onClick={close}>
-            <span aria-hidden="true">↗</span>
-            <strong>GitHub</strong>
-          </a>
-        </div>
-      </Show>
     </nav>
   );
 }

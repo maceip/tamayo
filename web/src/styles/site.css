@@ -172,8 +172,6 @@
     text-decoration: none;
     opacity: .86;
   }
-  .nav-menu-button,
-  .nav-mobile-menu,
   .fold-rail {
     display: none;
   }
@@ -3844,7 +3842,36 @@
 
   @media (max-width: 920px) {
     .site-nav { position: absolute; mix-blend-mode: normal; }
-    .nav-links { display: none; }
+    /* Same links as desktop, restyled as tappable pills over the hero art. */
+    .nav-links { gap: 8px; }
+    .nav-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid rgba(15,44,92,.18);
+      border-radius: 999px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 10px 28px rgba(15,44,92,.14);
+      color: var(--navy);
+      font-weight: 850;
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .nav-links a:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
+    @media (max-width: 360px) {
+      .nav-links { gap: 6px; }
+      .nav-links a {
+        min-height: 36px;
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      /* The disc alone carries the brand; the wordmark collides with the links. */
+      .brand-home { display: none; }
+    }
     /* Compact ticker: drop client / desk / score, keep time·token·audience·status */
     .hero-tui-row {
       grid-template-columns: 62px minmax(0, .8fr) minmax(0, 1fr) 118px;
@@ -3921,72 +3948,6 @@
       padding-top: calc(12px + env(safe-area-inset-top));
       padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
     }
-    .nav-menu-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 76px;
-      min-height: 44px;
-      border: 1px solid rgba(15,44,92,.18);
-      border-radius: 999px;
-      padding: 8px 14px;
-      background: rgba(255,255,255,.94);
-      box-shadow: 0 10px 28px rgba(15,44,92,.14);
-      color: var(--navy);
-      font-weight: 850;
-      cursor: pointer;
-      pointer-events: auto;
-    }
-    .nav-menu-button[aria-expanded="true"] {
-      background: var(--navy);
-      color: #fff;
-    }
-    .nav-menu-button:focus-visible,
-    .nav-mobile-menu a:focus-visible {
-      outline: 3px solid var(--blue);
-      outline-offset: 3px;
-    }
-    .nav-mobile-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: max(14px, env(safe-area-inset-left));
-      right: max(14px, env(safe-area-inset-right));
-      z-index: 22;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      padding: 14px;
-      border: 1px solid rgba(15,44,92,.16);
-      border-radius: 18px;
-      background: rgba(255,255,255,.98);
-      box-shadow: 0 24px 70px rgba(15,44,92,.24);
-      pointer-events: auto;
-    }
-    .nav-mobile-kicker {
-      grid-column: 1 / -1;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .nav-mobile-menu a {
-      min-height: 48px;
-      display: grid;
-      grid-template-columns: 28px 1fr;
-      align-items: center;
-      gap: 8px;
-      border-radius: 12px;
-      padding: 8px 10px;
-      background: #f5f8fc;
-      color: var(--navy);
-      text-decoration: none;
-    }
-    .nav-mobile-menu a > span {
-      color: var(--blue);
-      font: 800 11px/1 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-    }
-    .nav-mobile-menu a strong { font-size: 14px; }
     .dialkit-panel[data-position="bottom-right"] {
       top: calc(72px + env(safe-area-inset-top));
       right: max(12px, env(safe-area-inset-right));
@@ -4035,10 +3996,30 @@
       --planet-size: clamp(62px, calc(64px * var(--planet-scale)), 100px);
       --orbit-size: clamp(92px, calc(88px * var(--planet-scale)), 112px);
     }
-    .auth-planet.finance { --planet-x: calc(100vw - 94px); }
-    .auth-planet.identity { --planet-x: 90px; }
-    .auth-planet.device { --planet-x: 32vw; }
-    .auth-planet.challenge { --planet-x: calc(100vw - 90px); }
+    /* Destinations live in the band between the copy mask (--hero-flight-top)
+       and the ticker. The desktop y values (64–82svh) would park planets and
+       their labels behind the translucent log on a phone. The max() keeps each
+       body under the copy mask on short viewports even when the 100svh-anchored
+       position would climb above it. */
+    .auth-planet.finance {
+      --planet-x: calc(100vw - 94px);
+      --planet-y: max(calc(var(--hero-flight-top) + 128px), calc(100svh - 356px));
+    }
+    .auth-planet.identity {
+      --planet-x: 90px;
+      --planet-y: max(calc(var(--hero-flight-top) + 96px), calc(100svh - 350px));
+    }
+    .auth-planet.device {
+      --planet-x: 32vw;
+      --planet-y: calc(var(--hero-flight-top) + 48px);
+    }
+    .auth-planet.challenge {
+      --planet-x: calc(100vw - 90px);
+      --planet-y: max(calc(var(--hero-flight-top) + 176px), calc(100svh - 296px));
+    }
+    /* No room for orbit captions between the copy and the log on a phone;
+       the provider marks already identify each destination. */
+    .auth-planet-label { display: none; }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
       --ticker-row-height-px: 110;
@@ -4097,6 +4078,11 @@
     .hero-tui-row .tui-desk,
     .hero-tui-row .tui-score { display: none; }
     .hero.is-under-attack .hero-tui-title::after { content: " / TARGET LOCK"; }
+    /* Short viewports can still push a destination body behind the log;
+       a denser backdrop keeps the row text readable when that happens. */
+    .hero-tui {
+      background: linear-gradient(180deg, rgba(9, 13, 19, .9), rgba(9, 13, 19, .94));
+    }
     .hero-tui-bar {
       padding-left: max(16px, env(safe-area-inset-left));
       padding-right: max(16px, env(safe-area-inset-right));
@@ -4183,23 +4169,20 @@
     .primitive-panel { overflow: visible; }
 
     .token-layout { gap: 14px; }
+    /* All four token types stay on screen as a 2×2 selector — no sideways
+       scrolling. The summary line is dropped here; the detail deck below
+       already restates the token in plain words. */
     .token-buttons {
-      display: flex;
-      grid-template-columns: none;
-      gap: 10px;
-      margin-inline: -16px;
-      padding: 2px 16px 10px;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      scrollbar-width: thin;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
     .token-button {
-      flex: 0 0 min(78vw, 300px);
-      min-height: 112px;
-      scroll-snap-align: center;
-      text-align: left;
+      min-height: 0;
+      padding: 12px;
     }
-    .token-button span { display: block; }
+    .token-button strong { font-size: 14px; }
+    .token-button .token-family { font-size: 10px; }
+    .token-button span { display: none; }
     .token-detail { border-radius: var(--radius-card); }
 
     .pol-mobile-switcher {
@@ -4283,8 +4266,6 @@
       );
       box-shadow: 0 8px 28px rgba(35, 104, 255, .07), inset 0 1px 0 rgba(255, 255, 255, .52);
     }
-    .page-shell.is-fold-layout .nav-menu-button,
-    .page-shell.is-fold-layout .nav-mobile-menu,
     .page-shell.is-fold-layout .nav-links { display: none; }
     .page-shell.is-fold-layout .fold-rail {
       position: fixed;

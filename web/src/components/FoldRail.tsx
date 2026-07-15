@@ -1,12 +1,12 @@
 import { createSignal, For, onCleanup, onMount } from 'solid-js';
-import { SECTION_LINKS } from './Nav';
+import { NAV_LINKS } from './Nav';
 import { jumpToHash } from '../lib/pageNavigation';
 
 export function FoldRail() {
   const [active, setActive] = createSignal('top');
 
   onMount(() => {
-    const sections = ['top', ...SECTION_LINKS.map((item) => item.href.slice(1))]
+    const sections = ['top', ...NAV_LINKS.map((item) => item.href.slice(1))]
       .map((id) => document.getElementById(id))
       .filter((section): section is HTMLElement => !!section);
 
@@ -41,7 +41,7 @@ export function FoldRail() {
         <span aria-hidden="true">T</span>
       </a>
       <div class="fold-rail-links">
-        <For each={SECTION_LINKS}>
+        <For each={NAV_LINKS}>
           {(item, index) => {
             const id = item.href.slice(1);
             return (

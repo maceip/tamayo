@@ -561,8 +561,16 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
     connection?.saveData === true ||
     hasLimitedMemory ||
     (!!battery && !battery.charging && battery.level <= 0.2);
+  /* Heuristic low-power signals (deviceMemory, save-data, update: slow) are
+     common on perfectly capable phones — Chrome caps deviceMemory at 8 and
+     reports 4 on much of the Android fleet. They strip decorative effects via
+     `.is-low-power` but never ground the flights. Motion stops only for an
+     explicit reduced-motion preference or a critically low, discharging
+     battery. */
+  const requestsMotionPause = (): boolean =>
+    !!battery && !battery.charging && battery.level <= 0.2;
   let lowPowerMode = requestsLowPower();
-  let motionDisabled = reduced.matches || lowPowerMode;
+  let motionDisabled = reduced.matches || requestsMotionPause();
   let disposed = false;
   let ownedTimeoutSerial = 0;
 
@@ -1735,7 +1743,7 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const syncPowerMode = (): void => {
     const wasMotionDisabled = motionDisabled;
     lowPowerMode = requestsLowPower();
-    motionDisabled = reduced.matches || lowPowerMode;
+    motionDisabled = reduced.matches || requestsMotionPause();
     hero?.classList.toggle('is-low-power', lowPowerMode);
     if (hero) hero.dataset.authorizationPower = lowPowerMode ? 'low' : 'full';
     if (motionDisabled === wasMotionDisabled) return;
