@@ -491,7 +491,11 @@ export function startHeroAuthorizationSequence(field: HTMLElement, log?: HTMLEle
   const lowPowerPreference = window.matchMedia('(prefers-reduced-data: reduce), (update: slow)');
   const powerNavigator = navigator as NavigatorPowerHints;
   const connection = powerNavigator.connection ?? null;
-  const planets = [...field.querySelectorAll<HTMLElement>('.auth-planet')];
+  /* Narrow viewports hide some destinations (display: none); flights must
+     only target bodies that are actually drawn. */
+  const planets = [...field.querySelectorAll<HTMLElement>('.auth-planet')].filter(
+    (planet) => planet.offsetWidth > 0,
+  );
   const hero = field.closest('.hero') as HTMLElement | null;
   const defenseLayer = hero?.querySelector<HTMLElement>('[data-authorization-defense-layer]') ?? null;
   const tooltipLayer = defenseLayer ?? field;

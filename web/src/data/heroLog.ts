@@ -43,12 +43,15 @@ export const AUDIENCES: LogAudience[] = [
   { slug: 'zoom', domain: 'zoom.us' },
 ];
 
-/** The four planets that are actually animated map to fixed audiences. */
+/** The animated planets map to fixed audiences. */
 export const PLANET_AUDIENCE: Record<string, string> = {
   finance: 'paypal.com',
   identity: 'linkedin.com',
   device: 'google.com',
   challenge: 'cloudflare.com',
+  source: 'github.com',
+  billing: 'stripe.com',
+  inference: 'openai.com',
 };
 
 export type LogClient = { slug: string; name: string };

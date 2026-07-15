@@ -1,12 +1,18 @@
 import { onCleanup, onMount } from 'solid-js';
 import { startHeroAuthorizationSequence } from '../lib/heroAuthorization';
 import { startPlanetParallax } from '../lib/heroParallax';
+import { iconURL } from '../data/heroLog';
 
+/* Labels lead with the brand on the globe; the role is the subtitle. The
+   last three destinations only render on wider viewports (hidden ≤679px). */
 const PLANETS = [
-  { tone: 'finance', provider: 'paypal', title: 'money', sub: 'PayPal task' },
-  { tone: 'identity', provider: 'linkedin', title: 'identity', sub: 'LinkedIn task' },
-  { tone: 'device', provider: 'google', title: 'device cloud', sub: 'phone, laptop, tablet, agent' },
-  { tone: 'challenge', provider: 'cloudflare', title: 'challenge', sub: 'security prompt' },
+  { tone: 'finance', provider: 'paypal', title: 'PayPal', sub: 'payments task' },
+  { tone: 'identity', provider: 'linkedin', title: 'LinkedIn', sub: 'identity task' },
+  { tone: 'device', provider: 'google', title: 'Google', sub: 'device cloud' },
+  { tone: 'challenge', provider: 'cloudflare', title: 'Cloudflare', sub: 'security prompt' },
+  { tone: 'source', provider: 'github', title: 'GitHub', sub: 'code & CI' },
+  { tone: 'billing', provider: 'stripe', title: 'Stripe', sub: 'billing task' },
+  { tone: 'inference', provider: 'openai', title: 'OpenAI', sub: 'model calls' },
 ] as const;
 
 type PlanetProvider = (typeof PLANETS)[number]['provider'];
@@ -19,6 +25,10 @@ function ProviderSymbol(props: { provider: PlanetProvider }) {
         <path class="auth-provider-cloudline" d="M1 27h32.5M6.5 22.2h27.8" />
       </svg>
     );
+  }
+
+  if (props.provider === 'github' || props.provider === 'stripe' || props.provider === 'openai') {
+    return <img class="auth-provider-symbol auth-provider-icon" src={iconURL(props.provider)} alt="" aria-hidden="true" />;
   }
 
   return (

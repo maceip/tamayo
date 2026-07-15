@@ -398,6 +398,9 @@
     opacity: .82;
     transform: translate3d(-50%, calc(-50% + (var(--parallax-factor) * var(--parallax-scroll))), 0);
   }
+  /* Each globe is a single brand hue (--planet-ink, set per tone below):
+     white highlight, mid tint, deep tint of the same color. Terrain and
+     shading layers reuse the ink so nothing multicolored shows through. */
   .auth-planet-body {
     position: relative;
     isolation: isolate;
@@ -408,7 +411,12 @@
     background:
       radial-gradient(circle at 34% 28%, rgba(255,255,255,.95) 0 10%, transparent 11%),
       radial-gradient(circle at 58% 64%, rgba(255,255,255,.22), transparent 36%),
-      linear-gradient(145deg, rgba(245,247,250,.95), rgba(255,214,77,.58) 46%, rgba(178,188,204,.62));
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--planet-ink, #6b87b4) 10%, white),
+        color-mix(in srgb, var(--planet-ink, #6b87b4) 42%, white) 46%,
+        color-mix(in srgb, var(--planet-ink, #6b87b4) 58%, #d6deea)
+      );
     box-shadow:
       inset -16px -18px 34px rgba(15,44,92,.12),
       inset 12px 14px 22px rgba(255,255,255,.42),
@@ -456,6 +464,12 @@
     overflow: hidden;
     border-radius: 50%;
     pointer-events: none;
+    /* Terrain fields are alpha variations of the globe's single ink. */
+    background:
+      radial-gradient(ellipse at 27% 56%, color-mix(in srgb, var(--planet-ink, #6b87b4) 30%, transparent) 0 17%, transparent 18%),
+      radial-gradient(ellipse at 70% 30%, color-mix(in srgb, var(--planet-ink, #6b87b4) 24%, transparent) 0 19%, transparent 20%),
+      radial-gradient(ellipse at 62% 78%, color-mix(in srgb, var(--planet-ink, #6b87b4) 18%, transparent) 0 15%, transparent 16%),
+      radial-gradient(circle at 78% 22%, rgba(255,255,255,.26) 0 8%, transparent 9%);
   }
   .auth-planet-surface-id::before {
     content: "";
@@ -526,11 +540,6 @@
     --provider-mark-rotate: -12deg;
     --provider-mark-yaw: -20deg;
     color: #003087;
-    background:
-      radial-gradient(ellipse at 25% 58%, rgba(0,48,135,.38) 0 17%, transparent 18%),
-      radial-gradient(ellipse at 72% 31%, rgba(0,156,222,.38) 0 19%, transparent 20%),
-      radial-gradient(ellipse at 66% 82%, rgba(0,48,135,.2) 0 15%, transparent 16%),
-      linear-gradient(145deg, rgba(255,255,255,.06), rgba(0,156,222,.13));
   }
   .provider-paypal .auth-provider-symbol {
     width: .8em;
@@ -553,11 +562,6 @@
     --provider-mark-yaw: 17deg;
     --provider-mark-opacity: .76;
     color: #075a8c;
-    background:
-      radial-gradient(ellipse at 29% 34%, rgba(10,102,194,.38) 0 18%, transparent 19%),
-      radial-gradient(ellipse at 68% 65%, rgba(10,102,194,.28) 0 22%, transparent 23%),
-      radial-gradient(circle at 79% 24%, rgba(255,255,255,.26) 0 8%, transparent 9%),
-      linear-gradient(132deg, rgba(10,102,194,.05), rgba(10,102,194,.2));
   }
   .provider-linkedin .auth-provider-symbol {
     height: auto;
@@ -577,11 +581,6 @@
     --provider-mark-yaw: -18deg;
     --provider-mark-opacity: .74;
     color: #185abc;
-    background:
-      radial-gradient(ellipse at 27% 38%, rgba(66,133,244,.31) 0 17%, transparent 18%),
-      radial-gradient(ellipse at 70% 27%, rgba(234,67,53,.24) 0 15%, transparent 16%),
-      radial-gradient(ellipse at 34% 78%, rgba(52,168,83,.24) 0 18%, transparent 19%),
-      radial-gradient(ellipse at 78% 72%, rgba(251,188,5,.26) 0 17%, transparent 18%);
   }
   .provider-google .auth-provider-symbol {
     height: auto;
@@ -598,11 +597,6 @@
     --provider-mark-yaw: 16deg;
     --provider-mark-opacity: .78;
     color: #8c3d00;
-    background:
-      radial-gradient(ellipse at 23% 64%, rgba(246,130,31,.29) 0 18%, transparent 19%),
-      radial-gradient(ellipse at 51% 43%, rgba(250,174,64,.34) 0 23%, transparent 24%),
-      radial-gradient(ellipse at 80% 67%, rgba(246,130,31,.25) 0 19%, transparent 20%),
-      radial-gradient(circle at 70% 25%, rgba(255,255,255,.28) 0 9%, transparent 10%);
   }
   .provider-cloudflare .auth-provider-symbol {
     width: clamp(34px, calc(var(--planet-size) * .39), 72px);
@@ -613,6 +607,12 @@
     stroke: #faae40;
     stroke-width: 2.4;
     stroke-linecap: round;
+  }
+  /* Vendored brand icons (GitHub, Stripe, OpenAI) used as surface emblems. */
+  .auth-provider-icon {
+    width: auto;
+    height: clamp(24px, calc(var(--planet-size) * .3), 52px);
+    filter: saturate(.9);
   }
   .auth-planet-label {
     position: absolute;
@@ -641,37 +641,55 @@
     background: none;
     border: none;
   }
-  .auth-planet.finance { --planet-x: 85vw; --planet-y: calc(66svh + var(--hero-flight-y-shift)); }
+  /* One brand ink per destination; the body and terrain derive every layer
+     from it. Positions fan the seven globes across the flight field. */
+  .auth-planet.finance {
+    --planet-ink: #0070ba;
+    --planet-x: 85vw;
+    --planet-y: calc(66svh + var(--hero-flight-y-shift));
+  }
   .auth-planet.identity {
+    --planet-ink: #0a66c2;
     --planet-x: 13vw;
     --planet-y: calc(82svh + var(--hero-flight-y-shift));
   }
-  .auth-planet.identity .auth-planet-body {
-    background:
-      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
-      radial-gradient(circle at 62% 62%, rgba(255,255,255,.18), transparent 35%),
-      linear-gradient(145deg, rgba(245,247,250,.96), rgba(25,185,135,.46) 48%, rgba(178,188,204,.68));
-  }
   .auth-planet.device {
+    --planet-ink: #4285f4;
     --planet-x: 28vw;
     --planet-y: calc(64svh + var(--hero-flight-y-shift));
   }
-  .auth-planet.device .auth-planet-body {
-    background:
-      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
-      radial-gradient(circle at 60% 60%, rgba(255,255,255,.2), transparent 36%),
-      linear-gradient(145deg, rgba(245,247,250,.95), rgba(35,104,255,.34) 50%, rgba(178,188,204,.74));
-  }
   .auth-planet.challenge {
+    --planet-ink: #f6821f;
     --planet-x: 88vw;
     --planet-y: calc(80svh + var(--hero-flight-y-shift));
   }
-  .auth-planet.challenge .auth-planet-body {
-    background:
-      radial-gradient(circle at 35% 30%, rgba(255,255,255,.95) 0 11%, transparent 12%),
-      radial-gradient(circle at 64% 62%, rgba(255,255,255,.18), transparent 36%),
-      linear-gradient(145deg, rgba(245,247,250,.94), rgba(217,75,197,.26) 44%, rgba(178,188,204,.74));
+  .auth-planet.source {
+    --planet-ink: #57606a;
+    --planet-x: 45vw;
+    --planet-y: calc(90svh + var(--hero-flight-y-shift));
   }
+  .auth-planet.billing {
+    --planet-ink: #635bff;
+    --planet-x: 72vw;
+    --planet-y: calc(78svh + var(--hero-flight-y-shift));
+  }
+  .auth-planet.inference {
+    --planet-ink: #10a37f;
+    --planet-x: 58vw;
+    --planet-y: calc(84svh + var(--hero-flight-y-shift));
+  }
+  /* The three newer destinations read as mid-field traffic: smaller, a touch
+     dimmer, and without captions so they never fight the copy or the log. */
+  .auth-planet.source,
+  .auth-planet.billing,
+  .auth-planet.inference {
+    --planet-size: calc(clamp(62px, 7vw, 100px) * var(--planet-scale));
+    --orbit-size: calc(clamp(94px, 10.5vw, 140px) * var(--planet-scale));
+    opacity: .68;
+  }
+  .auth-planet.source .auth-planet-label,
+  .auth-planet.billing .auth-planet-label,
+  .auth-planet.inference .auth-planet-label { display: none; }
   .authorization-flight {
     --planet-x: 50vw;
     --planet-y: calc(50svh + var(--hero-flight-y-shift));
@@ -3890,6 +3908,9 @@
     .auth-planet.identity { --planet-x: 18vw; --planet-y: calc(84svh + var(--hero-flight-y-shift)); }
     .auth-planet.device { --planet-x: 30vw; --planet-y: calc(66svh + var(--hero-flight-y-shift)); }
     .auth-planet.challenge { --planet-x: 84vw; --planet-y: calc(82svh + var(--hero-flight-y-shift)); }
+    .auth-planet.source { --planet-x: 46vw; --planet-y: calc(90svh + var(--hero-flight-y-shift)); }
+    .auth-planet.billing { --planet-x: 66vw; --planet-y: calc(78svh + var(--hero-flight-y-shift)); }
+    .auth-planet.inference { --planet-x: 54vw; --planet-y: calc(64svh + var(--hero-flight-y-shift)); }
     .story-grid, .token-layout, .principles, .runtime-model, .primitive-notes, .agent-stats, .crypto-provenance, .case-grid, .qs-grid { grid-template-columns: 1fr; }
     .case-wire-row { grid-template-columns: 1fr; gap: 4px; }
     .hw-table { display: block; overflow-x: auto; }
@@ -4020,6 +4041,11 @@
     /* No room for orbit captions between the copy and the log on a phone;
        the provider marks already identify each destination. */
     .auth-planet-label { display: none; }
+    /* The band between copy and ticker only fits the four core destinations;
+       the flight controller skips planets that are not drawn. */
+    .auth-planet.source,
+    .auth-planet.billing,
+    .auth-planet.inference { display: none; }
     .hero-tui-cols { display: none; }
     .hero-tui-rows {
       --ticker-row-height-px: 110;
