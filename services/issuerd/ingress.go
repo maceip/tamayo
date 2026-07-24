@@ -53,7 +53,9 @@ func (s *server) handleIncomingMail(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	s.markVerified(sess, canonical)
+	if !s.markVerified(sess, canonical) {
+		return fmt.Errorf("session %q is already verified", sessionID)
+	}
 	return nil
 }
 

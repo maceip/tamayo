@@ -324,19 +324,31 @@ func (s *server) handleVerifyCode(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusForbidden, err.Error())
 		return
 	}
-	s.markVerified(sess, canonical)
+	if !s.markVerified(sess, canonical) {
+		writeErr(w, http.StatusConflict, "session is already verified")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": statusVerified})
 }
 
 // markVerified computes the keyed bucket for the canonical address and
-// drops the plaintext — the session only ever stores the bucket.
-func (s *server) markVerified(sess *session, canonical string) {
+// drops the plaintext. The pending check and update share one lock so a
+// later verification cannot replace the session's first mailbox binding.
+func (s *server) markVerified(sess *session, canonical string) bool {
 	bucket := mailbox.BucketID(s.gateKey, canonical)
 	s.mu.Lock()
+	if sess.Status != statusPending {
+		s.mu.Unlock()
+		return false
+	}
 	sess.Status = statusVerified
 	sess.Bucket = hex.EncodeToString(bucket[:])
+	sessionID := sess.ID
+	mode := sess.Mode
+	bucketPrefix := sess.Bucket[:12]
 	s.mu.Unlock()
-	s.log.Info("session verified", "session", sess.ID, "mode", sess.Mode, "bucket", sess.Bucket[:12])
+	s.log.Info("session verified", "session", sessionID, "mode", mode, "bucket", bucketPrefix)
+	return true
 }
 
 func (s *server) getSession(id string) (*session, bool) {
